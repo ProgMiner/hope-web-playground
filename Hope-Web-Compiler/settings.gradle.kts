@@ -28,13 +28,7 @@ dependencyResolutionManagement {
     }
 }
 
-plugins {
-    id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
-}
-
 include(":composeApp")
-include(":server")
-include(":shared")
-include("codegen")
-include("parser")
-include("typecheck")
+include(":codegen")
+include(":typecheck")
+include(":parser")

@@ -3,7 +3,7 @@ package com.compiler.hope_web_compiler
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-class SharedCommonTest {
+class ComposeAppWebTest {
 
     @Test
     fun example() {
