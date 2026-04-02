@@ -1,0 +1,10 @@
+{
+  "name": "hopec-driver",
+  "version": "0.0.1",
+  "main": "kotlin/hopec-driver.mjs",
+  "devDependencies": {},
+  "dependencies": {},
+  "peerDependencies": {},
+  "optionalDependencies": {},
+  "bundledDependencies": []
+}

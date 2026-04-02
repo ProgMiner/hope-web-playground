@@ -1,0 +1,409 @@
+==================
+Multiple postfixes
+==================
+
+x () [3] (1, 2, 3) . string
+
+---
+
+(compilation_unit
+  (scope_expression
+    (expression
+      (postfix_expression
+        (dot_expression
+          (expression
+            (postfix_expression
+              (postfix_expression
+                (postfix_expression
+                  (postfix_expression
+                    (lident)))
+                (expression
+                  (postfix_expression
+                    (decimal))))
+              (expression
+                (postfix_expression
+                  (decimal)))
+              (expression
+                (postfix_expression
+                  (decimal)))
+              (expression
+                (postfix_expression
+                  (decimal)))))
+          (lident))))))
+
+==================
+Skip
+==================
+
+skip
+
+---
+
+(compilation_unit
+  (scope_expression
+    (expression
+      (postfix_expression))))
+
+==================
+Let
+==================
+
+let p = e in b
+
+---
+
+(compilation_unit
+  (scope_expression
+    (expression
+      (postfix_expression
+        (let_expression
+          (pattern
+            (simple_pattern
+              (binding
+                (lident))))
+          (expression
+            (postfix_expression
+              (lident)))
+          (expression
+            (postfix_expression
+              (lident))))))))
+
+==================
+Conditional
+==================
+
+if c1 then e1
+elif c2 then e2
+else ek + 1
+fi
+
+---
+
+(compilation_unit
+  (scope_expression
+    (expression
+      (postfix_expression
+        (if_expression
+          (expression
+            (postfix_expression
+              (lident)))
+          (scope_expression
+            (expression
+              (postfix_expression
+                (lident))))
+          (else_part
+            (expression
+              (postfix_expression
+                (lident)))
+            (scope_expression
+              (expression
+                (postfix_expression
+                  (lident))))
+            (else_part
+              (scope_expression
+                (expression
+                  (binary_expression
+                    (expression
+                      (postfix_expression
+                        (lident)))
+                    (expression
+                      (postfix_expression
+                        (decimal)))))))))))))
+
+==================
+Conditional nested
+==================
+
+if c1 then e1
+else if c2 then e2
+else ek + 1
+fi
+fi
+
+---
+
+(compilation_unit
+  (scope_expression
+    (expression
+      (postfix_expression
+        (if_expression
+          (expression
+            (postfix_expression
+              (lident)))
+          (scope_expression
+            (expression
+              (postfix_expression
+                (lident))))
+          (else_part
+            (scope_expression
+              (expression
+                (postfix_expression
+                  (if_expression
+                    (expression
+                      (postfix_expression
+                        (lident)))
+                    (scope_expression
+                      (expression
+                        (postfix_expression
+                          (lident))))
+                    (else_part
+                      (scope_expression
+                        (expression
+                          (binary_expression
+                            (expression
+                              (postfix_expression
+                                (lident)))
+                            (expression
+                              (postfix_expression
+                                (decimal)))))))))))))))))
+
+==================
+Do while
+==================
+
+do e while c od
+
+---
+
+(compilation_unit
+  (scope_expression
+    (expression
+      (postfix_expression
+        (do_while_expression
+          (scope_expression
+            (expression
+              (postfix_expression
+                (lident))))
+          (expression
+            (postfix_expression
+              (lident))))))))
+
+==================
+While do equivalent of do while
+==================
+
+e; while c do e od
+
+---
+
+(compilation_unit
+  (scope_expression
+    (expression
+      (postfix_expression
+        (lident)))
+    (expression
+      (postfix_expression
+        (while_do_expression
+          (expression
+            (postfix_expression
+              (lident)))
+          (scope_expression
+            (expression
+              (postfix_expression
+                (lident)))))))))
+
+==================
+Do while with declaration
+==================
+
+do var x = read () while x od
+
+---
+
+(compilation_unit
+  (scope_expression
+    (expression
+      (postfix_expression
+        (do_while_expression
+          (scope_expression
+            (definition
+              (variable_definition
+                (variable_definition_item
+                  (binding
+                    (lident))
+                  (expression
+                    (postfix_expression
+                      (postfix_expression
+                        (lident))))))))
+          (expression
+            (postfix_expression
+              (lident))))))))
+
+==================
+For loop
+==================
+
+for i, c, s do e od
+
+---
+
+(compilation_unit
+  (scope_expression
+    (expression
+      (postfix_expression
+        (for_expression
+          (scope_expression
+            (expression
+              (postfix_expression
+                (lident))))
+          (expression
+            (postfix_expression
+              (lident)))
+          (expression
+            (postfix_expression
+              (lident)))
+          (scope_expression
+            (expression
+              (postfix_expression
+                (lident)))))))))
+
+==================
+While do equivalent of for loop
+==================
+
+i; while c do e; s od
+
+---
+
+(compilation_unit
+  (scope_expression
+    (expression
+      (postfix_expression
+        (lident)))
+    (expression
+      (postfix_expression
+        (while_do_expression
+          (expression
+            (postfix_expression
+              (lident)))
+          (scope_expression
+            (expression
+              (postfix_expression
+                (lident)))
+            (expression
+              (postfix_expression
+                (lident)))))))))
+
+==================
+For loop with counter
+==================
+
+for var i; i := 0, i < 10, i := i + 1 do write (i) od
+
+---
+
+(compilation_unit
+  (scope_expression
+    (expression
+      (postfix_expression
+        (for_expression
+          (scope_expression
+            (definition
+              (variable_definition
+                (variable_definition_item
+                  (binding
+                    (lident)))))
+            (expression
+              (binary_expression
+                (expression
+                  (postfix_expression
+                    (lident)))
+                (expression
+                  (postfix_expression
+                    (decimal))))))
+          (expression
+            (binary_expression
+              (expression
+                (postfix_expression
+                  (lident)))
+              (expression
+                (postfix_expression
+                  (decimal)))))
+          (expression
+            (binary_expression
+              (expression
+                (postfix_expression
+                  (lident)))
+              (expression
+                (binary_expression
+                  (expression
+                    (postfix_expression
+                      (lident)))
+                  (expression
+                    (postfix_expression
+                      (decimal)))))))
+          (scope_expression
+            (expression
+              (postfix_expression
+                (postfix_expression
+                  (lident))
+                (expression
+                  (postfix_expression
+                    (lident)))))))))))
+
+==================
+Pattern match
+==================
+
+case x of
+Nil             -> write (0)
+| Cons (_, Nil) -> write (1)
+| _             -> write (4)
+esac
+
+---
+
+(compilation_unit
+  (scope_expression
+    (expression
+      (postfix_expression
+        (case_expression
+          (expression
+            (postfix_expression
+              (lident)))
+          (case_branches
+            (case_branch
+              (pattern
+                (simple_pattern
+                  (s_expression_pattern
+                    (uident))))
+              (scope_expression
+                (expression
+                  (postfix_expression
+                    (postfix_expression
+                      (lident))
+                    (expression
+                      (postfix_expression
+                        (decimal)))))))
+            (case_branch
+              (pattern
+                (simple_pattern
+                  (s_expression_pattern
+                    (uident)
+                    (pattern
+                      (simple_pattern
+                        (wildcard_pattern)))
+                    (pattern
+                      (simple_pattern
+                        (s_expression_pattern
+                          (uident)))))))
+              (scope_expression
+                (expression
+                  (postfix_expression
+                    (postfix_expression
+                      (lident))
+                    (expression
+                      (postfix_expression
+                        (decimal)))))))
+            (case_branch
+              (pattern
+                (simple_pattern
+                  (wildcard_pattern)))
+              (scope_expression
+                (expression
+                  (postfix_expression
+                    (postfix_expression
+                      (lident))
+                    (expression
+                      (postfix_expression
+                        (decimal)))))))))))))
