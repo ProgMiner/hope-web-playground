@@ -1,5 +1,5 @@
 /**
- * @file Lama grammar for tree-sitter
+ * @file Hope grammar for tree-sitter
  * @author Vasily Fedorov <vasek.fedorov@gmail.com>
  * @license MIT
  */

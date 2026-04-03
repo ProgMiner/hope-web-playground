@@ -15,12 +15,13 @@ To recreate this project with the same configuration:
 
 ```sh
 # recreate this project
-npx sv@0.12.8 create --template minimal --types ts --add prettier eslint tailwindcss="plugins:none" sveltekit-adapter="adapter:static" --install npm hopa
+npx sv@0.12.8 create --template minimal --types ts --add prettier eslint tailwindcss="plugins:none" sveltekit-adapter="adapter:static" --install npm hope-web
 ```
 
 ## Developing
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a
+development server:
 
 ```sh
 npm run dev
@@ -39,4 +40,5 @@ npm run build
 
 You can preview the production build with `npm run preview`.
 
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target
+> environment.
