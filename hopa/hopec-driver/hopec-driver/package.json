@@ -3,7 +3,10 @@
   "version": "0.0.1",
   "main": "kotlin/hopec-driver.mjs",
   "devDependencies": {},
-  "dependencies": {},
+  "dependencies": {
+    "tree-sitter": "^0.25.0",
+    "web-tree-sitter": "^0.26.7"
+  },
   "peerDependencies": {},
   "optionalDependencies": {},
   "bundledDependencies": []

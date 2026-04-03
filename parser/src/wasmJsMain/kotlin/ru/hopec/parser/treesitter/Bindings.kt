@@ -652,14 +652,6 @@ external interface Tree {
     fun walk(): TreeCursor
 
     /**
-     * Get the text for a node within this tree
-     *
-     * @param node - The syntax node to get text for
-     * @returns The source text for the node
-     */
-    fun getText(node: SyntaxNode): String
-
-    /**
      * Compare this edited syntax tree to a new syntax tree representing the
      * same document, returning ranges whose syntactic structure has changed.
      *
@@ -679,21 +671,6 @@ external interface Tree {
      * @returns JsArray of included ranges
      */
     fun getIncludedRanges(): JsArray<Range>
-
-    /**
-     * Get the range that was edited in this tree
-     *
-     * @returns The edited range
-     */
-    fun getEditedRange(): Range
-
-    /**
-     * Print a graph of the tree in the DOT language.
-     * You may want to pipe this to a 'dot' process to generate SVG output.
-     *
-     * @param fd - Optional file descriptor for the output
-     */
-    fun printDotGraph(fd: UInt?)
 }
 
 /**

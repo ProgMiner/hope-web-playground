@@ -6,7 +6,7 @@ export default defineConfig({
 	plugins: [tailwindcss(), sveltekit()],
 	server: {
 		fs: {
-			allow: ['tree-sitter-hope.wasm', 'hopec-driver/']
+			allow: ['tree-sitter-hope.wasm', 'hopec-driver/', '../build/wasm/packages/']
 		}
 	},
 	optimizeDeps: {

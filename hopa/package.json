@@ -12,7 +12,7 @@
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"lint": "prettier --check . && eslint .",
 		"format": "prettier --write .",
-		"postinstall": "cp node_modules/web-tree-sitter/web-tree-sitter.wasm node_modules/.vite/deps/web-tree-sitter.wasm && cp ../tree-sitter-hope/tree-sitter-hope.wasm ./tree-sitter-hope.wasm && cp -r ../build/wasm/packages/hopec-driver ./hopec-driver"
+		"locals": "cp ../tree-sitter-hope/tree-sitter-hope.wasm ./tree-sitter-hope.wasm && cp -r ../build/wasm/packages/hopec-driver ./hopec-driver"
 	},
 	"devDependencies": {
 		"@eslint/compat": "^2.0.2",
@@ -37,6 +37,7 @@
 		"vite": "^7.3.1"
 	},
 	"dependencies": {
+		"hopec-driver": "file:../build/wasm/packages/hopec-driver",
 		"monaco-editor": "^0.55.1",
 		"monaco-themes": "^0.4.8",
 		"svoast": "^3.0.3",

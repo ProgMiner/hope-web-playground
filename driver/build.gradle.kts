@@ -20,6 +20,8 @@ kotlin {
     sourceSets {
         wasmJsMain.dependencies {
             implementation("com.squareup.okio:okio:3.16.2")
+            implementation(npm("tree-sitter", "^0.25.0"))
+            implementation(npm("web-tree-sitter", "^0.26.7"))
             implementation(project(":codegen"))
             implementation(project(":core"))
             implementation(project(":parser"))

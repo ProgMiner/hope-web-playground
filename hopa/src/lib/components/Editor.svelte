@@ -8,6 +8,8 @@
 	import type { Tree } from 'web-tree-sitter';
 	import Appearance from './Appearance.svelte';
 	import Run from './Run.svelte';
+	import { Terminal } from '$lib/entities/terminal.svelte';
+	import TerminalComponent from './TerminalComponent.svelte';
 
 	let { editor = $bindable() }: { editor: MonacoEditor | undefined } = $props();
 	let value: string = $state(
@@ -50,6 +52,7 @@ dec append : tree alpha # list alpha -> list alpha;
 	let view: HTMLDivElement | undefined = $state();
 	let highlight: Highlighting | undefined = $state();
 	let sitter = new TreeSitter();
+	let terminal = new Terminal();
 	let rendered: RenderedTreeRow[] = $state([]);
 
 	onMount(async () => {
@@ -83,10 +86,13 @@ dec append : tree alpha # list alpha -> list alpha;
 <div class="flex h-screen flex-col">
 	<div class="flex flex-row">
 		<Appearance />
-		<Run tree={sitter.currentTree()} />
+		<Run tree={sitter.currentTree()} {terminal} />
 	</div>
 	<div class="flex flex-1 flex-row overflow-auto">
-		<div bind:this={view} id="editor" class="flex flex-2 flex-col"></div>
+		<div class="flex flex-2 flex-col overflow-auto">
+			<div bind:this={view} id="editor" class="flex flex-2 flex-col"></div>
+			<TerminalComponent {terminal} />
+		</div>
 		<div class="flex flex-1 flex-col overflow-auto p-1">
 			<RenderedTreeComponent rows={rendered}></RenderedTreeComponent>
 		</div>

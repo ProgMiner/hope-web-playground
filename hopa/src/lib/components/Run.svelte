@@ -1,17 +1,14 @@
 <script lang="ts">
 	import { Compiler } from '$lib/entities/compiler.svelte';
-	import { onMount } from 'svelte';
+	import type { Terminal } from '$lib/entities/terminal.svelte';
+	import type { Tree } from 'web-tree-sitter';
 
-	let compiler = new Compiler('$lib/../../hopec-driver/kotlin/hopec-driver.wasm', 65536);
-	let { tree } = $props();
-
-	onMount(async () => {
-		await compiler.load();
-	});
+	let compiler = new Compiler();
+	let { tree, terminal }: { tree: Tree | undefined; terminal: Terminal } = $props();
 
 	async function run(): Promise<void> {
-		let compiled = await compiler.compile(tree);
-		console.log(compiled?.exports.add(2, 2));
+		let compiled = await compiler.compile(tree!);
+		terminal.write(compiled?.exports.add(2, 2) + '\n');
 	}
 </script>
 

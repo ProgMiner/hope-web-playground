@@ -14,13 +14,12 @@ kotlin {
     @OptIn(ExperimentalWasmDsl::class)
     wasmJs {
         browser()
-        binaries.executable()
     }
 
     sourceSets {
         wasmJsMain.dependencies {
-            npm("tree-sitter", "^0.25.0")
-            npm("web-tree-sitter", "^0.26.7")
+            implementation(npm("tree-sitter", "^0.25.0"))
+            implementation(npm("web-tree-sitter", "^0.26.7"))
             implementation(project(":core"))
         }
 

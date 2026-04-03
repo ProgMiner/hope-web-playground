@@ -1,38 +1,26 @@
 import type { Tree } from 'web-tree-sitter';
+import * as hopec from 'hopec-driver';
 
 export class Compiler {
+	private readonly run: (input: Tree) => number | undefined;
 	private readonly memory: WebAssembly.Memory;
-	private module: WebAssembly.Instance | undefined;
 
-	constructor(
-		private readonly location: string,
-		limit: number
-	) {
-		this.memory = new WebAssembly.Memory({ initial: 0, maximum: limit });
-	}
-
-	async load(): Promise<void> {
-		console.log('loading...');
-		const compiler = await WebAssembly.instantiateStreaming(fetch(this.location), {
-			js: { mem: this.memory }
-		});
-		console.log('loaded');
-		this.module = compiler.instance;
+	constructor() {
+		this.run = hopec.compile as (input: Tree) => number | undefined;
+		this.memory = hopec.memory as WebAssembly.Memory;
+		this.memory.grow(1);
 	}
 
 	async compile(input: Tree): Promise<WebAssembly.Instance | undefined> {
-		const pointer = module.exports.compile(input) as number | undefined;
-		if (!pointer) {
+		const size = this.run(input);
+		if (!size) {
 			return undefined;
 		}
-		return await this.instantiateModule(pointer);
+		return await this.instantiateModule(size);
 	}
 
-	private async instantiateModule(pointer: number) {
-		const size = new Int32Array(this.memory.buffer)[pointer / 4];
-		const compiled = await WebAssembly.instantiateStreaming(
-			new Response(this.memory.buffer.slice(pointer + 4, pointer + 4 + size))
-		);
+	private async instantiateModule(size: number): Promise<WebAssembly.Instance> {
+		const compiled = await WebAssembly.instantiate(this.memory.buffer.slice(0, size));
 		return compiled.instance;
 	}
 }
