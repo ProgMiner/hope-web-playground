@@ -1,6 +1,7 @@
 ## Build
 
-To build compiler and playground, you will need NPM (easiest to install through [NVM](https://www.nvmnode.com/guide)) and [tree-sitter](https://tree-sitter.github.io/tree-sitter/creating-parsers/1-getting-started.html).
+To build compiler and playground, you will need NPM (easiest to install through [NVM](https://www.nvmnode.com/guide))
+and [tree-sitter](https://tree-sitter.github.io/tree-sitter/creating-parsers/1-getting-started.html).
 
 ### Tree-sitter
 
@@ -20,7 +21,7 @@ After this command, you should be able to locate built WASM & JS modules under t
 ### Web
 
 ```
-cd hopa
+cd hope-web
 npm run locals
 npm install
 npm run dev
