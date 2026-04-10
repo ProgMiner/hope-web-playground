@@ -1,6 +1,10 @@
 @file:OptIn(ExperimentalWasmJsInterop::class)
+@file:JsModule("web-tree-sitter") // Замените на имя вашего пакета
+//@file:JsModule("tree-sitter") // Замените на имя вашего пакета
 
 package ru.hopec.parser.treesitter
+
+import kotlin.js.Promise
 
 open external class Parser {
     /**
@@ -24,6 +28,10 @@ open external class Parser {
      * @throws JsException May fail if no language has been set or parsing was halted.
      */
     fun parse(input: JsAny, oldTree: Tree?, options: Options?): Tree
+
+    companion object {
+        fun init(): Promise<JsAny?>
+    }
 
     /**
      * Get the ranges of text that the parser will include when parsing.
@@ -787,7 +795,7 @@ open external class Query {
      * Disable a certain capture within a query.
      *
      * This prevents the capture from being returned in matches, and also
-     * avoids any resource usage associated with recording the capture.
+     * avoids any resource usage associated with recording the capture.q
      *
      * @param captureName - The name of the capture to disable
      */
@@ -933,6 +941,6 @@ open external class Language : JsAny {
     val language: JsAny
 
     companion object {
-        fun load(input: String): Language?
+        fun load(input: String): Promise<Language>
     }
 }

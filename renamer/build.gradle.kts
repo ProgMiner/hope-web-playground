@@ -13,19 +13,34 @@ repositories {
 kotlin {
     @OptIn(ExperimentalWasmDsl::class)
     wasmJs {
-        browser()
+
+
+        browser {
+            testTask {
+                useKarma {
+                    useFirefoxHeadless()
+                }
+            }
+        }
     }
 
     sourceSets {
-        wasmJsMain.dependencies {
-            implementation(project(":core"))
-            implementation(project(":parser"))
-        }
-
-        wasmJsMain.configure {
-            compilerOptions {
-                freeCompilerArgs.add("-Xwasm-use-new-exception-proposal")
+        val wasmJsMain by getting {
+            dependencies {
+                implementation("org.jetbrains.kotlinx:kotlinx-browser:0.5.0")
+                implementation(npm("tree-sitter", "^0.25.0"))
+                implementation(npm("web-tree-sitter", "^0.26.7"))
+                implementation(project(":core"))
+                implementation(project(":parser"))
+                implementation(kotlin("test"))
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
             }
+                resources.srcDirs("src/wasmJsMain/resources", "src/wasmJsTest/resources")
+                compilerOptions {
+                    freeCompilerArgs.add("-Xwasm-use-new-exception-proposal")
+                }
+
         }
     }
 }

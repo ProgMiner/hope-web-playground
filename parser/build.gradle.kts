@@ -13,7 +13,13 @@ repositories {
 kotlin {
     @OptIn(ExperimentalWasmDsl::class)
     wasmJs {
-        browser()
+        browser{
+            testTask {
+                useKarma {
+                    useFirefox()
+                }
+            }
+        }
     }
 
     sourceSets {
@@ -21,6 +27,7 @@ kotlin {
             implementation(npm("tree-sitter", "^0.25.0"))
             implementation(npm("web-tree-sitter", "^0.26.7"))
             implementation(project(":core"))
+            implementation(kotlin("test"))
         }
 
         wasmJsMain.configure {
