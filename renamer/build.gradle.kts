@@ -14,8 +14,7 @@ kotlin {
     @OptIn(ExperimentalWasmDsl::class)
     wasmJs {
 
-
-        browser {
+        nodejs {
             testTask {
                 useKarma {
                     useFirefoxHeadless()
@@ -25,7 +24,11 @@ kotlin {
     }
 
     sourceSets {
-        val wasmJsMain by getting {
+        wasmJsTest {
+            resources.srcDirs("src/wasmJsTest/resources")
+        }
+
+        wasmJsMain {
             dependencies {
                 implementation("org.jetbrains.kotlinx:kotlinx-browser:0.5.0")
                 implementation(npm("tree-sitter", "^0.25.0"))
@@ -36,11 +39,10 @@ kotlin {
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
             }
-                resources.srcDirs("src/wasmJsMain/resources", "src/wasmJsTest/resources")
-                compilerOptions {
-                    freeCompilerArgs.add("-Xwasm-use-new-exception-proposal")
-                }
-
+            resources.srcDirs("src/wasmJsMain/resources")
+            compilerOptions {
+                freeCompilerArgs.add("-Xwasm-use-new-exception-proposal")
+            }
         }
     }
 }
