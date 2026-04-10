@@ -2,4 +2,4 @@ package ru.hopec.renamer
 
 import ru.hopec.core.Representation
 
-class RenamedRepresentation : Representation
+data class RenamedRepresentation(val topLevelNodes: List<AstNode.TopLevelNode>): Representation
