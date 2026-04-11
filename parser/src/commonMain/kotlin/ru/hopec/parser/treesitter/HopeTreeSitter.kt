@@ -68,6 +68,11 @@ interface TsSyntaxNode {
     val tree: TsTree
 
     /**
+     * Textual contents of the node
+     */
+    val text: String
+
+    /**
      * This node's type as a numeric id
      */
     val typeId: UInt

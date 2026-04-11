@@ -6,7 +6,7 @@ import java.io.File
 private class JavaParser(val delegate: TSParser) : TsParser {
 
     override fun parse(input: String): TsTree =
-        JavaTree(delegate.parseString(null, input))
+        JavaTree(input, delegate.parseString(null, input))
 
     override fun getIncludedRanges(): List<TsRange> = delegate.getIncludedRanges().toList().map { JavaRange(it) }
 
@@ -19,20 +19,23 @@ private class JavaParser(val delegate: TSParser) : TsParser {
     }
 }
 
-private class JavaTree(val delegate: TSTree) : TsTree {
-    override val rootNode: TsSyntaxNode = delegate.rootNode.wrap()
+private class JavaTree(val text: String, val delegate: TSTree) : TsTree {
+    override val rootNode: TsSyntaxNode = delegate.rootNode.wrap(this)
 
     override fun rootNodeWithOffset(offsetBytes: UInt, offsetExtent: TsPoint): TsSyntaxNode =
-        delegate.getRootNodeWithOffset(offsetBytes.toInt(), offsetExtent.inner()).wrap()
+        delegate.getRootNodeWithOffset(offsetBytes.toInt(), offsetExtent.inner()).wrap(this)
 
-    override fun walk(): TsTreeCursor = JavaTreeCursor(TSTreeCursor(delegate.rootNode))
+    override fun walk(): TsTreeCursor = JavaTreeCursor(this, TSTreeCursor(delegate.rootNode))
 
     override fun getIncludedRanges(): List<TsRange> =
         delegate.getIncludedRanges().toList().map { JavaRange(it) }
 }
 
-private class JavaSyntaxNode(val delegate: TSNode) : TsSyntaxNode {
-    override val tree: TsTree by lazy { JavaTree(delegate.tree) }
+private class JavaSyntaxNode(override val tree: JavaTree, val delegate: TSNode) : TsSyntaxNode {
+
+    override val text: String by lazy {
+        tree.text.toByteArray().copyOfRange(startIndex.toInt(), endIndex.toInt()).toString(Charsets.UTF_8)
+    }
 
     override val typeId: UInt = delegate.symbol.toUInt()
 
@@ -64,7 +67,7 @@ private class JavaSyntaxNode(val delegate: TSNode) : TsSyntaxNode {
 
     override val endIndex: UInt = delegate.endByte.toUInt()
 
-    override val parent: TsSyntaxNode? by lazy { delegate.parent?.nonNull()?.wrap() }
+    override val parent: TsSyntaxNode? by lazy { delegate.parent?.nonNull()?.wrap(tree) }
 
     override val childCount: UInt by lazy { delegate.childCount.toUInt() }
 
@@ -82,25 +85,25 @@ private class JavaSyntaxNode(val delegate: TSNode) : TsSyntaxNode {
 
     override val lastNamedChild: TsSyntaxNode? by lazy { namedChild(namedChildCount - 1U) }
 
-    override val nextSibling: TsSyntaxNode? by lazy { delegate.nextSibling?.nonNull()?.wrap() }
+    override val nextSibling: TsSyntaxNode? by lazy { delegate.nextSibling?.nonNull()?.wrap(tree) }
 
-    override val nextNamedSibling: TsSyntaxNode? by lazy { delegate.nextNamedSibling?.nonNull()?.wrap() }
+    override val nextNamedSibling: TsSyntaxNode? by lazy { delegate.nextNamedSibling?.nonNull()?.wrap(tree) }
 
-    override val previousSibling: TsSyntaxNode? by lazy { delegate.prevSibling?.nonNull()?.wrap() }
+    override val previousSibling: TsSyntaxNode? by lazy { delegate.prevSibling?.nonNull()?.wrap(tree) }
 
-    override val previousNamedSibling: TsSyntaxNode? by lazy { delegate.prevNamedSibling?.nonNull()?.wrap() }
+    override val previousNamedSibling: TsSyntaxNode? by lazy { delegate.prevNamedSibling?.nonNull()?.wrap(tree) }
 
     override fun toString(): String = delegate.toString()
 
-    override fun child(index: UInt): TsSyntaxNode? = delegate.getChild(index.toInt())?.nonNull()?.wrap()
+    override fun child(index: UInt): TsSyntaxNode? = delegate.getChild(index.toInt())?.nonNull()?.wrap(tree)
 
-    override fun namedChild(index: UInt): TsSyntaxNode? = delegate.getNamedChild(index.toInt())?.nonNull()?.wrap()
+    override fun namedChild(index: UInt): TsSyntaxNode? = delegate.getNamedChild(index.toInt())?.nonNull()?.wrap(tree)
 
     override fun childForFieldName(fieldName: String): TsSyntaxNode? =
-        delegate.getChildByFieldName(fieldName)?.nonNull()?.wrap()
+        delegate.getChildByFieldName(fieldName)?.nonNull()?.wrap(tree)
 
     override fun childForFieldId(fieldId: UInt): TsSyntaxNode? =
-        delegate.getChildByFieldId(fieldId.toInt())?.nonNull()?.wrap()
+        delegate.getChildByFieldId(fieldId.toInt())?.nonNull()?.wrap(tree)
 
     override fun fieldNameForChild(childIndex: UInt): String? = delegate.getFieldNameForChild(childIndex.toInt())
 
@@ -108,35 +111,35 @@ private class JavaSyntaxNode(val delegate: TSNode) : TsSyntaxNode {
         delegate.getFieldNameForNamedChild(namedChildIndex.toInt())
 
     override fun firstChildForIndex(index: UInt): TsSyntaxNode? =
-        delegate.getFirstChildForByte(index.toInt())?.nonNull()?.wrap()
+        delegate.getFirstChildForByte(index.toInt())?.nonNull()?.wrap(tree)
 
     override fun firstNamedChildForIndex(index: UInt): TsSyntaxNode? =
-        delegate.getFirstNamedChildForByte(index.toInt())?.nonNull()?.wrap()
+        delegate.getFirstNamedChildForByte(index.toInt())?.nonNull()?.wrap(tree)
 
     override fun childWithDescendant(descendant: TsSyntaxNode): TsSyntaxNode? =
-        delegate.getChildWithDescendant(descendant.inner())?.nonNull()?.wrap()
+        delegate.getChildWithDescendant(descendant.inner())?.nonNull()?.wrap(tree)
 
     override fun descendantForIndex(index: UInt): TsSyntaxNode = descendantForIndex(index, index)
 
     override fun descendantForIndex(startIndex: UInt, endIndex: UInt): TsSyntaxNode =
-        delegate.getDescendantForByteRange(startIndex.toInt(), endIndex.toInt()).wrap()
+        delegate.getDescendantForByteRange(startIndex.toInt(), endIndex.toInt()).wrap(tree)
 
     override fun namedDescendantForIndex(index: UInt): TsSyntaxNode = namedDescendantForIndex(index, index)
 
     override fun namedDescendantForIndex(startIndex: UInt, endIndex: UInt): TsSyntaxNode =
-        delegate.getNamedDescendantForByteRange(startIndex.toInt(), endIndex.toInt()).wrap()
+        delegate.getNamedDescendantForByteRange(startIndex.toInt(), endIndex.toInt()).wrap(tree)
 
     override fun descendantForPosition(position: TsPoint): TsSyntaxNode =
         descendantForPosition(position, position)
 
     override fun descendantForPosition(startPosition: TsPoint, endPosition: TsPoint): TsSyntaxNode =
-        delegate.getDescendantForPointRange(startPosition.inner(), endPosition.inner()).wrap()
+        delegate.getDescendantForPointRange(startPosition.inner(), endPosition.inner()).wrap(tree)
 
     override fun namedDescendantForPosition(position: TsPoint): TsSyntaxNode =
         namedDescendantForPosition(position, position)
 
     override fun namedDescendantForPosition(startPosition: TsPoint, endPosition: TsPoint): TsSyntaxNode =
-        delegate.getNamedDescendantForPointRange(startPosition.inner(), endPosition.inner()).wrap()
+        delegate.getNamedDescendantForPointRange(startPosition.inner(), endPosition.inner()).wrap(tree)
 
     override fun descendantsOfType(
         types: List<String>,
@@ -155,7 +158,7 @@ private class JavaSyntaxNode(val delegate: TSNode) : TsSyntaxNode {
         return parent?.closest(types)
     }
 
-    override fun walk(): TsTreeCursor = JavaTreeCursor(TSTreeCursor(delegate))
+    override fun walk(): TsTreeCursor = JavaTreeCursor(tree, TSTreeCursor(delegate))
 
 }
 
@@ -163,7 +166,7 @@ fun TSNode.depth(): UInt = (parent?.depth() ?: 0U) + 1U
 
 fun TSNode.nonNull(): TSNode? = if (isNull) null else this
 
-private class JavaTreeCursor(val delegate: TSTreeCursor) : TsTreeCursor {
+private class JavaTreeCursor(tree: JavaTree, val delegate: TSTreeCursor) : TsTreeCursor {
     override val nodeType: String = node().type
 
     override val nodeTypeId: UInt = node().symbol.toUInt()
@@ -182,7 +185,7 @@ private class JavaTreeCursor(val delegate: TSTreeCursor) : TsTreeCursor {
 
     override val endIndex: UInt = node().endByte.toUInt()
 
-    override val currentNode: TsSyntaxNode = node().wrap()
+    override val currentNode: TsSyntaxNode = node().wrap(tree)
 
     override val currentFieldName: String = delegate.currentFieldName()
 
@@ -225,10 +228,12 @@ private class JavaRange(delegate: TSRange) : TsRange {
 
 private class JavaQuery(val delegate: TSQuery) : TsQuery {
     override fun captures(node: TsSyntaxNode): List<TsQueryCapture> =
-        TSQueryCursor().captures.asSequence().flatMap { it.captures.asSequence() }.map { JavaQueryCapture(it) }.toList()
+        TSQueryCursor().captures.asSequence().flatMap { it.captures.asSequence() }
+            .map { JavaQueryCapture(node.innerTree(), it) }
+            .toList()
 
     override fun matches(node: TsSyntaxNode): List<TsQueryMatch> =
-        TSQueryCursor().matches.asSequence().map { JavaQueryMatch(it) }.toList()
+        TSQueryCursor().matches.asSequence().map { JavaQueryMatch(node.innerTree(), it) }.toList()
 
     override fun disableCapture(captureName: String) = delegate.disableCapture(captureName)
 
@@ -247,14 +252,14 @@ private class JavaQuery(val delegate: TSQuery) : TsQuery {
     override fun endIndexForPattern(patternIndex: UInt): UInt =
         delegate.getEndByteForPattern(patternIndex.toInt()).toUInt()
 
-    private class JavaQueryCapture(delegate: TSQueryCapture) : TsQueryCapture {
-        override val node: TsSyntaxNode = delegate.node.wrap()
+    private class JavaQueryCapture(tree: JavaTree, delegate: TSQueryCapture) : TsQueryCapture {
+        override val node: TsSyntaxNode = delegate.node.wrap(tree)
     }
 
-    private class JavaQueryMatch(delegate: TSQueryMatch) : TsQueryMatch {
+    private class JavaQueryMatch(tree: JavaTree, delegate: TSQueryMatch) : TsQueryMatch {
         override val pattern: UInt = delegate.patternIndex.toUInt()
 
-        override val captures: List<TsQueryCapture> = delegate.captures.toList().map { JavaQueryCapture(it) }
+        override val captures: List<TsQueryCapture> = delegate.captures.toList().map { JavaQueryCapture(tree, it) }
     }
 }
 
@@ -274,7 +279,9 @@ private fun TsLanguage.inner(): TSLanguage = (this as JavaLanguage).delegate
 
 private fun TsSyntaxNode.inner(): TSNode = (this as JavaSyntaxNode).delegate
 
-private fun TSNode.wrap(): JavaSyntaxNode = JavaSyntaxNode(this)
+private fun TsSyntaxNode.innerTree(): JavaTree = (this as JavaSyntaxNode).tree
+
+private fun TSNode.wrap(tree: JavaTree): JavaSyntaxNode = JavaSyntaxNode(tree, this)
 
 fun TsPoint.inner(): TSPoint = (this as JavaPoint).delegate
 

@@ -20,6 +20,11 @@ class TreeSitterTest {
         assertEquals(1U, parseHello().rootNode.childCount)
     }
 
+    @Test
+    fun `node contains text`() {
+        assertEquals("""write "Hello world\n"""", parseHello().rootNode.text)
+    }
+
     private fun parseHello(): TsTree =
         parseHope(findSharedLibrary(), Resource("hello.hope").readText())
 

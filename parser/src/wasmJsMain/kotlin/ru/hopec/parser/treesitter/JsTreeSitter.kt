@@ -31,6 +31,8 @@ private class JsRange(delegate: Range) : TsRange {
 private class JsSyntaxNode(val delegate: SyntaxNode) : TsSyntaxNode {
     override val tree: TsTree by lazy { JsTree(delegate.tree) }
 
+    override val text: String = delegate.text
+
     override val typeId: UInt = delegate.typeId
 
     override val grammarId: UInt = delegate.grammarId
