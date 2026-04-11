@@ -29,6 +29,11 @@ npm run dev
 
 ## Usage
 
+### Web interface
+
 Click "Run"
 
-TODO
+### CLI
+
+There is also a JVM-based CLI application which can be used to compile HOPE.
+You can run it like a regular Kotlin app if you have JDK 21+.
