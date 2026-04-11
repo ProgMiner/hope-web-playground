@@ -8,7 +8,9 @@ class KnownTheme {
 	) {}
 
 	load(): Promise<editor.IStandaloneThemeData> {
-		return import(`../assets/themes/${this.name}.json`);
+		return import(/* @vite-ignore */ `../assets/themes/${this.name}.json`, {
+			assert: { type: 'json' }
+		});
 	}
 
 	monacoKey(): string {

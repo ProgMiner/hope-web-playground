@@ -11,13 +11,15 @@ repositories {
 }
 
 kotlin {
+    jvm()
+
     @OptIn(ExperimentalWasmDsl::class)
     wasmJs {
         browser()
     }
 
     sourceSets {
-        wasmJsMain.dependencies {
+        commonMain.dependencies {
             implementation(project(":core"))
             implementation(project(":parser"))
         }

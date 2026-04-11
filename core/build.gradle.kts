@@ -11,15 +11,14 @@ repositories {
 }
 
 kotlin {
+    jvm()
+
     @OptIn(ExperimentalWasmDsl::class)
     wasmJs {
         browser()
     }
 
     sourceSets {
-        wasmJsMain.dependencies {
-        }
-
         wasmJsMain.configure {
             compilerOptions {
                 freeCompilerArgs.add("-Xwasm-use-new-exception-proposal")

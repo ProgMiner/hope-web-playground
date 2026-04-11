@@ -1,0 +1,12 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Hopec" type="JetRunConfigurationType">
+    <option name="MAIN_CLASS_NAME" value="ru.hopec.driver.HopecCliKt" />
+    <module name="hopec.driver.jvmMain" />
+    <option name="PROGRAM_PARAMETERS" value="&quot;parser/src/commonTest/resources/hello.hope&quot;" />
+    <shortenClasspath name="NONE" />
+    <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>
