@@ -8,6 +8,7 @@ and [tree-sitter](https://tree-sitter.github.io/tree-sitter/creating-parsers/1-g
 ```
 cd tree-sitter-hope
 tree-sitter build --wasm
+tree-sitter build // builds .dll/.so for JVM bindings
 ```
 
 ### Kotlin/WASM
