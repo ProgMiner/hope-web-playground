@@ -11,13 +11,15 @@ repositories {
 }
 
 kotlin {
+    jvm()
+
     @OptIn(ExperimentalWasmDsl::class)
     wasmJs {
         browser()
     }
 
     sourceSets {
-        wasmJsMain.dependencies {
+        commonMain.dependencies {
             implementation("com.squareup.okio:okio:3.16.2")
             implementation(project(":core"))
             implementation(project(":parser"))

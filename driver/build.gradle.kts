@@ -11,6 +11,8 @@ repositories {
 }
 
 kotlin {
+    jvm()
+
     @OptIn(ExperimentalWasmDsl::class)
     wasmJs {
         browser()
@@ -18,10 +20,8 @@ kotlin {
     }
 
     sourceSets {
-        wasmJsMain.dependencies {
+        commonMain.dependencies {
             implementation("com.squareup.okio:okio:3.16.2")
-            implementation(npm("tree-sitter", "^0.25.0"))
-            implementation(npm("web-tree-sitter", "^0.26.7"))
             implementation(project(":codegen"))
             implementation(project(":core"))
             implementation(project(":parser"))
@@ -29,10 +29,24 @@ kotlin {
             implementation(project(":typecheck"))
         }
 
+        jvmMain.dependencies {
+            implementation("com.github.ajalt.clikt:clikt:5.1.0")
+            implementation("com.dylibso.chicory:runtime:1.7.5")
+        }
+
+        wasmJsMain.dependencies {
+            implementation(npm("tree-sitter", "^0.25.0"))
+            implementation(npm("web-tree-sitter", "^0.26.7"))
+        }
+
         wasmJsMain.configure {
             compilerOptions {
                 freeCompilerArgs.add("-Xwasm-use-new-exception-proposal")
             }
+        }
+
+        commonTest.dependencies {
+            implementation(kotlin("test"))
         }
     }
 }
