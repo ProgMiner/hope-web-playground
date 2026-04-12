@@ -3,10 +3,7 @@ package ru.hopec.renamer
 import ru.hopec.core.CompilationContext
 import ru.hopec.core.CompilationPass
 import ru.hopec.parser.TreeSitterRepresentation
-import ru.hopec.parser.treesitter.SyntaxNode
-
-//val TreeSitterRepresentation.rootNode: SyntaxNode
-//    get() = TODO("Добавь доступ к корневому SyntaxNode из твоего класса")
+import ru.hopec.parser.treesitter.TsSyntaxNode
 
 
 sealed interface AstNode {
@@ -34,16 +31,13 @@ sealed interface AstNode {
     data class AstString(val name: String) : Expr
     data class Char(val name: String) : Expr
 
-    // В Hope `f x y` парсится как repeat1($._primary_expression). Это применение функции (Application)
+
     data class Application(val function: Expr, val arguments: List<Expr>) : Expr
 
-    // Условное выражение: if cond then a else b
     data class If(val condition: Expr, val thenBranch: Expr, val elseBranch: Expr) : Expr
 
-    // Локальные переменные: let p == e1 in e2
     data class Let(val pattern: Pattern, val value: Expr, val body: Expr) : Expr
 
-    // --- Паттерны (Patterns) ---
     sealed interface Pattern : AstNode
     data class Wildcard(val placeholder: Boolean = true) : Pattern
     data class IdentPattern(val name: String) : Pattern
@@ -78,7 +72,7 @@ class RenamerPass : CompilationPass<TreeSitterRepresentation, RenamedRepresentat
         return RenamedRepresentation(topLevelNodes)
     }
 
-    private fun parseModule(node: SyntaxNode): AstNode.Module {
+    private fun parseModule(node: TsSyntaxNode): AstNode.Module {
         // seq("module", $.binding, repeat($._statement), "end")
 
         val bindingNode = node.namedChild(0u)
@@ -95,7 +89,7 @@ class RenamerPass : CompilationPass<TreeSitterRepresentation, RenamedRepresentat
         return AstNode.Module(moduleName, statements)
     }
 
-    private fun parseStatement(node: SyntaxNode): AstNode.Statement? {
+    private fun parseStatement(node: TsSyntaxNode): AstNode.Statement? {
         return when (node.type) {
             "function_equation" -> {
                 // seq("---", $.pattern, "<=", $.expression)
@@ -113,7 +107,7 @@ class RenamerPass : CompilationPass<TreeSitterRepresentation, RenamedRepresentat
                     names.add(node.namedChild(i)!!.text)
                 }
 
-                //types are not realized
+                //типы не реалищованы
                 val typeNode = node.namedChild(node.namedChildCount - 1u)!!
                 AstNode.FunctionDeclaration(names, AstNode.TypeExpr(typeNode.text))
             }
@@ -121,7 +115,7 @@ class RenamerPass : CompilationPass<TreeSitterRepresentation, RenamedRepresentat
         }
     }
 
-    private fun parseExpression(node: SyntaxNode): AstNode.Expr {
+    private fun parseExpression(node: TsSyntaxNode): AstNode.Expr {
         return when (node.type) {
             "decimal" -> AstNode.Decimal(node.text.toInt())
 
@@ -155,7 +149,7 @@ class RenamerPass : CompilationPass<TreeSitterRepresentation, RenamedRepresentat
         }
     }
 
-    private fun parsePattern(node: SyntaxNode): AstNode.Pattern {
+    private fun parsePattern(node: TsSyntaxNode): AstNode.Pattern {
         return when (node.type) {
             "wildcard_pattern" -> AstNode.Wildcard()
             "binding" -> AstNode.IdentPattern(node.childForFieldName("name")?.text ?: node.text)
@@ -170,7 +164,7 @@ class RenamerPass : CompilationPass<TreeSitterRepresentation, RenamedRepresentat
         }
     }
 
-    private fun findFirstNamedChild(node: SyntaxNode, targetType: String): SyntaxNode? {
+    private fun findFirstNamedChild(node: TsSyntaxNode, targetType: String): TsSyntaxNode? {
         for (i in 0u until node.namedChildCount) {
             val child = node.namedChild(i)
             if (child?.type == targetType) return child

@@ -15,13 +15,24 @@ kotlin {
 
     @OptIn(ExperimentalWasmDsl::class)
     wasmJs {
-        browser()
+        nodejs {
+            testTask {
+                useKarma {
+                    useFirefox()
+                }
+            }
+        }
     }
 
     sourceSets {
         commonMain.dependencies {
             implementation(project(":core"))
             implementation(project(":parser"))
+        }
+
+        commonTest.dependencies {
+            implementation(kotlin("test"))
+            implementation("com.goncalossilva:resources:0.15.0")
         }
 
         wasmJsMain.configure {
