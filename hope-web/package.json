@@ -43,6 +43,7 @@
 		"monaco-themes": "^0.4.8",
 		"svoast": "^3.0.3",
 		"tree-sitter": "^0.25.0",
+		"wabt": "^1.0.0",
 		"web-tree-sitter": "^0.26.7"
 	}
 }
