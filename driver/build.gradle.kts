@@ -38,7 +38,6 @@ kotlin {
         wasmJsMain.dependencies {
             implementation(npm("tree-sitter", "^0.25.0"))
             implementation(npm("web-tree-sitter", "^0.26.7"))
-            implementation(npm("wabt", "^1.0.0"))
         }
 
         wasmJsMain.configure {
