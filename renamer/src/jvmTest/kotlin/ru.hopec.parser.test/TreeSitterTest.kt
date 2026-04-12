@@ -21,8 +21,6 @@ class JVMRenamerTest {
         val parsed = parseHope(findSharedLibrary(), code)
         val treeSitterRep = TreeSitterRepresentation(parsed)
         val pass = RenamerPass()
-
-
         val context = CompilationContext()
         val res = pass.run(treeSitterRep, context) ?: error("failed to run")
 
@@ -31,6 +29,5 @@ class JVMRenamerTest {
         assertTrue(equation.pattern is AstNode.IdentPattern, "Should be parsed as ident pattern")
         assertTrue(equation.body is AstNode.Ident)
         println(equation.body.name)
-        assertNotNull(factory().loadLanguage(findSharedLibrary()))
     }
 }

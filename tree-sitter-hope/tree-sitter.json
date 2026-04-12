@@ -25,7 +25,8 @@
       }
     ],
     "links": {
-      "repository": "https://github.com/tree-sitter/tree-sitter-hope"
+      "repository": "https://github.com/tree-sitter/tree-sitter-hope",
+      "funding": ""
     }
   },
   "bindings": {
