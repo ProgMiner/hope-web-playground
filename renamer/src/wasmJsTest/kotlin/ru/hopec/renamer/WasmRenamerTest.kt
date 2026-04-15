@@ -1,26 +1,24 @@
-package ru.hopec.parser.test
+package ru.hopec.ru.hopec.renamer
 
-import com.goncalossilva.resources.Resource
 import ru.hopec.core.CompilationContext
 import ru.hopec.parser.TreeSitterRepresentation
-import ru.hopec.parser.treesitter.TsTree
-import ru.hopec.parser.treesitter.factory
-import ru.hopec.parser.treesitter.findSharedLibrary
 import ru.hopec.parser.treesitter.parseHope
 import ru.hopec.renamer.AstNode
 import ru.hopec.renamer.RenamerPass
 import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
-class JVMRenamerTest {
+class WasmRenamerTest {
+
+    //TODO: эти тесты пока не работают, смотреть в jvmTest
     @Test
     fun `test function equation`() {
         val code = "--- ( x ) <= 42"
-        val parsed = parseHope(findSharedLibrary(), code)
+        val parsed = parseHope("../tree-sitter-hope/tree-sitter-hope.wasm", code)
         val treeSitterRep = TreeSitterRepresentation(parsed)
         val pass = RenamerPass()
+
+
         val context = CompilationContext()
         val res = pass.run(treeSitterRep, context) ?: error("failed to run")
 

@@ -6,45 +6,6 @@ import ru.hopec.parser.TreeSitterRepresentation
 import ru.hopec.parser.treesitter.TsSyntaxNode
 
 
-sealed interface AstNode {
-
-    data class CompilationUnit(val obj: List<TopLevelNode>) : AstNode
-
-    // или module, или statement
-    sealed interface TopLevelNode : AstNode
-
-    // module ... end
-    data class Module(val name: String, val statements: List<Statement>) : AstNode, TopLevelNode
-
-    sealed interface Statement : AstNode, TopLevelNode
-
-    data class FunctionEquation(val pattern: Pattern, val body: Expr) : Statement
-    data class FunctionDeclaration(val names: List<String>, val typeExpr: TypeExpr) : Statement
-
-//    data class DataDeclaration
-    // TODO: Добавить DataDeclaration, InfixDeclaration и тд
-
-    sealed interface Expr : AstNode
-
-    data class Decimal(val value: Int) : Expr
-    data class Ident(val name: String) : Expr
-    data class AstString(val name: String) : Expr
-    data class Char(val name: String) : Expr
-
-
-    data class Application(val function: Expr, val arguments: List<Expr>) : Expr
-
-    data class If(val condition: Expr, val thenBranch: Expr, val elseBranch: Expr) : Expr
-
-    data class Let(val pattern: Pattern, val value: Expr, val body: Expr) : Expr
-
-    sealed interface Pattern : AstNode
-    data class Wildcard(val placeholder: Boolean = true) : Pattern
-    data class IdentPattern(val name: String) : Pattern
-
-    data class TypeExpr(val rawText: String) : AstNode
-}
-
 class RenamerPass : CompilationPass<TreeSitterRepresentation, RenamedRepresentation> {
 
     override fun run(from: TreeSitterRepresentation, context: CompilationContext): RenamedRepresentation? {
@@ -107,7 +68,6 @@ class RenamerPass : CompilationPass<TreeSitterRepresentation, RenamedRepresentat
                     names.add(node.namedChild(i)!!.text)
                 }
 
-                //типы не реалищованы
                 val typeNode = node.namedChild(node.namedChildCount - 1u)!!
                 AstNode.FunctionDeclaration(names, AstNode.TypeExpr(typeNode.text))
             }
@@ -117,9 +77,31 @@ class RenamerPass : CompilationPass<TreeSitterRepresentation, RenamedRepresentat
 
     private fun parseExpression(node: TsSyntaxNode): AstNode.Expr {
         return when (node.type) {
-            "decimal" -> AstNode.Decimal(node.text.toInt())
+            "expression" -> {
+                if (node.namedChildCount == 1u) {
+                    parseExpression(node.namedChild(0u)!!)
+                } else {
+                    val func = parseExpression(node.namedChild(0u)!!)
+                    val args = mutableListOf<AstNode.Expr>()
+                    for (i in 1u until node.namedChildCount) {
+                        args.add(parseExpression(node.namedChild(i)!!))
+                    }
+                    AstNode.Application(func, args)
+                }
+            }
 
             "ident" -> AstNode.Ident(node.text)
+
+            "decimal" -> AstNode.Decimal(node.text.toInt())
+            "string" -> AstNode.AstString(node.text)
+            "char" -> AstNode.AstChar(node.text.first())
+            "tuple" -> {
+                val elements = mutableListOf<AstNode.Expr>()
+                for (i in 0u until node.namedChildCount) {
+                    elements.add(parseExpression(node.namedChild(i)!!))
+                }
+                AstNode.Tuple(elements)
+            }
 
             "conditional_expression" -> {
                 // seq("if", $.expression, "then", $.expression, "else", $.expression)
@@ -140,11 +122,7 @@ class RenamerPass : CompilationPass<TreeSitterRepresentation, RenamedRepresentat
             }
 
             else -> {
-                if (node.namedChildCount > 0u) {
-                    parseExpression(node.namedChild(0u)!!)
-                } else {
-                    error("Неизвестный тип выражения: ${node.type}")
-                }
+                error("Неизвестный тип выражения: ${node.type}")
             }
         }
     }
@@ -154,6 +132,20 @@ class RenamerPass : CompilationPass<TreeSitterRepresentation, RenamedRepresentat
             "wildcard_pattern" -> AstNode.Wildcard()
             "binding" -> AstNode.IdentPattern(node.childForFieldName("name")?.text ?: node.text)
             "ident" -> AstNode.IdentPattern(node.text)
+            "array_pattern" -> {
+                val array = mutableListOf<AstNode.Expr>()
+                for (i in 0u until node.namedChildCount) {
+                    array.add(parseExpression(node.namedChild(i)!!))
+                }
+                AstNode.ArrayPattern(array)
+            }
+            "list_pattern" -> {
+                val list = mutableListOf<AstNode.Expr>()
+                for (i in 0u until node.namedChildCount) {
+                    list.add(parseExpression(node.namedChild(i)!!))
+                }
+                AstNode.ListPattern(list)
+            }
             else -> {
                 if (node.namedChildCount > 0u) {
                     parsePattern(node.namedChild(0u)!!)
