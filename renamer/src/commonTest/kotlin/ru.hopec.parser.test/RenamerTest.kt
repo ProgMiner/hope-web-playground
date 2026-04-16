@@ -1,8 +1,8 @@
 package ru.hopec.parser.test
 
+import kotlinx.coroutines.test.runTest
 import ru.hopec.core.CompilationContext
 import ru.hopec.parser.TreeSitterRepresentation
-import ru.hopec.parser.treesitter.findSharedLibrary
 import ru.hopec.parser.treesitter.parseHope
 import ru.hopec.renamer.AstNode
 import ru.hopec.renamer.RenamedRepresentation
@@ -12,10 +12,10 @@ import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
-class JVMRenamerTest {
+class RenamerTest {
 
-    fun startRenamer(input: String) : RenamedRepresentation {
-        val parsed = parseHope(findSharedLibrary(), input)
+    suspend fun startRenamer(input: String) : RenamedRepresentation {
+        val parsed = parseHope(input)
         val treeSitterRep = TreeSitterRepresentation(parsed)
         val pass = RenamerPass()
         val context = CompilationContext()
@@ -23,25 +23,25 @@ class JVMRenamerTest {
     }
 
     @Test
-    fun `test function equation`() {
-        val code = "--- ( x ) <= 42"
+    fun `test function equation`() = runTest {
+        val code = "--- x <= 42"
         val res = startRenamer(code)
 
         assertTrue(res.topLevelNodes.first() is AstNode.FunctionEquation, "Should be parsed as function equation");
         val equation = res.topLevelNodes.first() as AstNode.FunctionEquation
-        assertTrue(equation.pattern is AstNode.IdentPattern, "Should be parsed as ident pattern")
+        assertTrue(equation.pattern is AstNode.PatternExpression, "Should be parsed as ident pattern")
         assertTrue(equation.body is AstNode.Ident)
         println(equation.body.name)
     }
 
     @Test
-    fun `test application`() {
-        val code = "--- ( x ) <= f x y"
+    fun `test application`() = runTest {
+        val code = "--- x <= f x y"
         val res = startRenamer(code)
 
         assertTrue(res.topLevelNodes.first() is AstNode.FunctionEquation, "Should be parsed as function equation");
         val equation = res.topLevelNodes.first() as AstNode.FunctionEquation
-        assertTrue(equation.pattern is AstNode.IdentPattern, "Should be parsed as ident pattern")
+        assertTrue(equation.pattern is AstNode.PatternExpression, "Should be parsed as ident pattern")
         assertTrue(equation.body is AstNode.Application)
         val application = equation.body
         assertTrue(application.function is AstNode.Ident, "Should be parsed as ident")
@@ -51,14 +51,28 @@ class JVMRenamerTest {
     }
 
     @Test
-    fun `test list pattern`() {
-        val code = "--- { x, y } <= f x y"
+    fun `test multiple pattern`() = runTest {
+        val code = "--- x y <= f x y"
         val res = startRenamer(code)
-        // TODO: Проблема в грамматике с pattern? Во всех сложных паттернах, сваливается к expression, не используя array/list...
+        val function = res.topLevelNodes.first() as AstNode.FunctionEquation
+        assertIs<AstNode.Patterns>(function.pattern, "Pattern should be parsed as Patterns")
     }
 
     @Test
-    fun `test tuple`() {
+    fun `test list pattern`() = runTest {
+        val code = "--- [ x, y ] <= f x y"
+        val res = startRenamer(code)
+
+        val function = res.topLevelNodes.first() as AstNode.FunctionEquation
+        val pattern = function.pattern
+        assertIs<AstNode.PatternExpression>(pattern, "Pattern should be parsed as PatternExpression")
+        assertIs<AstNode.ListExpr>(pattern.expr, "Expression should be parsed as ListExpr")
+        assertIs<AstNode.Ident>(pattern.expr.list[0], "Expression should be parsed as Ident")
+        assertIs<AstNode.Ident>(pattern.expr.list[1], "Expression should be parsed as Ident")
+    }
+
+    @Test
+    fun `test tuple`() = runTest {
         val code = "--- x <= f (x, y, z)"
         val res = startRenamer(code)
         assertTrue(res.topLevelNodes.first() is AstNode.FunctionEquation, "Should be parsed as function equation");
@@ -73,10 +87,10 @@ class JVMRenamerTest {
     }
 
     @Test
-    fun `test const`() {
+    fun `test const`() = runTest {
         val code = "--- x <= (42, \"test\", \'c\')"
         val res = startRenamer(code)
-        assertTrue(res.topLevelNodes.first() is AstNode.FunctionEquation, "Should be parsed as function equation");
+        assertTrue(res.topLevelNodes.first() is AstNode.FunctionEquation, "Should be parsed as function equation")
         val equation = res.topLevelNodes.first() as AstNode.FunctionEquation
         assertTrue(equation.body is AstNode.Tuple)
         val tuple = equation.body
@@ -86,4 +100,31 @@ class JVMRenamerTest {
         assertIs<AstNode.AstString>(tuple.elements[1], "2nd element should be string")
         //assertIs<AstNode.AstChar>(tuple.elements[2], "3rd element should be char")
     }
+
+    @Test
+    fun `test data declaration`() = runTest {
+        val code = "data x == Int"
+        val res = startRenamer(code)
+        assertTrue(res.topLevelNodes.first() is AstNode.DataDeclaration, "Should be parsed as data declaration")
+    }
+
+    @Test
+    fun `test basic types`() = runTest {
+        val code = "data x == Int"
+        val res = startRenamer(code)
+        val data = res.topLevelNodes.first() as AstNode.DataDeclaration
+        assertIs<AstNode.IdentType>(data.type, "Type should be parsed as IdentType")
+    }
+
+    @Test
+    fun `test complex types`() = runTest {
+        val code = "data x == List String -> Int"
+        val res = startRenamer(code)
+        val data = res.topLevelNodes.first() as AstNode.DataDeclaration
+        assertIs<AstNode.BinaryType>(data.type, "Type should be parsed as BinaryType")
+        val binType = data.type
+        assertIs<AstNode.ApplicationTypes>(binType.type1, "Type should be parsed as ApplicationTypes")
+    }
+
 }
+

@@ -12,8 +12,11 @@ sealed interface AstNode {
 
     data class FunctionEquation(val pattern: Pattern, val body: Expr) : Statement
     data class FunctionDeclaration(val names: List<String>, val typeExpr: TypeExpr) : Statement
-
-//    data class DataDeclaration
+    data class DataDeclaration(val name: String, val params: List<String>, val type: TypeExpr) : Statement
+    data class TypeVaribleDeclaration(val types: List<String>) : Statement
+    data class TypeExportDeclaration(val types: List<String>) : Statement
+    data class ConstantExportDeclaration(val constants: List<String>) : Statement
+    data class ModuleUseDeclaration(val modules: List<String>) : Statement
     // TODO: Добавить DataDeclaration, InfixDeclaration и тд
 
     sealed interface Expr : AstNode
@@ -23,20 +26,23 @@ sealed interface AstNode {
     data class AstString(val string: String) : Expr
     data class AstChar(val char: Char) : Expr
 
-
     data class Application(val function: Expr, val arguments: List<Expr>) : Expr
     data class Tuple(val elements: List<Expr>) : Expr
-
+    data class ListExpr(val list: List<Expr>): Expr
+    data class SetExpr(val list: List<Expr>): Expr
     data class If(val condition: Expr, val thenBranch: Expr, val elseBranch: Expr) : Expr
-
     data class Let(val pattern: Pattern, val value: Expr, val body: Expr) : Expr
 
     sealed interface Pattern : AstNode
+    data class Patterns(val patterns: List<Pattern>) : Pattern
     data class Wildcard(val placeholder: Boolean = true) : Pattern
-    data class IdentPattern(val name: String) : Pattern
+    data class PatternExpression(val expr: Expr) : Pattern
     data class ArrayPattern(val array: List<Expr>) : Pattern
     data class ListPattern(val list: List<Expr>) : Pattern
 
     //TODO: реализовать алгебраические типы
-    data class TypeExpr(val rawText: String) : AstNode
+    sealed interface TypeExpr : AstNode
+    data class BinaryType(val type1: TypeExpr, val type2: TypeExpr) : TypeExpr
+    data class ApplicationTypes(val type: TypeExpr, val arguments: List<TypeExpr>) : TypeExpr
+    data class IdentType(val name: String) : TypeExpr
 }
