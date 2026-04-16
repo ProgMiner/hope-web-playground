@@ -677,7 +677,7 @@ interface TsLanguage
 
 interface TsFactory {
 
-    fun createParser(): TsParser
+    suspend fun createParser(): TsParser
 
     /**
      * Create a new query from a String containing one or more S-expression
@@ -709,13 +709,15 @@ interface TsFactory {
      */
     fun createLookaheadIterator(language: TsLanguage, state: UInt): TsLookaheadIterator
 
-    fun loadLanguage(location: String): TsLanguage?
+    suspend fun loadLanguage(location: String): TsLanguage?
 }
 
 expect fun factory(): TsFactory
 
-fun parseHope(location: String, input: String): TsTree {
+expect fun sharedLibraryLocation(): String
+
+suspend fun parseHope(input: String): TsTree {
     val parser = factory().createParser()
-    parser.setLanguage(factory().loadLanguage(location))
+    parser.setLanguage(factory().loadLanguage(sharedLibraryLocation()))
     return parser.parse(input)
 }

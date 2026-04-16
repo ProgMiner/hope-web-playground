@@ -15,7 +15,7 @@ kotlin {
 
     @OptIn(ExperimentalWasmDsl::class)
     wasmJs {
-        browser()
+        nodejs()
         binaries.executable()
     }
 
@@ -32,9 +32,11 @@ kotlin {
         jvmMain.dependencies {
             implementation("com.github.ajalt.clikt:clikt:5.1.0")
             implementation("com.dylibso.chicory:runtime:1.7.5")
+            implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
         }
 
         wasmJsMain.dependencies {
+            file(layout.projectDirectory.file("../tree-sitter-hope/tree-sitter-hope.wasm"))
             implementation(npm("tree-sitter", "^0.25.0"))
             implementation(npm("web-tree-sitter", "^0.26.7"))
         }
