@@ -91,7 +91,15 @@ class RenamerPass : CompilationPass<TreeSitterRepresentation, RenamedRepresentat
                 }
             }
 
-            "ident" -> AstNode.Ident(node.text)
+            "ident" -> {
+                if (node.text.contains("@")) {
+                    val name = node.text.substringBefore("@")
+                    val bind = node.text.substringAfter("@")
+                    AstNode.Binding(name, bind)
+                } else
+                    AstNode.Ident(node.text)
+            }
+
             "decimal" -> AstNode.Decimal(node.text.toInt())
             "string" -> AstNode.AstString(node.text)
             "char" -> AstNode.AstChar(node.text.first())

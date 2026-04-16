@@ -17,6 +17,7 @@ sealed interface AstNode {
     sealed interface Expr : AstNode
     data class Decimal(val value: Int) : Expr
     data class Ident(val name: String) : Expr
+    data class Binding(val name: String, val bind: String) : Expr
     data class AstString(val string: String) : Expr
     data class AstChar(val char: Char) : Expr
     data class Application(val function: Expr, val arguments: List<Expr>) : Expr

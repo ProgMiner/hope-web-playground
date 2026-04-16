@@ -58,6 +58,15 @@ class RenamerTest {
     }
 
     @Test
+    fun `test binding pattern`() = runTest {
+        val code = "--- x@Test <= f"
+        val res = startRenamer(code)
+        val function = res.topLevelNodes.first() as AstNode.FunctionEquation
+        assertIs<AstNode.PatternExpression>(function.pattern)
+        assertIs<AstNode.Binding>(function.pattern.expr, "Pattern should be parsed as Binding")
+    }
+
+    @Test
     fun `test list pattern`() = runTest {
         val code = "--- [ x, y ] <= f x y"
         val res = startRenamer(code)
