@@ -64,11 +64,17 @@ class RenamerPass : CompilationPass<TreeSitterRepresentation, RenamedRepresentat
                 AstNode.FunctionDeclaration(names, typeNode)
             }
 
+            "infix_declaration" -> {
+                val assoc = node.child(0u)!!.text != "infix"
+                val names = parseMultiple(node, {child -> child.text}, 0u, node.namedChildCount - 1u)
+                val priority = node.namedChild(node.namedChildCount - 1u)!!.text
+                AstNode.InfixDeclaration(names, priority.toInt(), assoc)
+            }
+
             "type_variable_declaration" -> AstNode.TypeVaribleDeclaration(parseMultipleIdent(node))
             "type_export_declaration" -> AstNode.TypeExportDeclaration(parseMultipleIdent(node))
             "constant_export_declaration" -> AstNode.ConstantExportDeclaration(parseMultipleIdent(node))
             "module_use_declaration" -> AstNode.ModuleUseDeclaration(parseMultipleIdent(node))
-
             else -> error("Неизвестный statement: ${node.type}")
         }
     }
@@ -86,7 +92,6 @@ class RenamerPass : CompilationPass<TreeSitterRepresentation, RenamedRepresentat
             }
 
             "ident" -> AstNode.Ident(node.text)
-
             "decimal" -> AstNode.Decimal(node.text.toInt())
             "string" -> AstNode.AstString(node.text)
             "char" -> AstNode.AstChar(node.text.first())
@@ -101,12 +106,33 @@ class RenamerPass : CompilationPass<TreeSitterRepresentation, RenamedRepresentat
                     elseBranch = parseExpression(node.namedChild(2u)!!)
                 )
 
-            "local_variable_expression" ->
-                AstNode.Let(
-                    pattern = parsePattern(node.namedChild(0u)!!),
-                    value = parseExpression(node.namedChild(1u)!!),
-                    body = parseExpression(node.namedChild(2u)!!)
-                )
+            "local_variable_expression" -> {
+                if (node.child(0u)!!.text == "let")
+                    AstNode.Let(
+                        pattern = parsePattern(node.namedChild(0u)!!),
+                        value = parseExpression(node.namedChild(1u)!!),
+                        body = parseExpression(node.namedChild(2u)!!)
+                    )
+                else
+                    AstNode.Let(
+                        pattern = parsePattern(node.namedChild(2u)!!),
+                        value = parseExpression(node.namedChild(1u)!!),
+                        body = parseExpression(node.namedChild(0u)!!)
+                    )
+            }
+
+
+            "lambda_expression" -> {
+                val branches = parseMultiple(node, { child ->
+                    val patternNode = child.namedChild(0u)!!
+                    val exprNode = child.namedChild(1u)!!
+                    AstNode.LambdaBranch(
+                        pattern = parsePattern(patternNode),
+                        expression = parseExpression(exprNode)
+                    )
+                })
+                AstNode.Lambda(branches)
+            }
 
             else -> error("Неизвестный тип выражения: ${node.type}")
         }
@@ -120,11 +146,8 @@ class RenamerPass : CompilationPass<TreeSitterRepresentation, RenamedRepresentat
                 else
                     AstNode.Patterns(parseMultiple(node, ::parsePattern))
             }
-
             "expression" -> AstNode.PatternExpression(parseExpression(node))
-
             "wildcard_pattern" -> AstNode.Wildcard()
-
             else -> error("Неизвестный тип паттерна: ${node.type}")
 
         }
@@ -133,14 +156,11 @@ class RenamerPass : CompilationPass<TreeSitterRepresentation, RenamedRepresentat
     private fun parseType(node: TsSyntaxNode): AstNode.TypeExpr {
         return when (node.type) {
             "type_expression" -> {
-                if (node.namedChildCount == 1u) {
+                if (node.namedChildCount == 1u)
                     parseType(node.namedChild(0u)!!)
-                } else {
+                else {
                     val func = parseType(node.namedChild(0u)!!)
-                    val args = mutableListOf<AstNode.TypeExpr>()
-                    for (i in 1u until node.namedChildCount) {
-                        args.add(parseType(node.namedChild(i)!!))
-                    }
+                    val args = parseMultiple(node, ::parseType, 1u)
                     AstNode.ApplicationTypes(func, args)
                 }
             }
@@ -148,7 +168,14 @@ class RenamerPass : CompilationPass<TreeSitterRepresentation, RenamedRepresentat
             "binary_type_expression" -> {
                 val type1 = parseType(node.namedChild(0u)!!)
                 val type2 = parseType(node.namedChild(1u)!!)
-                AstNode.BinaryType(type1, type2)
+                if (node.children[1].text == "->")
+                    AstNode.PowType(type1, type2)
+                else if (node.children[1].text == "++")
+                    AstNode.SumType(type1, type2)
+                else if (node.children[1].text == "#")
+                    AstNode.ProductType(type1, type2)
+                else
+                    error("Неизвестный алгебраический тип: ${node.children[1].text}")
             }
 
             "ident" -> AstNode.IdentType(node.text)

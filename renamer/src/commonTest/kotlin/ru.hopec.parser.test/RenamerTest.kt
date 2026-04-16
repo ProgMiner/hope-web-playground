@@ -13,8 +13,7 @@ import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 class RenamerTest {
-
-    suspend fun startRenamer(input: String) : RenamedRepresentation {
+    private suspend fun startRenamer(input: String) : RenamedRepresentation {
         val parsed = parseHope(input)
         val treeSitterRep = TreeSitterRepresentation(parsed)
         val pass = RenamerPass()
@@ -24,7 +23,7 @@ class RenamerTest {
 
     @Test
     fun `test function equation`() = runTest {
-        val code = "--- x <= 42"
+        val code = "--- x <= w"
         val res = startRenamer(code)
 
         assertTrue(res.topLevelNodes.first() is AstNode.FunctionEquation, "Should be parsed as function equation");
@@ -95,7 +94,7 @@ class RenamerTest {
         assertTrue(equation.body is AstNode.Tuple)
         val tuple = equation.body
         assertEquals(tuple.elements.size, 3, "Tuple should have 3 elements")
-        // TODO: здесь должны были быть константы, но попадаются ident
+        // TODO: здесь должны были быть константы (?), но попадаются ident
         //assertIs<AstNode.Decimal>(tuple.elements[0], "1st element should be decimal")
         assertIs<AstNode.AstString>(tuple.elements[1], "2nd element should be string")
         //assertIs<AstNode.AstChar>(tuple.elements[2], "3rd element should be char")
@@ -121,10 +120,35 @@ class RenamerTest {
         val code = "data x == List String -> Int"
         val res = startRenamer(code)
         val data = res.topLevelNodes.first() as AstNode.DataDeclaration
-        assertIs<AstNode.BinaryType>(data.type, "Type should be parsed as BinaryType")
+        assertIs<AstNode.PowType>(data.type, "Type should be parsed as PowType")
         val binType = data.type
         assertIs<AstNode.ApplicationTypes>(binType.type1, "Type should be parsed as ApplicationTypes")
     }
 
-}
+    @Test
+    fun `test infix declaration`() = runTest {
+        val code = "infixr x y : 10"
+        val res = startRenamer(code)
+        assertIs<AstNode.InfixDeclaration>(res.topLevelNodes.first(), "Statement should be parsed as InfixDeclaration")
+        val infix = res.topLevelNodes.first() as AstNode.InfixDeclaration
+        assertEquals(infix.priority, 10)
+        assertEquals(infix.rightAssoc, true)
+    }
 
+    @Test
+    fun `test lambda`() = runTest {
+        val code = "--- x <= lambda [] => w |" +
+                                   "[y] => y"
+        val res = startRenamer(code)
+        assertIs<AstNode.FunctionEquation>(res.topLevelNodes.first(), "Statement should be parsed as FunctionEquation")
+        val func = res.topLevelNodes.first() as AstNode.FunctionEquation
+        assertIs<AstNode.Lambda>(func.body, "Expression should be parsed as Lambda")
+        assertEquals(func.body.branches.size, 2)
+        val branch1 = func.body.branches[0]
+        val branch2 = func.body.branches[1]
+        assertIs<AstNode.Ident>(branch1.expression, "Expression should be parsed as Ident")
+        assertIs<AstNode.Ident>(branch2.expression, "Expression should be parsed as Ident")
+        assertEquals(branch1.expression.name, "w")
+        assertEquals(branch2.expression.name, "y")
+    }
+}
