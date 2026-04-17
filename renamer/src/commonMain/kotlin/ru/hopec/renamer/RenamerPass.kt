@@ -2,57 +2,51 @@ package ru.hopec.renamer
 
 import ru.hopec.core.CompilationContext
 import ru.hopec.core.CompilationPass
+import ru.hopec.core.CompilationStatus
+import ru.hopec.core.StatusLocation
+import ru.hopec.core.StatusSeverity
 import ru.hopec.parser.TreeSitterRepresentation
+import ru.hopec.parser.treesitter.TsPoint
 import ru.hopec.parser.treesitter.TsSyntaxNode
 
-
 class RenamerPass : CompilationPass<TreeSitterRepresentation, RenamedRepresentation> {
-
-    override fun run(from: TreeSitterRepresentation, context: CompilationContext): RenamedRepresentation? {
-        val rootNode = from.tree.rootNode
-
-        if (rootNode.type != "compilation_unit")
-            throw Exception("cannot find compilation_unit")
-
-        val topLevelNodes = mutableListOf<AstNode.TopLevelNode>()
-
-        for (i in 0u until rootNode.namedChildCount) {
-            val child = rootNode.namedChild(i) ?: continue
-            when (child.type) {
-                "module" -> {
-                     topLevelNodes.add(parseModule(child))
-                }
-                else -> {
-                    val stmt = parseStatement(child)
-                    if (stmt != null) topLevelNodes.add(stmt)
-                }
-            }
+    override fun run(from: TreeSitterRepresentation, context: CompilationContext) =
+        try {
+            parse(from)
+        } catch (e: Exception) {
+            context.add(e)
+            null
         }
 
+    private fun parse(from: TreeSitterRepresentation): RenamedRepresentation {
+        val rootNode = from.tree.rootNode
+        val topLevelNodes = parseMultiple(rootNode, {
+            child ->
+            when (child.type) {
+                "module" -> parseModule(child)
+                else -> parseStatement(child)
+            }
+        })
         return RenamedRepresentation(topLevelNodes)
     }
 
     private fun parseModule(node: TsSyntaxNode): AstNode.Module {
-        val moduleName = node.namedChild(0u)!!.text
-        val statements = mutableListOf<AstNode.Statement>()
-        for (i in 1u until node.namedChildCount) {
-            val child = node.namedChild(i) ?: continue
-            parseStatement(child)?.let { statements.add(it) }
-        }
+        val moduleName = node.getChildOrThrow(0u, "binding").text
+        val statements = parseMultiple(node, ::parseStatement, 1u)
         return AstNode.Module(moduleName, statements)
     }
 
-    private fun parseStatement(node: TsSyntaxNode): AstNode.Statement? {
+    private fun parseStatement(node: TsSyntaxNode): AstNode.Statement {
         return when (node.type) {
             "data_declaration" -> {
-                val name = node.namedChild(0u)!!.text
+                val name =  node.getChildOrThrow(0u).text
                 val params = parseMultiple(node, {child -> child.text}, 1u, node.namedChildCount - 1u)
-                val typeNode = parseType(node.namedChild(node.namedChildCount - 1u)!!)
+                val typeNode = parseType(node.getChildOrThrow(node.namedChildCount - 1u))
                 AstNode.DataDeclaration(name, params, typeNode)
             }
             "function_equation" -> {
-                val patternNode = node.namedChild(0u)!!
-                val exprNode = node.namedChild(1u)!!
+                val patternNode = node.getChildOrThrow(0u)
+                val exprNode = node.getChildOrThrow(1u)
                 AstNode.FunctionEquation(
                     pattern = parsePattern(patternNode),
                     body = parseExpression(exprNode)
@@ -60,14 +54,14 @@ class RenamerPass : CompilationPass<TreeSitterRepresentation, RenamedRepresentat
             }
             "function_declaration" -> {
                 val names = parseMultiple(node, {child -> child.text}, 0u, node.namedChildCount - 1u)
-                val typeNode = parseType(node.namedChild(node.namedChildCount - 1u)!!)
+                val typeNode = parseType(node.getChildOrThrow(node.namedChildCount - 1u))
                 AstNode.FunctionDeclaration(names, typeNode)
             }
 
             "infix_declaration" -> {
-                val assoc = node.child(0u)!!.text != "infix"
+                val assoc = node.getChildOrThrow(0u).text != "infix"
                 val names = parseMultiple(node, {child -> child.text}, 0u, node.namedChildCount - 1u)
-                val priority = node.namedChild(node.namedChildCount - 1u)!!.text
+                val priority = node.getChildOrThrow(node.namedChildCount - 1u).text
                 AstNode.InfixDeclaration(names, priority.toInt(), assoc)
             }
 
@@ -75,7 +69,10 @@ class RenamerPass : CompilationPass<TreeSitterRepresentation, RenamedRepresentat
             "type_export_declaration" -> AstNode.TypeExportDeclaration(parseMultipleIdent(node))
             "constant_export_declaration" -> AstNode.ConstantExportDeclaration(parseMultipleIdent(node))
             "module_use_declaration" -> AstNode.ModuleUseDeclaration(parseMultipleIdent(node))
-            else -> error("Неизвестный statement: ${node.type}")
+            else -> throw RenamerException(StatusSeverity.ERROR,
+                "Unknown statement: ${node.type} in node $node",
+                node.endPosition.toPosition()
+            )
         }
     }
 
@@ -83,9 +80,9 @@ class RenamerPass : CompilationPass<TreeSitterRepresentation, RenamedRepresentat
         return when (node.type) {
             "expression" -> {
                 if (node.namedChildCount == 1u)
-                    parseExpression(node.namedChild(0u)!!)
+                    parseExpression(node.getChildOrThrow(0u))
                 else {
-                    val func = parseExpression(node.namedChild(0u)!!)
+                    val func = parseExpression(node.getChildOrThrow(0u))
                     val args = parseMultiple(node, ::parseExpression, 1u)
                     AstNode.Application(func, args)
                 }
@@ -109,31 +106,29 @@ class RenamerPass : CompilationPass<TreeSitterRepresentation, RenamedRepresentat
 
             "conditional_expression" ->
                 AstNode.If(
-                    condition = parseExpression(node.namedChild(0u)!!),
-                    thenBranch = parseExpression(node.namedChild(1u)!!),
-                    elseBranch = parseExpression(node.namedChild(2u)!!)
+                    condition = parseExpression(node.getChildOrThrow(0u)),
+                    thenBranch = parseExpression(node.getChildOrThrow(1u)),
+                    elseBranch = parseExpression(node.getChildOrThrow(2u))
                 )
 
-            "local_variable_expression" -> {
+            "local_variable_expression" ->
                 if (node.child(0u)!!.text == "let")
                     AstNode.Let(
-                        pattern = parsePattern(node.namedChild(0u)!!),
-                        value = parseExpression(node.namedChild(1u)!!),
-                        body = parseExpression(node.namedChild(2u)!!)
+                        pattern = parsePattern(node.getChildOrThrow(0u)),
+                        value = parseExpression(node.getChildOrThrow(1u)),
+                        body = parseExpression(node.getChildOrThrow(2u))
                     )
                 else
                     AstNode.Let(
-                        pattern = parsePattern(node.namedChild(2u)!!),
-                        value = parseExpression(node.namedChild(1u)!!),
-                        body = parseExpression(node.namedChild(0u)!!)
+                        pattern = parsePattern(node.getChildOrThrow(2u)),
+                        value = parseExpression(node.getChildOrThrow(1u)),
+                        body = parseExpression(node.getChildOrThrow(0u))
                     )
-            }
-
 
             "lambda_expression" -> {
                 val branches = parseMultiple(node, { child ->
-                    val patternNode = child.namedChild(0u)!!
-                    val exprNode = child.namedChild(1u)!!
+                    val patternNode = child.getChildOrThrow(0u)
+                    val exprNode = child.getChildOrThrow(1u)
                     AstNode.LambdaBranch(
                         pattern = parsePattern(patternNode),
                         expression = parseExpression(exprNode)
@@ -142,7 +137,10 @@ class RenamerPass : CompilationPass<TreeSitterRepresentation, RenamedRepresentat
                 AstNode.Lambda(branches)
             }
 
-            else -> error("Неизвестный тип выражения: ${node.type}")
+            else -> throw RenamerException(StatusSeverity.ERROR,
+                "Unknown expression: ${node.type} in node $node",
+                node.startPosition.toPosition()
+            )
         }
     }
 
@@ -150,14 +148,16 @@ class RenamerPass : CompilationPass<TreeSitterRepresentation, RenamedRepresentat
         return when (node.type) {
             "pattern" -> {
                 if (node.namedChildCount == 1u)
-                    parsePattern(node.namedChild(0u)!!)
+                    parsePattern(node.getChildOrThrow(0u))
                 else
                     AstNode.Patterns(parseMultiple(node, ::parsePattern))
             }
             "expression" -> AstNode.PatternExpression(parseExpression(node))
             "wildcard_pattern" -> AstNode.Wildcard()
-            else -> error("Неизвестный тип паттерна: ${node.type}")
-
+            else -> throw RenamerException(StatusSeverity.ERROR,
+                "Unknown pattern: ${node.type} in node $node",
+                node.startPosition.toPosition()
+            )
         }
     }
 
@@ -165,17 +165,17 @@ class RenamerPass : CompilationPass<TreeSitterRepresentation, RenamedRepresentat
         return when (node.type) {
             "type_expression" -> {
                 if (node.namedChildCount == 1u)
-                    parseType(node.namedChild(0u)!!)
+                    parseType(node.getChildOrThrow(0u))
                 else {
-                    val func = parseType(node.namedChild(0u)!!)
+                    val func = parseType(node.getChildOrThrow(0u))
                     val args = parseMultiple(node, ::parseType, 1u)
                     AstNode.ApplicationTypes(func, args)
                 }
             }
 
             "binary_type_expression" -> {
-                val type1 = parseType(node.namedChild(0u)!!)
-                val type2 = parseType(node.namedChild(1u)!!)
+                val type1 = parseType(node.getChildOrThrow(0u))
+                val type2 = parseType(node.getChildOrThrow(1u))
                 if (node.children[1].text == "->")
                     AstNode.PowType(type1, type2)
                 else if (node.children[1].text == "++")
@@ -183,22 +183,60 @@ class RenamerPass : CompilationPass<TreeSitterRepresentation, RenamedRepresentat
                 else if (node.children[1].text == "#")
                     AstNode.ProductType(type1, type2)
                 else
-                    error("Неизвестный алгебраический тип: ${node.children[1].text}")
+                    throw RenamerException(StatusSeverity.ERROR,
+                        "Unknown ADT: ${node.children[1].text}",
+                       node.children[1].startPosition.toPosition()
+                    )
             }
 
             "ident" -> AstNode.IdentType(node.text)
 
-            else -> error("Неизвестный тип: ${node.type}")
+            else -> throw RenamerException(StatusSeverity.ERROR,
+                "Unknown type: ${node.type} in node $node",
+                node.startPosition.toPosition()
+            )
         }
     }
 
     private fun <T> parseMultiple(node: TsSyntaxNode, parseFunc: (TsSyntaxNode) -> T, from: UInt = 0u, to: UInt? = null): List<T> {
         val list = mutableListOf<T>()
         for (i in from until (to ?: node.namedChildCount)) {
-            list.add(parseFunc(node.namedChild(i)!!))
+            list.add(parseFunc(node.getChildOrThrow(i)))
         }
         return list
     }
 
     private fun parseMultipleIdent(node: TsSyntaxNode) = parseMultiple(node, {child -> child.text})
+
+    private fun TsPoint.toPosition() = RenamerException.RenamerLocation(this.row.toInt(), this.column.toInt())
+
+    private fun TsSyntaxNode.getChildOrThrow(i: UInt, type: String? = null): TsSyntaxNode {
+        val child = this.namedChild(i) ?: throw RenamerException(
+            StatusSeverity.ERROR,
+            "Cannot find child ${i} of node $this",
+            this.startPosition.toPosition()
+        )
+        if (child.isError)
+            throw RenamerException(
+                StatusSeverity.ERROR,
+                "Error in node $this",
+                child.startPosition.toPosition()
+            )
+        if (type != null && child.type != type)
+            throw RenamerException(
+                StatusSeverity.ERROR,
+                "Cannot find child of type $type in node $this",
+                child.startPosition.toPosition()
+            )
+        return child
+    }
+
+    private fun CompilationContext.add(exception: Exception) {
+        println("Renaming error: ${exception.message}")
+//    context.report(CompilationStatus.Plain(
+//                e.severity,
+//                e.message ?: "",
+//                StatusLocation(e.location.row, e.location.column)
+//            ))
+    }
 }
