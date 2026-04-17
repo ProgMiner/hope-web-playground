@@ -1,0 +1,162 @@
+==================
+Imports
+==================
+
+import List;
+import State;
+
+---
+
+(compilation_unit
+  (import_statement
+    (uident))
+  (import_statement
+    (uident)))
+
+==================
+Function
+==================
+
+public fun evalExpr (st, expr) {
+}
+
+---
+
+(compilation_unit
+  (scope_expression
+    (definition
+      (function_definition
+        (binding
+          (lident))
+        (function_arguments
+          (lident)
+          (lident))
+        (function_body)))))
+
+==================
+Comments
+==================
+
+-- Comments
+-- Comments
+(* --
+-- comm
+*)
+import List;
+(* --
+-****- comm
+*)
+
+---
+
+(compilation_unit
+  (line_comment)
+  (line_comment)
+  (block_comment)
+  (import_statement
+    (uident))
+  (block_comment))
+
+==================
+Single variable
+==================
+
+var x;
+
+---
+
+(compilation_unit
+  (scope_expression
+    (definition
+      (variable_definition
+        (variable_definition_item
+          (binding
+            (lident)))))))
+
+==================
+Multiple variables
+==================
+
+var x, y, z;
+
+---
+
+(compilation_unit
+  (scope_expression
+    (definition
+      (variable_definition
+        (variable_definition_item
+          (binding
+            (lident)))
+        (variable_definition_item
+          (binding
+            (lident)))
+        (variable_definition_item
+          (binding
+            (lident)))))))
+
+==================
+Single variable assignment
+==================
+
+var x = y;
+
+---
+
+(compilation_unit
+  (scope_expression
+    (definition
+      (variable_definition
+        (variable_definition_item
+          (binding
+            (lident))
+          (expression
+            (postfix_expression
+              (lident))))))))
+
+==================
+Variable assignment + declaration
+==================
+
+var x = a, z;
+
+---
+
+(compilation_unit
+  (scope_expression
+    (definition
+      (variable_definition
+        (variable_definition_item
+          (binding
+            (lident))
+          (expression
+            (postfix_expression
+              (lident))))
+        (variable_definition_item
+          (binding
+            (lident)))))))
+
+==================
+Multiple variables assignments
+==================
+
+var x = a, z = b;
+
+---
+
+(compilation_unit
+  (scope_expression
+    (definition
+      (variable_definition
+        (variable_definition_item
+          (binding
+            (lident))
+          (expression
+            (postfix_expression
+              (lident))))
+        (variable_definition_item
+          (binding
+            (lident))
+          (expression
+            (postfix_expression
+              (lident))))))))

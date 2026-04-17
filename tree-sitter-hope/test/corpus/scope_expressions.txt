@@ -1,0 +1,166 @@
+==================
+Definitions
+==================
+
+var x, y, z; -- variable definitions
+fun id (x) {x}
+
+---
+
+(compilation_unit
+  (scope_expression
+    (definition
+      (variable_definition
+        (variable_definition_item
+          (binding
+            (lident)))
+        (variable_definition_item
+          (binding
+            (lident)))
+        (variable_definition_item
+          (binding
+            (lident))))))
+  (line_comment)
+  (scope_expression
+    (definition
+      (function_definition
+        (binding
+          (lident))
+        (function_arguments
+          (lident))
+        (function_body
+          (scope_expression
+            (expression
+              (postfix_expression
+                (lident)))))))))
+
+==================
+Explicit scope
+==================
+
+var x;
+( -- nested scope begins here
+   var y;
+   skip
+) -- nested scope ends here
+
+---
+
+(compilation_unit
+  (scope_expression
+    (definition
+      (variable_definition
+        (variable_definition_item
+          (binding
+            (lident))))))
+  (scope_expression
+    (expression
+      (postfix_expression
+        (line_comment)
+        (scope_expression
+          (definition
+            (variable_definition
+              (variable_definition_item
+                (binding
+                  (lident)))))
+          (expression
+            (postfix_expression))))))
+  (line_comment))
+
+==================
+Nested scopes
+==================
+
+var x;
+(var y;
+   (var z;
+      skip -- x, y, and z are visible here
+   );
+   skip -- x and y are visible here
+);
+skip -- only x is visible here
+
+---
+
+(compilation_unit
+  (scope_expression
+    (definition
+      (variable_definition
+        (variable_definition_item
+          (binding
+            (lident))))))
+  (scope_expression
+    (expression
+      (postfix_expression
+        (scope_expression
+          (definition
+            (variable_definition
+              (variable_definition_item
+                (binding
+                  (lident)))))
+          (expression
+            (postfix_expression
+              (scope_expression
+                (definition
+                  (variable_definition
+                    (variable_definition_item
+                      (binding
+                        (lident)))))
+                (expression
+                  (postfix_expression)))
+              (line_comment)))
+          (expression
+            (postfix_expression)))
+        (line_comment)))
+    (expression
+      (postfix_expression)))
+  (line_comment))
+
+==================
+Scoped functions
+==================
+
+fun f () {0}
+(
+   fun g () {f () + h () + y} -- ok
+)
+
+---
+
+(compilation_unit
+  (scope_expression
+    (definition
+      (function_definition
+        (binding
+          (lident))
+        (function_body
+          (scope_expression
+            (expression
+              (postfix_expression
+                (decimal))))))))
+  (scope_expression
+    (expression
+      (postfix_expression
+        (scope_expression
+          (definition
+            (function_definition
+              (binding
+                (lident))
+              (function_body
+                (scope_expression
+                  (expression
+                    (binary_expression
+                      (expression
+                        (binary_expression
+                          (expression
+                            (postfix_expression
+                              (postfix_expression
+                                (lident))))
+                          (expression
+                            (postfix_expression
+                              (postfix_expression
+                                (lident))))))
+                      (expression
+                        (postfix_expression
+                          (lident))))))))))
+        (line_comment)))))

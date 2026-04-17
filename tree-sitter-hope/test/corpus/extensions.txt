@@ -1,0 +1,133 @@
+==================
+Custom infix
+==================
+
+infixl ** before *(x, y) { pow (x, y) }
+
+---
+
+(compilation_unit
+  (scope_expression
+    (definition
+      (infix_definition
+        (infix_head
+          (infixity)
+          (infix)
+          (level
+            (infix)))
+        (function_arguments
+          (lident)
+          (lident))
+        (function_body
+          (scope_expression
+            (expression
+              (postfix_expression
+                (postfix_expression
+                  (lident))
+                (expression
+                  (postfix_expression
+                    (lident)))
+                (expression
+                  (postfix_expression
+                    (lident)))))))))))
+
+==================
+Public custom infix
+==================
+
+public infixr *** after **(x, y) { powpow (x, y) }
+
+---
+
+(compilation_unit
+  (scope_expression
+    (definition
+      (infix_definition
+        (infix_head
+          (infixity)
+          (infix)
+          (level
+            (infix)))
+        (function_arguments
+          (lident)
+          (lident))
+        (function_body
+          (scope_expression
+            (expression
+              (postfix_expression
+                (postfix_expression
+                  (lident))
+                (expression
+                  (postfix_expression
+                    (lident)))
+                (expression
+                  (postfix_expression
+                    (lident)))))))))))
+
+==================
+Lazy
+==================
+
+lazy e
+
+---
+
+(compilation_unit
+  (scope_expression
+    (expression
+      (postfix_expression
+        (lazy_expression
+          (expression
+            (postfix_expression
+              (lident))))))))
+
+==================
+Eta
+==================
+
+eta e
+
+---
+
+(compilation_unit
+  (scope_expression
+    (expression
+      (postfix_expression
+        (eta_expression
+          (expression
+            (postfix_expression
+              (lident))))))))
+
+==================
+Dot notation
+==================
+
+e1.f (e2, ek)
+e.f
+
+---
+
+(compilation_unit
+  (scope_expression
+    (expression
+      (postfix_expression
+        (postfix_expression
+          (dot_expression
+            (expression
+              (postfix_expression
+                (lident)))
+            (lident)))
+        (expression
+          (postfix_expression
+            (lident)))
+        (expression
+          (postfix_expression
+            (lident))))))
+  (scope_expression
+    (expression
+      (postfix_expression
+        (dot_expression
+          (expression
+            (postfix_expression
+              (lident)))
+          (lident))))))
