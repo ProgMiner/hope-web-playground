@@ -44,5 +44,9 @@
 		"svoast": "^3.0.3",
 		"tree-sitter": "^0.25.0",
 		"web-tree-sitter": "^0.26.7"
+	},
+	"optionalDependencies": {
+		"@tailwindcss/oxide-linux-x64-gnu": "^4.2.2",
+		"lightningcss-linux-x64-gnu": "^1.32.0"
 	}
 }

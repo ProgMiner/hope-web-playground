@@ -2,6 +2,11 @@
 # yarn lockfile v1
 
 
+binaryen@^117.0.0:
+  version "117.0.0"
+  resolved "https://registry.yarnpkg.com/binaryen/-/binaryen-117.0.0.tgz#71b7a81633298fb337800f4d3dc5b5a3ea03884e"
+  integrity sha512-1D+O881OXxY737WPKfIgEscCn3vWGqTsd0m5nGKzvbtadVYw5pZ3eebineH/oV5c/rAW80Bojrsa6firSSIsUw==
+
 node-addon-api@^8.3.0:
   version "8.7.0"
   resolved "https://registry.yarnpkg.com/node-addon-api/-/node-addon-api-8.7.0.tgz#f64f8413456ecbe900221305a3f883c37666473f"

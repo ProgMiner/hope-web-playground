@@ -7,8 +7,21 @@
 	let { tree, terminal }: { tree: Tree | undefined; terminal: Terminal } = $props();
 
 	async function run(): Promise<void> {
-		let compiled = await compiler.compile(tree!);
-		terminal.write(compiled?.exports.add(2, 2) + '\n');
+		if (!tree) {
+			terminal.write('No syntax tree to compile\n');
+			return;
+		}
+
+		const compiled = await compiler.compile(tree);
+		if (!compiled) {
+			terminal.write('Compilation failed\n');
+			return;
+		}
+
+		const exportsObj = compiled.exports as Record<string, unknown>;
+
+		const result = (add as (left: number, right: number) => number)(2, 2);
+		terminal.write(`${result}\n`);
 	}
 </script>
 

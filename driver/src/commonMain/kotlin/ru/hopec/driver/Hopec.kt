@@ -13,9 +13,7 @@ class Hopec(@Suppress("UNUSED_PARAMETER") private val context: CompilationContex
         val watCode = """
             (module
               (func (export "add") (param i32 i32) (result i32)
-                local.get 0
-                local.get 1
-                i32.add
+                (i32.add (local.get 0) (local.get 1))
               )
               (memory (export "memory") 1)
               (table (export "table") 1 funcref)
