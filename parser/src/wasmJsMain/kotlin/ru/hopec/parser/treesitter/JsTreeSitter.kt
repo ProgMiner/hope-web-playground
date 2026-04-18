@@ -2,6 +2,8 @@
 
 package ru.hopec.parser.treesitter
 
+import kotlinx.coroutines.await
+
 private class JsParser(val delegate: Parser) : TsParser {
 
     override fun parse(input: String): TsTree =
@@ -251,8 +253,7 @@ private class JsLookaheadIterator(val delegate: LookaheadIterator) : TsLookahead
     override fun resetState(stateId: UInt): Boolean = delegate.resetState(stateId)
 }
 
-private class JsLanguage(val delegate: Language) : TsLanguage {
-}
+private class JsLanguage(val delegate: Language) : TsLanguage
 
 private fun TsLanguage.inner(): Language = (this as JsLanguage).delegate
 
@@ -264,7 +265,10 @@ private fun SyntaxNode.wrap(): JsSyntaxNode = JsSyntaxNode(this)
 
 private class JsFactory : TsFactory {
 
-    override fun createParser(): TsParser = JsParser(Parser())
+    override suspend fun createParser(): TsParser {
+        Parser.init().await<Any>()
+        return JsParser(Parser())
+    }
 
     override fun createQuery(language: TsLanguage, source: String): TsQuery =
         JsQuery(Query(language.inner(), source))
@@ -272,8 +276,12 @@ private class JsFactory : TsFactory {
     override fun createLookaheadIterator(language: TsLanguage, state: UInt): TsLookaheadIterator =
         JsLookaheadIterator(LookaheadIterator(language.inner(), state))
 
-    override fun loadLanguage(location: String): TsLanguage? =
-        Language.load(location)?.let { JsLanguage(it) }
+    override suspend fun loadLanguage(location: String): TsLanguage? {
+        Parser.init().await<Any>()
+        return Language.load(location).await<Language?>()?.let { JsLanguage(it) }
+    }
 }
 
 actual fun factory(): TsFactory = JsFactory()
+
+actual fun sharedLibraryLocation(): String = "kotlin/lib/tree-sitter-hope.wasm"

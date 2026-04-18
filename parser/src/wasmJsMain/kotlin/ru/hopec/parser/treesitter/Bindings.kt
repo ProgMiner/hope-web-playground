@@ -1,6 +1,9 @@
 @file:OptIn(ExperimentalWasmJsInterop::class)
+@file:JsModule("web-tree-sitter")
 
 package ru.hopec.parser.treesitter
+
+import kotlin.js.Promise
 
 open external class Parser {
     fun parse(input: JsAny, oldTree: Tree?, options: Options?): Tree
@@ -11,6 +14,10 @@ open external class Parser {
     fun getLanguage(): Language
     fun setLanguage(language: Language?)
     fun printDotGraphs(enabled: Boolean?, fd: UInt?)
+
+    companion object {
+        fun init(): Promise<JsAny>
+    }
 }
 
 open external class Options {
@@ -182,6 +189,6 @@ open external class Language : JsAny {
     val language: JsAny
 
     companion object {
-        fun load(input: String): Language?
+        fun load(input: String): Promise<Language?>
     }
 }

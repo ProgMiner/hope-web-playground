@@ -1,7 +1,6 @@
 package ru.hopec.parser.treesitter
 
 import org.treesitter.*
-import java.io.File
 
 private class JavaParser(val delegate: TSParser) : TsParser {
 
@@ -287,7 +286,7 @@ fun TsPoint.inner(): TSPoint = (this as JavaPoint).delegate
 
 private class JavaFactory : TsFactory {
 
-    override fun createParser(): TsParser = JavaParser(TSParser())
+    override suspend fun createParser(): TsParser = JavaParser(TSParser())
 
     override fun createQuery(language: TsLanguage, source: String): TsQuery =
         JavaQuery(TSQuery(language.inner(), source))
@@ -295,11 +294,12 @@ private class JavaFactory : TsFactory {
     override fun createLookaheadIterator(language: TsLanguage, state: UInt): TsLookaheadIterator =
         JavaLookaheadIterator(TsLookAheadIterator(language.inner(), state.toInt()))
 
-    override fun loadLanguage(location: String): TsLanguage? =
-        TSLanguage.load(location, "tree_sitter_hope")?.let { JavaLanguage(it) }
+    override suspend fun loadLanguage(location: String): TsLanguage? {
+        return TSLanguage.load(location, "tree_sitter_hope")?.let { JavaLanguage(it) }
+    }
+
 }
 
 actual fun factory(): TsFactory = JavaFactory()
 
-fun findSharedLibrary(): String =
-    listOf("so", "dll", "dylib").map { "../tree-sitter-hope/hope.${it}" }.first { File(it).exists() }
+actual fun sharedLibraryLocation(): String = "../tree-sitter-hope/hope"

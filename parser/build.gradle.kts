@@ -16,12 +16,14 @@ kotlin {
 
     @OptIn(ExperimentalWasmDsl::class)
     wasmJs {
-        browser()
+        nodejs()
     }
 
     sourceSets {
         commonMain.dependencies {
             implementation(project(":core"))
+            implementation(kotlin("stdlib-common"))
+            implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
         }
 
         jvmMain.dependencies {
@@ -29,6 +31,7 @@ kotlin {
         }
 
         wasmJsMain.dependencies {
+            file(layout.projectDirectory.file("../tree-sitter-hope/tree-sitter-hope.wasm"))
             implementation(npm("tree-sitter", "^0.25.0"))
             implementation(npm("web-tree-sitter", "^0.26.7"))
         }
@@ -42,6 +45,7 @@ kotlin {
         commonTest.dependencies {
             implementation(kotlin("test"))
             implementation("com.goncalossilva:resources:0.15.0")
+            implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.0")
         }
     }
 }
