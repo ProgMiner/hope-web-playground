@@ -30,12 +30,13 @@ kotlin {
         }
 
         jvmMain.dependencies {
-            implementation("org.wasm:binaryen:version_117")
             implementation("com.github.ajalt.clikt:clikt:5.1.0")
             implementation("com.dylibso.chicory:runtime:1.7.5")
+            implementation("com.dylibso.chicory:wabt:1.7.5")
         }
 
         wasmJsMain.dependencies {
+            implementation(npm("binaryen", "^117.0.0"))
             implementation(npm("tree-sitter", "^0.25.0"))
             implementation(npm("web-tree-sitter", "^0.26.7"))
         }
