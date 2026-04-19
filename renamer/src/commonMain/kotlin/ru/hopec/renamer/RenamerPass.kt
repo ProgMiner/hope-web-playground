@@ -27,7 +27,7 @@ class RenamerPass : CompilationPass<TreeSitterRepresentation, RenamedRepresentat
                 else -> parseStatement(child)
             }
         })
-        return RenamedRepresentation(topLevelNodes)
+        return RenamedRepresentation(Program(topLevelNodes))
     }
 
     private fun parseModule(node: TsSyntaxNode): AstNode.Module {
@@ -197,6 +197,8 @@ class RenamerPass : CompilationPass<TreeSitterRepresentation, RenamedRepresentat
             )
         }
     }
+
+    private fun parseOperandsList(operandsList: List<>): List<AstNode>
 
     private fun <T> parseMultiple(node: TsSyntaxNode, parseFunc: (TsSyntaxNode) -> T, from: UInt = 0u, to: UInt? = null): List<T> {
         val list = mutableListOf<T>()
