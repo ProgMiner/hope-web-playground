@@ -89,7 +89,7 @@ data class TypedRepresentation(val modules: Map<String, Module>, val topLevel: D
         data class Function(val argument: Type, val result: Type) : Type
         data class Data(val constructor: String, val args: List<Type>) : Type
 
-        /** Type variable, represented as Be Brujin index */
+        /** Type variable, represented as De Brujin index */
         data class Variable(val index: Int) : Type
         sealed interface Basic : Type {
             companion object {
