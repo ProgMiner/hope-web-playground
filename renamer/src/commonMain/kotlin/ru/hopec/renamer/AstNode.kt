@@ -45,7 +45,6 @@ sealed interface AstNode {
 
     sealed interface TypeExpr : AstNode
     data class FunctionalType(val premise: TypeExpr, val result: TypeExpr) : TypeExpr
-    data class SumType(val type1: TypeExpr, val type2: TypeExpr) : TypeExpr
     data class ProductType(val left: TypeExpr, val right: TypeExpr) : TypeExpr
     data class TypeApplication(val type: TypeExpr, val arguments: List<TypeExpr>) : TypeExpr
     data class OuterType(val name: String) : TypeExpr
