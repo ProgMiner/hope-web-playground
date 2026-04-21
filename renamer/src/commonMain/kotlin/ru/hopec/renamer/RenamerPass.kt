@@ -19,53 +19,6 @@ class RenamerPass : CompilationPass<TreeSitterRepresentation, RenamedRepresentat
         return RenamedRepresentation(cstParser.parse())
     }
 
-//    private fun parseModule(node: TsSyntaxNode): AstNode.Module {
-//        val moduleName = node.getChildOrThrow(0u, "binding").text
-//        val statements = parseMultiple(node, ::parseStatement, 1u)
-//        return AstNode.Module(moduleName, statements)
-//    }
-//
-//    private fun parseStatement(node: TsSyntaxNode): AstNode.Statement {
-//
-//
-//        return when (node.type) {
-//            "data_declaration" -> {
-//                val name =  node.getChildOrThrow(0u).text
-//                val params = parseMultiple(node, {child -> child.text}, 1u, node.namedChildCount - 1u)
-//                val typeNode = parseType(node.getChildOrThrow(node.namedChildCount - 1u))
-//                AstNode.DataDeclaration(name, params, typeNode)
-//            }
-//            "function_equation" -> {
-//                val patternNode = node.getChildOrThrow(0u)
-//                val exprNode = node.getChildOrThrow(1u)
-//                AstNode.FunctionEquation(
-//                    pattern = parsePattern(patternNode),
-//                    body = parseExpression(exprNode)
-//                )
-//            }
-//            "function_declaration" -> {
-//                val names = parseMultiple(node, {child -> child.text}, 0u, node.namedChildCount - 1u)
-//                val typeNode = parseType(node.getChildOrThrow(node.namedChildCount - 1u))
-//                AstNode.FunctionDeclaration(names, typeNode)
-//            }
-//
-//            "infix_declaration" -> {
-//                val assoc = node.getChildOrThrow(0u).text != "infix"
-//                val names = parseMultiple(node, {child -> child.text}, 0u, node.namedChildCount - 1u)
-//                val priority = node.getChildOrThrow(node.namedChildCount - 1u).text
-//                AstNode.InfixDeclaration(names, priority.toInt(), assoc)
-//            }
-//
-//            "type_variable_declaration" -> AstNode.TypeVaribleDeclaration(parseMultipleIdent(node))
-//            "type_export_declaration" -> AstNode.TypeExportDeclaration(parseMultipleIdent(node))
-//            "constant_export_declaration" -> AstNode.ConstantExportDeclaration(parseMultipleIdent(node))
-//            "module_use_declaration" -> AstNode.ModuleUseDeclaration(parseMultipleIdent(node))
-//            else -> throw RenamerException(StatusSeverity.ERROR,
-//                "Unknown statement: ${node.type} in node $node",
-//                node.endPosition.toPosition()
-//            )
-//        }
-//    }
 //
 //    private fun parseExpression(node: TsSyntaxNode): AstNode.Expr {
 //        return when (node.type) {
@@ -152,42 +105,6 @@ class RenamerPass : CompilationPass<TreeSitterRepresentation, RenamedRepresentat
 //        }
 //    }
 //
-//    private fun parseType(node: TsSyntaxNode): AstNode.TypeExpr {
-//        return when (node.type) {
-//            "type_expression" -> {
-//                if (node.namedChildCount == 1u)
-//                    parseType(node.getChildOrThrow(0u))
-//                else {
-//                    val func = parseType(node.getChildOrThrow(0u))
-//                    val args = parseMultiple(node, ::parseType, 1u)
-//                    AstNode.ApplicationTypes(func, args)
-//                }
-//            }
-//
-//            "binary_type_expression" -> {
-//                val type1 = parseType(node.getChildOrThrow(0u))
-//                val type2 = parseType(node.getChildOrThrow(1u))
-//                if (node.children[1].text == "->")
-//                    AstNode.PowType(type1, type2)
-//                else if (node.children[1].text == "++")
-//                    AstNode.SumType(type1, type2)
-//                else if (node.children[1].text == "#")
-//                    AstNode.ProductType(type1, type2)
-//                else
-//                    throw RenamerException(StatusSeverity.ERROR,
-//                        "Unknown ADT: ${node.children[1].text}",
-//                       node.children[1].startPosition.toPosition()
-//                    )
-//            }
-//
-//            "ident" -> AstNode.IdentType(node.text)
-//
-//            else -> throw RenamerException(StatusSeverity.ERROR,
-//                "Unknown type: ${node.type} in node $node",
-//                node.startPosition.toPosition()
-//            )
-//        }
-//    }
 
 //    private fun parseOperandsList(operandsList: List<>): List<AstNode>
 

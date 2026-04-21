@@ -13,8 +13,11 @@ fun parseModuleInfix(from: TreeSitterRepresentation): Map<String, Map<String, In
             child ->
         if (child.type == "module") {
             val moduleName = child.getChildOrThrow(0u, "binding").text
-            val operators = parseMultiple(child, ::parseInfix, 1u)
-            return@parseMultiple Pair(moduleName, operators.flatten().toMap())
+            val operators = parseMultiple(child, ::parseInfix, 1u).flatten()
+            val export = parseMultiple(child, ::parseExport, 1u).flatten().toSet()
+            return@parseMultiple Pair(
+                moduleName,
+                operators.filter { (name, infix) -> export.contains(name) } .toMap())
         }
         null
     })
@@ -27,6 +30,14 @@ fun parseInfix(node: TsSyntaxNode): List<Pair<String, Infix>>? {
         val names = parseMultipleIdent(node = node, to = node.namedChildCount - 1u)
         val priority = node.getChildOrThrow(node.namedChildCount - 1u).text
         return names.map { Pair(it, Infix(priority.toInt(), assoc)) }
+    }
+    return null
+}
+
+fun parseExport(node: TsSyntaxNode): List<String>? {
+    if (node.type == "constant_export_declaration") {
+        val names = parseMultipleIdent(node = node)
+        return names
     }
     return null
 }
