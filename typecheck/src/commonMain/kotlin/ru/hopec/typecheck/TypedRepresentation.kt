@@ -56,19 +56,19 @@ data class TypedRepresentation(val modules: Map<String, Module>, val topLevel: D
 
         sealed interface Literal : Expr {
             data class TruVal(val value: Boolean) : Literal {
-                override val type = Type.Basic.Decimal
+                override val type = Type.truval
             }
 
-            data class Decimal(val value: Long) : Literal {
-                override val type = Type.Basic.Decimal
+            data class Num(val value: Long) : Literal {
+                override val type = Type.num
             }
 
             data class Char(val value: kotlin.Char) : Literal {
-                override val type = Type.Basic.Char
+                override val type = Type.char
             }
 
             data class String(val value: kotlin.String) : Literal {
-                override val type = Type.Basic.String
+                override val type = Type.String
             }
         }
     }
@@ -91,14 +91,15 @@ data class TypedRepresentation(val modules: Map<String, Module>, val topLevel: D
 
         /** Type variable, represented as De Brujin index */
         data class Variable(val index: Int) : Type
-        sealed interface Basic : Type {
-            companion object {
-                val String = Data("List", arrayListOf(Char))
-            }
 
-            data object TruVal : Basic
-            data object Decimal : Basic
-            data object Char : Basic
+        companion object {
+            val char = Data("char", arrayListOf())
+            val truval = Data("truval", arrayListOf())
+            val num = Data("num", arrayListOf())
+            val String = Data("list", arrayListOf(char))
+
+            fun list(arg: Type) = Data("list", arrayListOf(arg))
+            fun set(arg: Type) = Data("set", arrayListOf(arg))
         }
     }
 }
