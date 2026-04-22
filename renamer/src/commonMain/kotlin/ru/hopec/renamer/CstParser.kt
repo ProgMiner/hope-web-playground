@@ -4,6 +4,7 @@ import ru.hopec.core.StatusSeverity
 import ru.hopec.parser.TreeSitterRepresentation
 import ru.hopec.parser.treesitter.TsSyntaxNode
 import kotlin.collections.listOf
+import kotlin.contracts.contract
 
 class CstParser(
     private val from: TreeSitterRepresentation,
@@ -16,9 +17,9 @@ class CstParser(
         val equations: MutableMap<String, MutableList<AstNode.FunctionEquation>> = mutableMapOf(),
     )
 
-    sealed interface ExprToken {
-        data class Operand(val expr: AstNode.Expr) : ExprToken
-        data class Operator(val name: String, val infix: Infix) : ExprToken
+    sealed interface ApplicationToken {
+        data class Operand<T>(val expr: T) : ApplicationToken
+        data class Operator(val name: String, val infix: Infix) : ApplicationToken
     }
 
     fun parse(): Program {
@@ -31,6 +32,11 @@ class CstParser(
                 else -> parseStatementOrInternal(child, globalParserState)
             }
         })
+
+        topLevelNodes.filterIsInstance<AstNode.FunctionDeclaration>().forEach {
+            it.equations.addAll(globalParserState.equations[it.name] ?: emptyList())
+        }
+
         return Program(topLevelNodes)
     }
 
@@ -38,6 +44,11 @@ class CstParser(
         val moduleName = node.getChildOrThrow(0u, "binding").text
         val parserState = ParserState()
         val statements = parseMultiple(node, { parseStatementOrInternal(it, parserState) }, 1u)
+
+        statements.filterIsInstance<AstNode.FunctionDeclaration>().forEach {
+            it.equations.addAll(parserState.equations[it.name] ?: emptyList())
+        }
+
         return AstNode.Module(moduleName, statements)
     }
 
@@ -49,7 +60,7 @@ class CstParser(
             "data_declaration" -> {
                 val name =  node.getChildOrThrow(0u).text
                 val params = parseMultiple(node, { it.text }, 1u, node.namedChildCount - 1u)
-                val typeNode = parseTypeDeclaration(node.getChildOrThrow(node.namedChildCount - 1u), parserState.typeVars)
+                val typeNode = parseTypeDeclaration(node.getChildOrThrow(node.namedChildCount - 1u), parserState)
                 AstNode.DataDeclaration(name, params, typeNode)
             }
 
@@ -105,7 +116,7 @@ class CstParser(
         }
     }
 
-    private fun parseTypeDeclaration(node: TsSyntaxNode, typeVars: MutableSet<String>): List<Pair<String, AstNode.TypeExpr?>> {
+    private fun parseTypeDeclaration(node: TsSyntaxNode, parserState: ParserState): List<Pair<String, AstNode.TypeExpr?>> {
         if (node.type != "type_expression")
             throw TypeDeclarationException(node)
 
@@ -114,8 +125,8 @@ class CstParser(
             "binary_type_expression" -> {
                 val op = typeNode.child(1u)!!
                 if (op.type == "++")
-                    parseTypeDeclaration(typeNode.getChildOrThrow(0u), typeVars) +
-                            parseTypeDeclaration(typeNode.getChildOrThrow(1u), typeVars)
+                    parseTypeDeclaration(typeNode.getChildOrThrow(0u), parserState) +
+                            parseTypeDeclaration(typeNode.getChildOrThrow(1u), parserState)
                 else
                     throw TypeDeclarationException(node)
             }
@@ -126,25 +137,23 @@ class CstParser(
                 }
                 else if (node.namedChildCount == 2u) {
                     val constructor = node.getChildOrThrow(0u).text
-                    listOf( Pair(constructor, parseType(node.getChildOrThrow(1u), typeVars)) )
-                } else
-                    // TODO: infix data constructor
-                    throw TypeDeclarationException(node)
+                    listOf( Pair(constructor, parseType(node.getChildOrThrow(1u), parserState.typeVars)) )
+                } else {
+                    val operatorIndex = node.namedChildren.indexOfFirst { it.text in parserState.operators.keys }.toUInt()
+                    val operator = node.namedChild(operatorIndex)!!
+
+                    val left = parseFunctionalType(node, parserState.typeVars, 0u, operatorIndex - 1u)
+                    val right = parseFunctionalType(node, parserState.typeVars, operatorIndex + 1u, node.namedChildCount - 1u)
+
+                    listOf( Pair(operator.text, AstNode.ProductType(left, right)) )
+                }
             }
         }
     }
 
     private fun parseType(node: TsSyntaxNode, typeVars: MutableSet<String>): AstNode.TypeExpr {
         return when (node.type) {
-            "type_expression" -> {
-                if (node.namedChildCount == 1u)
-                    parseType(node.getChildOrThrow(0u), typeVars)
-                else {
-                    val func = node.getChildOrThrow(0u).text
-                    val args = parseMultiple(node, { parseType(it, typeVars) }, 1u)
-                    AstNode.NamedType(func, args)
-                }
-            }
+            "type_expression" -> parseFunctionalType(node, typeVars, 0u, node.namedChildCount - 1u)
 
             "binary_type_expression" -> {
                 val type1 = parseType(node.getChildOrThrow(0u), typeVars)
@@ -174,6 +183,15 @@ class CstParser(
         }
     }
 
+    private fun parseFunctionalType(node: TsSyntaxNode, typeVars: MutableSet<String>, from: UInt, to: UInt) =
+        if (node.namedChildCount == 1u)
+            parseType(node.getChildOrThrow(from), typeVars)
+        else {
+            val func = node.getChildOrThrow(from).text
+            val args = parseMultiple(node, { parseType(it, typeVars) }, from + 1u, to)
+            AstNode.NamedType(func, args)
+        }
+
     private fun getBoundVars(type: AstNode.TypeExpr): Set<String> {
         return when (type) {
             is AstNode.VarType -> setOf(type.name)
@@ -189,7 +207,12 @@ class CstParser(
                 if (node.namedChildCount == 1u)
                     parseExpression(node.getChildOrThrow(0u), operators)
                 else
-                    parseApplication(node, operators)
+                    parseApplication(node = node,
+                                    infix = operators,
+                                    parse = { parseExpression(it, operators) },
+                                    constructOperand = { func, args -> AstNode.ApplicationExpr(func, args) },
+                                    constructOperator = { name, args -> AstNode.ApplicationExpr(AstNode.IdentExpr(name), args) }
+                    )
             }
 
             "ident" -> AstNode.IdentExpr(node.text)
@@ -242,61 +265,96 @@ class CstParser(
         }
     }
 
-    private fun parseApplication(node: TsSyntaxNode, operators: MutableMap<String, Infix>): AstNode.Expr {
-        val expressions = parseMultiple(node, { parseExpression(it, operators) })
-        val tokenStack = mutableListOf<AstNode.Expr>()
-        val tokens = mutableListOf<ExprToken>()
-        for (expr in expressions) {
-            if (expr is AstNode.IdentExpr && operators.contains(expr.name)) {
-                if (tokenStack.isEmpty())
-                    throw RenamerException(StatusSeverity.ERROR, "Not fully applied operator ${expr.name}", node.endPosition.toPosition())
-                else if (tokenStack.size == 1)
-                    tokens.add(ExprToken.Operand(tokenStack.first()))
-                else
-                    tokens.add(ExprToken.Operand(AstNode.ApplicationExpr(
+    private fun <T> parseApplication(node: TsSyntaxNode,
+                                        infix: MutableMap<String, Infix>,
+                                        parse: (TsSyntaxNode) -> T?,
+                                        constructOperand: (T, List<T>) -> T,
+                                        constructOperator: (String, List<T>) -> T): T {
+        val expressions = parseMultiple(node, parse)
+        val tokenStack = mutableListOf<T>()
+        val tokens = mutableListOf<ApplicationToken>()
+
+        fun popToken() {
+            if (tokenStack.size == 1)
+                tokens.add(ApplicationToken.Operand(tokenStack.first()))
+            else if (tokenStack.size > 1)
+                tokens.add(ApplicationToken.Operand(
+                    constructOperand(
                         tokenStack.first(),
                         tokenStack.drop(1),
-                    )))
+                    )
+                ))
+            tokenStack.clear()
+        }
+
+        for (expr in expressions) {
+            if (expr is AstNode.IdentExpr && infix.contains(expr.name)) {
+                if (tokenStack.isEmpty())
+                    throw RenamerException(StatusSeverity.ERROR, "Not fully applied operator ${expr.name}", node.endPosition.toPosition())
+                popToken()
+                tokens.add(ApplicationToken.Operator(expr.name, infix[expr.name]!!))
             }
             else
                 tokenStack.add(expr)
         }
 
-        val operands = mutableListOf<AstNode.Expr>()
-        val operators = mutableListOf<ExprToken.Operator>()
+        if (tokenStack.isNotEmpty()) popToken()
 
-        val pop = {
+        val operands = mutableListOf<T>()
+        val operators = mutableListOf<ApplicationToken.Operator>()
+
+        fun popOperator() {
             val op = operators.removeLast()
             val right = operands.removeLast()
             val left = operands.removeLast()
-            operands.add(AstNode.ApplicationExpr(AstNode.IdentExpr(op.name), listOf(left, right)))
+            operands.add(constructOperator(op.name, listOf(left, right)))
         }
 
         tokens.forEach { token ->
             when (token) {
-                is ExprToken.Operator -> {
+                is ApplicationToken.Operator -> {
                     while (operators.isNotEmpty()) {
                         if (operators.last().infix.priority > token.infix.priority ||
                             (operators.last().infix.priority == token.infix.priority && !token.infix.isRightAssoc)) {
-                            pop()
+                            popOperator()
                         } else
                             break
                     }
                     operators.add(token)
                 }
-                is ExprToken.Operand -> operands.add(token.expr)
+                is ApplicationToken.Operand<*> -> operands.add(token.expr as T)
             }
         }
 
-        repeat(operators.size) { pop() }
+        repeat(operators.size) { popOperator() }
 
         return operands.first()
     }
 
-    private fun parseFunctionPattern(node: TsSyntaxNode, operators: MutableMap<String, Infix>): Pair<String, AstNode.Pattern> = throw NotImplementedError()
+    private fun parseFunctionPattern(node: TsSyntaxNode, operators: MutableMap<String, Infix>): Pair<String, AstNode.Pattern> {
+        if (node.namedChildCount == 2u) {
+            val functionName = node.getChildOrThrow(0u).text
+            return Pair(functionName, parsePattern(node.getChildOrThrow(1u), operators))
+        } else {
+            val functionName = node.getChildOrThrow(1u).text
+            val left = parsePattern(node.getChildOrThrow(0u), operators)
+            val right = parsePattern(node.getChildOrThrow(2u), operators)
+            return Pair(functionName, AstNode.TuplePattern(listOf(left, right)))
+        }
+    }
 
-    private fun parsePattern(node: TsSyntaxNode, operators: MutableMap<String, Infix>): AstNode.Pattern = throw NotImplementedError()
-
+    private fun parsePattern(node: TsSyntaxNode, operators: MutableMap<String, Infix>): AstNode.Pattern {
+        return when (node.type) {
+            "expression" -> parsePattern(node.getChildOrThrow(0u), operators)
+            "ident" -> AstNode.VarPattern(node.text)
+            "tuple" -> AstNode.TuplePattern(parseMultiple(node, { parsePattern(it, operators) }))
+            "wildcard_pattern" -> AstNode.WildcardPattern
+            else -> throw RenamerException(StatusSeverity.ERROR,
+                "Unknown pattern: ${node.type} in node $node",
+                node.startPosition.toPosition()
+            )
+        }
+    }
 
     private fun TypeDeclarationException(node: TsSyntaxNode) = RenamerException(
         StatusSeverity.ERROR,

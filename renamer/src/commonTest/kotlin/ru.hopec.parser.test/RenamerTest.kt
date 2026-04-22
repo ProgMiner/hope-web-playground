@@ -5,6 +5,7 @@ import ru.hopec.core.CompilationContext
 import ru.hopec.parser.TreeSitterRepresentation
 import ru.hopec.parser.treesitter.parseHope
 import ru.hopec.renamer.AstNode
+import ru.hopec.renamer.Program
 import ru.hopec.renamer.RenamedRepresentation
 import ru.hopec.renamer.RenamerPass
 import kotlin.collections.listOf
@@ -24,32 +25,88 @@ class RenamerTest {
         return pass.run(treeSitterRep, context)
     }
 
-    @Test
-    fun `test function equation`() = runTest {
-        val code = "--- x <= w"
+    suspend fun `function declaration`(): Program {
+        val code = """
+            dec f : WrongType
+            --- f(x) <= x
+        """.trimIndent()
         val res = startRenamer(code) ?: error("renamer failed")
-        val list = res.program.list
-        assertTrue(list.first() is AstNode.FunctionEquation, "Should be parsed as function equation");
+        return res.program
     }
 
-//    @Test
-//    fun `test application`() = runTest {
-//        val code = "--- x <= f x y"
-//        val res = startRenamer(code) ?: error("renamer failed")
-//        val list = res.program.list
-//        val equation = list.first() as AstNode.FunctionEquation
-//        assertTrue(equation.body is AstNode.Application)
-//    }
+    @Test
+    fun `test function declaration`() = runTest {
+        val program = `function declaration`()
+        assertEquals(
+            program.list.filterIsInstance<AstNode.FunctionDeclaration>().size,
+            1,
+            "Should have one function declaration"
+        )
+    }
 
-//    @Test
-//    fun `test multiple pattern`() = runTest {
-//        val code = "--- x y <= f x y"
-//        val res = startRenamer(code) ?: error("renamer failed")
-//        val list = res.program.list
-//        val function = list.first() as AstNode.FunctionEquation
-//        assertIs<AstNode.Patterns>(function.pattern, "Pattern should be parsed as Patterns")
-//    }
-//
+    @Test
+    fun `test function declaration have equation`() = runTest {
+        val program = `function declaration`()
+        val functionDeclaration = program.list.filterIsInstance<AstNode.FunctionDeclaration>().first()
+        assertEquals(
+            functionDeclaration.equations.size,
+            1,
+            "Should have one function equation"
+        )
+    }
+
+    suspend fun application(): Program {
+        val code = """
+            dec * : WrongType
+            infix * : 6
+            
+            dec f : WrongType
+            --- f(x) <= x * f 12
+        """.trimIndent()
+        val res = startRenamer(code) ?: error("renamer failed")
+        return res.program
+    }
+
+    @Test
+    fun `test application`() = runTest {
+        val program = application()
+        val functionDeclaration = program.list.filterIsInstance<AstNode.FunctionDeclaration>()[1]
+
+        assertEquals(functionDeclaration.equations.first(),
+            AstNode.FunctionEquation(
+                pattern = AstNode.VarPattern(name="x"),
+                body = AstNode.ApplicationExpr(
+                    function = AstNode.IdentExpr(name="*"),
+                    arguments =
+                        listOf(
+                            AstNode.IdentExpr(name = "x"),
+                            AstNode.ApplicationExpr(
+                                function = AstNode.IdentExpr(name = "f"),
+                                arguments = listOf( AstNode.IdentExpr(name = "12") )
+                            )
+                        )
+                )
+            )
+        )
+    }
+
+    suspend fun `complex pattern`(): Program {
+        val code = """
+            infix <::>, + : 6
+            
+            dec f : WrongType
+            --- f(x + xs, a) <= a + x
+        """.trimIndent()
+        // TODO: Грамматика не позволяет использовать инфиксные конструкторы в паттернах
+        val res = startRenamer(code) ?: error("renamer failed")
+        return res.program
+    }
+
+    @Test
+    fun `test complex pattern`() = runTest {
+        val program = `complex pattern`()
+    }
+
 //    @Test
 //    fun `test binding pattern`() = runTest {
 //        val code = "--- x@Test <= f"
@@ -100,14 +157,6 @@ class RenamerTest {
 //        //assertIs<AstNode.AstChar>(tuple.elements[2], "3rd element should be char")
 //    }
 
-    @Test
-    fun `test data declaration`() = runTest {
-        val code = "data x y == Int"
-        val res = startRenamer(code) ?: error("renamer failed")
-        val list = res.program.list
-        assertTrue(list.first() is AstNode.DataDeclaration, "Should be parsed as data declaration")
-    }
-
 //    @Test
 //    fun `test basic types`() = runTest {
 //        val code = "data x == Int"
@@ -154,6 +203,13 @@ class RenamerTest {
 //    }
 
     @Test
+    fun `test type`() = runTest {
+        val code = "data x == empty ++ cons(x)"
+        val res = startRenamer(code) ?: error("renamer failed")
+        val list = res.program.list
+    }
+
+    @Test
     fun `test declaration and equation`() = runTest {
         val code = """
             module test
@@ -183,22 +239,5 @@ class RenamerTest {
         """.trimIndent()
         val res2 = startRenamer(noFunctionName)
         assertNull(res2)
-    }
-
-    @Test
-    fun `test infix application`() = runTest {
-
-        "--- f <= lcons(f a, f <#> g(a,b))"
-        "(compilation_unit (function_equation (pattern (expression (ident))) (expression (ident) (tuple (expression (ident) (ident)) (expression (ident) (ident) (ident) (tuple (expression (ident)) (expression (ident))))))))"
-        val code = "--- f <= lcons(f (a), f <#> g(a,b))"
-        val res = startRenamer(code) ?: error("renamer failed")
-        val list = res.program.list
-    }
-
-    @Test
-    fun `test type`() = runTest {
-        val code = "data x == empty ++ cons(x)"
-        val res = startRenamer(code) ?: error("renamer failed")
-        val list = res.program.list
     }
 }
