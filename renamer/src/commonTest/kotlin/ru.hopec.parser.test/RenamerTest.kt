@@ -8,6 +8,7 @@ import ru.hopec.renamer.AstNode
 import ru.hopec.renamer.Program
 import ru.hopec.renamer.RenamedRepresentation
 import ru.hopec.renamer.RenamerPass
+import kotlin.collections.get
 import kotlin.collections.listOf
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -74,7 +75,7 @@ class RenamerTest {
 
         assertEquals(functionDeclaration.equations.first(),
             AstNode.FunctionEquation(
-                pattern = AstNode.VarPattern(name="x"),
+                pattern = AstNode.BindingPattern(pattern = AstNode.WildcardPattern, bindName = "x"),
                 body = AstNode.ApplicationExpr(
                     function = AstNode.IdentExpr(name="*"),
                     arguments =
@@ -92,12 +93,9 @@ class RenamerTest {
 
     suspend fun `complex pattern`(): Program {
         val code = """
-            infix <::>, + : 6
-            
             dec f : WrongType
-            --- f(x + xs, a) <= a + x
+            --- f(g(a :: l)) <= a 
         """.trimIndent()
-        // TODO: Грамматика не позволяет использовать инфиксные конструкторы в паттернах
         val res = startRenamer(code) ?: error("renamer failed")
         return res.program
     }
@@ -105,17 +103,34 @@ class RenamerTest {
     @Test
     fun `test complex pattern`() = runTest {
         val program = `complex pattern`()
+        val functionDeclaration = program.list.filterIsInstance<AstNode.FunctionDeclaration>()[0]
+        assertEquals(functionDeclaration.equations.first(),
+            AstNode.FunctionEquation(
+                pattern = AstNode.ConstructorPattern(
+                    constructor = "g",
+                    arguments = listOf (
+                        AstNode.ConstructorPattern(
+                            constructor = "::",
+                            arguments = listOf (
+                                AstNode.BindingPattern(pattern = AstNode.WildcardPattern, bindName = "a"),
+                                AstNode.BindingPattern(pattern = AstNode.WildcardPattern, bindName = "l")
+                            )
+                        )
+                    )
+                ), body = AstNode.IdentExpr(name = "a")
+            )
+
+        )
     }
 
-//    @Test
-//    fun `test binding pattern`() = runTest {
-//        val code = "--- x@Test <= f"
-//        val res = startRenamer(code) ?: error("renamer failed")
-//        val list = res.program.list
-//        val function = list.first() as AstNode.FunctionEquation
-//        assertIs<AstNode.PatternExpression>(function.pattern)
-//        assertIs<AstNode.Binding>(function.pattern.expr, "Pattern should be parsed as Binding")
-//    }
+    @Test
+    fun `test binding pattern`() = runTest {
+        val code = """
+            dec f : WrongType
+            --- f(Test @ (g(x))) <= x
+        """.trimIndent()
+        val res = startRenamer(code) ?: error("renamer failed")
+    }
 
 //    @Test
 //    fun `test list pattern`() = runTest {

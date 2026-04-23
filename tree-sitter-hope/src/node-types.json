@@ -46,6 +46,25 @@
     }
   },
   {
+    "type": "binding_pattern",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "binding",
+          "named": true
+        },
+        {
+          "type": "pattern",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "compilation_unit",
     "named": true,
     "root": true,
@@ -416,7 +435,7 @@
           "named": true
         },
         {
-          "type": "binding",
+          "type": "binding_pattern",
           "named": true
         },
         {

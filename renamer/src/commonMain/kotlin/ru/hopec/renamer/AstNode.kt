@@ -8,7 +8,7 @@ sealed interface AstNode {
 
     sealed interface Statement : TopLevelNode
     object Error : Statement
-    data class FunctionDeclaration(val name: String, val equations: MutableList<FunctionEquation>, val boundVars: List<String>, val typeExpr: TypeExpr) : Statement
+    data class FunctionDeclaration(val name: String, val equations: List<FunctionEquation>, val boundVars: List<String>, val typeExpr: TypeExpr) : Statement
     data class FunctionEquation(val pattern: Pattern, val body: Expr)
     data class DataDeclaration(val name: String, val boundVars: List<String>, val dataConstructors: List<Pair<String, TypeExpr?>>) : Statement
     data class TypeExportDeclaration(val types: List<String>) : Statement
@@ -27,14 +27,14 @@ sealed interface AstNode {
     data class LambdaBranch(val pattern: Pattern, val expression: Expr)
 
     sealed interface Literal : Expr
-    data class Decimal(val value: Int) : Literal
-    data class Truval(val bool: Boolean) : Literal
-    data class AstString(val string: String) : Literal
-    data class AstChar(val char: Char) : Literal
+    data class DecimalLiteral(val value: Int) : Literal
+    data class TruvalLiteral(val bool: Boolean) : Literal
+    data class StringLiteral(val string: String) : Literal
+    data class CharLiteral(val char: Char) : Literal
 
     sealed interface Pattern : AstNode
-    data class VarPattern(val name: String) : Pattern
     data class ConstructorPattern(val constructor: String, val arguments: List<Pattern>) : Pattern
+    // FIXME: Временно добавил, возможно сразу рассахарить
     data class TuplePattern(val tuple: List<Pattern>) : Pattern
     data class BindingPattern(val pattern: Pattern, val bindName: String) : Pattern
     object WildcardPattern : Pattern

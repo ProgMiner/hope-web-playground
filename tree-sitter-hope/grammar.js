@@ -165,10 +165,12 @@ export default grammar({
         $.wildcard_pattern,
         $.array_pattern,
         $.list_pattern,
-        seq($.binding, optional(seq("@", $.pattern))),
+        $.binding_pattern,
         $.expression,
         seq("(", $.pattern, ")"),
       ),
+
+    binding_pattern: ($) => seq($.binding, "@", $.pattern),
     wildcard_pattern: (_) => "_",
     list_pattern: ($) => seq("{", optional(enumeration($.pattern)), "}"),
     array_pattern: ($) => seq("[", optional(enumeration($.pattern)), "]"),
