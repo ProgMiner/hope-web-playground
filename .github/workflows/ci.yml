@@ -80,10 +80,15 @@ jobs:
       - name: "Gradle: wasmJs node distribution"
         run: ./gradlew wasmJsNodeProductionRun --stacktrace
 
+      # `npm ci` followed by an explicit install of the Linux-specific
+      # rollup binary works around npm/cli#4828: optional native deps in
+      # rollup are sometimes skipped when package-lock.json was generated
+      # on a different platform (e.g. macOS dev machines).
       - name: "hope-web: install + locals + production build"
         working-directory: hope-web
         run: |
           npm ci
+          npm install --no-save @rollup/rollup-linux-x64-gnu
           npm run locals
           npm run build
 
@@ -217,13 +222,15 @@ jobs:
           tree-sitter generate
           tree-sitter build --wasm
 
-      - name: "Gradle: wasmJs browser distribution"
-        run: ./gradlew wasmJsBrowserDistribution --stacktrace
+      - name: "Gradle: wasmJs node distribution"
+        run: ./gradlew wasmJsNodeProductionRun --stacktrace
 
+      # See note in `build` job about npm/cli#4828.
       - name: "hope-web: install + locals"
         working-directory: hope-web
         run: |
           npm ci
+          npm install --no-save @rollup/rollup-linux-x64-gnu
           npm run locals
 
       - name: "hope-web: svelte-check"
@@ -248,9 +255,12 @@ jobs:
           cache: npm
           cache-dependency-path: hope-web/package-lock.json
 
+      # See note in `build` job about npm/cli#4828.
       - name: "hope-web: install"
         working-directory: hope-web
-        run: npm ci
+        run: |
+          npm ci
+          npm install --no-save @rollup/rollup-linux-x64-gnu
 
       - name: "hope-web: lint (prettier + eslint)"
         working-directory: hope-web
