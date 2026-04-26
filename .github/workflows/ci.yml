@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: ["**"]
+    branches: [ "**" ]
   pull_request:
-    branches: ["**"]
+    branches: [ "**" ]
   workflow_dispatch:
 
 concurrency:
@@ -22,11 +22,11 @@ env:
 #
 #   build  ─────────────► (blocking)         compiles everything
 #     │
-#     ├──► test-kotlin       (non-blocking)  ./gradlew check (JVM + wasmJs)
-#     ├──► test-tree-sitter  (non-blocking)  tree-sitter corpus tests
-#     ├──► test-hope-web     (non-blocking)  svelte-check
-#     ├──► lint-hope-web     (non-blocking)  prettier + eslint
-#     └──► lint-kotlin       (non-blocking)  ktlint (standalone CLI)
+#     ├──► test-kotlin         ./gradlew check (JVM + wasmJs)
+#     ├──► test-tree-sitter    tree-sitter corpus tests
+#     ├──► test-hope-web       svelte-check
+#     ├──► lint-hope-web       prettier + eslint
+#     └──► lint-kotlin         ktlint (standalone CLI)
 #
 # `continue-on-error: true` at job level means a failed test job is rendered
 # as ❌ red in the PR check list, but the overall workflow conclusion stays
@@ -92,7 +92,7 @@ jobs:
   # Non-blocking.
   # =========================================================================
   test-kotlin:
-    name: Tests · Kotlin (non-blocking)
+    name: Tests · Kotlin
     runs-on: ubuntu-latest
     timeout-minutes: 30
     continue-on-error: true
@@ -144,7 +144,7 @@ jobs:
   # TEST: tree-sitter grammar corpus.
   # =========================================================================
   test-tree-sitter:
-    name: Tests · tree-sitter corpus (non-blocking)
+    name: Tests · tree-sitter corpus
     runs-on: ubuntu-latest
     timeout-minutes: 15
     continue-on-error: true
@@ -166,16 +166,15 @@ jobs:
         run: |
           npm ci
           tree-sitter generate
-
       # - name: "tree-sitter-hope: corpus tests"
       #   working-directory: tree-sitter-hope
       #   run: tree-sitter test
 
-  # =========================================================================
-  # TEST: hope-web svelte-check (TypeScript + Svelte type errors).
-  # =========================================================================
+      # =========================================================================
+      # TEST: hope-web svelte-check (TypeScript + Svelte type errors).
+      # =========================================================================
   test-hope-web:
-    name: Tests · hope-web svelte-check (non-blocking)
+    name: Tests · hope-web svelte-check
     runs-on: ubuntu-latest
     timeout-minutes: 20
     continue-on-error: true
@@ -227,7 +226,7 @@ jobs:
   # LINT: hope-web prettier + eslint. Non-blocking.
   # =========================================================================
   lint-hope-web:
-    name: Lint · hope-web (non-blocking)
+    name: Lint · hope-web
     runs-on: ubuntu-latest
     timeout-minutes: 10
     continue-on-error: true
@@ -259,7 +258,7 @@ jobs:
   # Lints the Kotlin sources of every multiplatform module in the repo.
   # =========================================================================
   lint-kotlin:
-    name: Lint · Kotlin ktlint (non-blocking)
+    name: Lint · Kotlin ktlint
     runs-on: ubuntu-latest
     timeout-minutes: 10
     continue-on-error: true
