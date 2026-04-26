@@ -16,6 +16,7 @@ env:
   JAVA_VERSION: "21"
   # monaco-themes@0.4.8 requires Node >=22 (engines field).
   NODE_VERSION: "22"
+  KTLINT_VERSION: "1.5.0"
 
 # -----------------------------------------------------------------------------
 # Pipeline overview
@@ -25,7 +26,8 @@ env:
 #     ├──► test-kotlin       (non-blocking)  ./gradlew check (JVM + wasmJs)
 #     ├──► test-tree-sitter  (non-blocking)  tree-sitter corpus tests
 #     ├──► test-hope-web     (non-blocking)  svelte-check
-#     └──► lint-hope-web     (non-blocking)  prettier + eslint
+#     ├──► lint-hope-web     (non-blocking)  prettier + eslint
+#     └──► lint-kotlin       (non-blocking)  ktlint (standalone CLI)
 #
 # `continue-on-error: true` at job level means a failed test job is rendered
 # as ❌ red in the PR check list, but the overall workflow conclusion stays
@@ -75,8 +77,8 @@ jobs:
       - name: "Gradle: assemble (compile all targets)"
         run: ./gradlew assemble --stacktrace
 
-      - name: "Gradle: wasmJs browser distribution"
-        run: ./gradlew wasmJsBrowserDistribution --stacktrace
+      - name: "Gradle: wasmJs node distribution"
+        run: ./gradlew wasmJsNodeProductionRun --stacktrace
 
       - name: "hope-web: install + locals + production build"
         working-directory: hope-web
@@ -253,3 +255,50 @@ jobs:
       - name: "hope-web: lint (prettier + eslint)"
         working-directory: hope-web
         run: npm run lint
+
+  # =========================================================================
+  # LINT: Kotlin via standalone ktlint CLI. Non-blocking.
+  # Uses the official ktlint shadowed jar from
+  # https://github.com/pinterest/ktlint/releases — no Gradle plugin required,
+  # so the project's build.gradle.kts files stay untouched.
+  # Lints the Kotlin sources of every multiplatform module in the repo.
+  # =========================================================================
+  lint-kotlin:
+    name: Lint · Kotlin ktlint (non-blocking)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Cache ktlint jar
+        id: ktlint-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.ktlint
+          key: ktlint-${{ env.KTLINT_VERSION }}
+
+      - name: Download ktlint
+        if: steps.ktlint-cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/.ktlint
+          curl -sSLo ~/.ktlint/ktlint \
+            https://github.com/pinterest/ktlint/releases/download/${{ env.KTLINT_VERSION }}/ktlint
+          chmod +x ~/.ktlint/ktlint
+
+      - name: "ktlint: check Kotlin sources"
+        # `**/*.kt` selectors target sources from every module
+        # (codegen, core, driver, parser, renamer, typecheck) including
+        # commonMain / jvmMain / jvmTest / wasmJsMain / commonTest.
+        # `--reporter=github` emits annotations directly on the PR diff.
+        run: |
+          ~/.ktlint/ktlint \
+            --reporter=plain \
+            --reporter=github \
+            "**/src/**/*.kt" "**/src/**/*.kts"
