@@ -13,155 +13,120 @@ concurrency:
 
 env:
   TREE_SITTER_CLI_VERSION: 0.26.6
+  JAVA_VERSION: "21"
+  # monaco-themes@0.4.8 requires Node >=22 (engines field).
+  NODE_VERSION: "22"
+
+# -----------------------------------------------------------------------------
+# Pipeline overview
+#
+#   build  ─────────────► (blocking)         compiles everything
+#     │
+#     ├──► test-kotlin       (non-blocking)  ./gradlew check (JVM + wasmJs)
+#     ├──► test-tree-sitter  (non-blocking)  tree-sitter corpus tests
+#     ├──► test-hope-web     (non-blocking)  svelte-check
+#     └──► lint-hope-web     (non-blocking)  prettier + eslint
+#
+# `continue-on-error: true` at job level means a failed test job is rendered
+# as ❌ red in the PR check list, but the overall workflow conclusion stays
+# success (only `build` gates the workflow). Branch protection should require
+# only the `build` check.
+# -----------------------------------------------------------------------------
 
 jobs:
   # =========================================================================
-  # BUILD — blocking. If anything here fails, the whole workflow fails.
-  # Compiles all Kotlin targets, builds the tree-sitter wasm and the SvelteKit
-  # production bundle. No tests are executed in this job.
+  # BUILD — blocking. Compiles all Kotlin targets, builds tree-sitter wasm,
+  # produces the SvelteKit production bundle. No tests are run here.
   # =========================================================================
   build:
-    name: Build (Kotlin + tree-sitter + hope-web)
+    name: Build
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - run: chmod +x ./gradlew
 
-      - name: Make gradlew executable
-        run: chmod +x ./gradlew
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "21"
+          java-version: ${{ env.JAVA_VERSION }}
 
-      - name: Set up Node.js 20
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: ${{ env.NODE_VERSION }}
           cache: npm
           cache-dependency-path: |
             hope-web/package-lock.json
             tree-sitter-hope/package-lock.json
 
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v4
 
       - name: Install tree-sitter CLI
         run: npm install -g tree-sitter-cli@${{ env.TREE_SITTER_CLI_VERSION }}
 
-      - name: "tree-sitter-hope: install npm deps"
+      - name: "tree-sitter-hope: install + generate + build wasm"
         working-directory: tree-sitter-hope
-        run: npm ci
+        run: |
+          npm ci
+          tree-sitter generate
+          tree-sitter build --wasm
 
-      - name: "tree-sitter-hope: generate parser"
-        working-directory: tree-sitter-hope
-        run: tree-sitter generate
-
-      - name: "tree-sitter-hope: build wasm"
-        working-directory: tree-sitter-hope
-        run: tree-sitter build --wasm
-
-      - name: "Gradle: assemble (compile all targets, no tests)"
+      - name: "Gradle: assemble (compile all targets)"
         run: ./gradlew assemble --stacktrace
 
       - name: "Gradle: wasmJs browser distribution"
-        run: ./gradlew wasmJsNodeProductionRun --stacktrace
+        run: ./gradlew wasmJsBrowserDistribution --stacktrace
 
-      - name: "hope-web: npm ci"
-        working-directory: hope-web
-        run: npm ci
-
-      - name: "hope-web: copy local artifacts (wasm + hopec-driver)"
-        working-directory: hope-web
-        run: npm run locals
-
-      - name: "hope-web: production build"
-        working-directory: hope-web
-        run: npm run build
-
-  # =========================================================================
-  # TEST — non-blocking. continue-on-error at job level makes the job appear
-  # ❌ red in the PR check list when tests fail, but the overall workflow
-  # conclusion stays "success" (the build job decides workflow status).
-  # Runs in parallel with `build` so it does not slow down the critical path.
-  # =========================================================================
-  test:
-    name: Tests (non-blocking)
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    continue-on-error: true
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Make gradlew executable
-        run: chmod +x ./gradlew
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "21"
-
-      - name: Set up Node.js 20
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: npm
-          cache-dependency-path: |
-            hope-web/package-lock.json
-            tree-sitter-hope/package-lock.json
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
-
-      - name: Install tree-sitter CLI
-        run: npm install -g tree-sitter-cli@${{ env.TREE_SITTER_CLI_VERSION }}
-
-      - name: "tree-sitter-hope: install npm deps"
-        working-directory: tree-sitter-hope
-        run: npm ci
-
-      - name: "tree-sitter-hope: generate parser"
-        working-directory: tree-sitter-hope
-        run: tree-sitter generate
-
-      - name: "tree-sitter-hope: build wasm (required by Kotlin wasmJs tests)"
-        working-directory: tree-sitter-hope
-        run: tree-sitter build --wasm
-
-      # ---- actual tests ----
-      # NOTE: tree-sitter corpus fixtures predate the current grammar.js
-      # (removed/renamed nodes: scope_expression, postfix_expression,
-      # dot_expression, lident, let_expression, simple_pattern; `let` uses
-      # `==` now, samples in corpus use `=`). Running for visibility only.
-      - name: "tree-sitter-hope: corpus tests"
-        working-directory: tree-sitter-hope
-        run: tree-sitter test
-
-      - name: "Gradle: check (JVM + wasmJs tests)"
-        run: ./gradlew check --stacktrace
-
-      - name: "hope-web: install deps + locals"
+      - name: "hope-web: install + locals + production build"
         working-directory: hope-web
         run: |
           npm ci
           npm run locals
+          npm run build
 
-      - name: "hope-web: svelte-check"
-        working-directory: hope-web
-        run: npm run check
+  # =========================================================================
+  # TEST: Kotlin — JVM + wasmJs unit tests (HopecCliTest, TreeSitterTest).
+  # Non-blocking.
+  # =========================================================================
+  test-kotlin:
+    name: Tests · Kotlin (non-blocking)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    continue-on-error: true
 
-      - name: "hope-web: lint (prettier + eslint)"
-        working-directory: hope-web
-        run: npm run lint
+    steps:
+      - uses: actions/checkout@v4
+      - run: chmod +x ./gradlew
 
-      # ---- diagnostics ----
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: tree-sitter-hope/package-lock.json
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Install tree-sitter CLI
+        run: npm install -g tree-sitter-cli@${{ env.TREE_SITTER_CLI_VERSION }}
+
+      # The wasmJs Kotlin test target loads tree-sitter-hope.wasm at runtime,
+      # so we must produce it before running the test suite.
+      - name: "tree-sitter-hope: build wasm (test prerequisite)"
+        working-directory: tree-sitter-hope
+        run: |
+          npm ci
+          tree-sitter generate
+          tree-sitter build --wasm
+
+      - name: "Gradle: check (JVM + wasmJs tests)"
+        run: ./gradlew check --stacktrace
+
       - name: Upload Gradle test reports
         if: failure()
         uses: actions/upload-artifact@v4
@@ -172,3 +137,119 @@ jobs:
             **/build/test-results/**
           if-no-files-found: ignore
           retention-days: 7
+
+  # =========================================================================
+  # TEST: tree-sitter grammar corpus.
+  # NOTE: corpus fixtures predate the current grammar.js (removed/renamed
+  # nodes scope_expression, postfix_expression, dot_expression, lident,
+  # let_expression, simple_pattern; samples use single `=` while grammar
+  # requires `==`). This job will fail until the corpus is refreshed.
+  # Non-blocking.
+  # =========================================================================
+  test-tree-sitter:
+    name: Tests · tree-sitter corpus (non-blocking)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: tree-sitter-hope/package-lock.json
+
+      - name: Install tree-sitter CLI
+        run: npm install -g tree-sitter-cli@${{ env.TREE_SITTER_CLI_VERSION }}
+
+      - name: "tree-sitter-hope: install + generate"
+        working-directory: tree-sitter-hope
+        run: |
+          npm ci
+          tree-sitter generate
+
+      - name: "tree-sitter-hope: corpus tests"
+        working-directory: tree-sitter-hope
+        run: tree-sitter test
+
+  # =========================================================================
+  # TEST: hope-web svelte-check (TypeScript + Svelte type errors).
+  # Non-blocking.
+  # =========================================================================
+  test-hope-web:
+    name: Tests · hope-web svelte-check (non-blocking)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v4
+      - run: chmod +x ./gradlew
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            hope-web/package-lock.json
+            tree-sitter-hope/package-lock.json
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Install tree-sitter CLI
+        run: npm install -g tree-sitter-cli@${{ env.TREE_SITTER_CLI_VERSION }}
+
+      # hope-web depends on artifacts produced by both tree-sitter and the
+      # Kotlin/WASM driver; svelte-check needs them to resolve imports.
+      - name: "tree-sitter-hope: build wasm"
+        working-directory: tree-sitter-hope
+        run: |
+          npm ci
+          tree-sitter generate
+          tree-sitter build --wasm
+
+      - name: "Gradle: wasmJs browser distribution"
+        run: ./gradlew wasmJsBrowserDistribution --stacktrace
+
+      - name: "hope-web: install + locals"
+        working-directory: hope-web
+        run: |
+          npm ci
+          npm run locals
+
+      - name: "hope-web: svelte-check"
+        working-directory: hope-web
+        run: npm run check
+
+  # =========================================================================
+  # LINT: hope-web prettier + eslint. Non-blocking.
+  # =========================================================================
+  lint-hope-web:
+    name: Lint · hope-web (non-blocking)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: hope-web/package-lock.json
+
+      - name: "hope-web: install"
+        working-directory: hope-web
+        run: npm ci
+
+      - name: "hope-web: lint (prettier + eslint)"
+        working-directory: hope-web
+        run: npm run lint
