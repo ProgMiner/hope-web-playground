@@ -15,7 +15,7 @@ class CstParser(
         val operators: MutableMap<String, Infix> = mutableMapOf(),
         val localOperators: MutableMap<String, Infix> = mutableMapOf(),
         val typeVars: MutableSet<String> = mutableSetOf(),
-        val equations: MutableMap<String, MutableList<AstNode.FunctionEquation>> = mutableMapOf(),
+        val equations: MutableList<Pair<String, MutableList<AstNode.FunctionEquation>>> = mutableListOf(),
     )
 
     sealed interface ApplicationToken {
@@ -33,18 +33,7 @@ class CstParser(
             }
         }).toMutableList()
 
-        globalParserState.equations.forEach { (key, value) ->
-            val ind = topLevelNodes
-                .indexOfFirst { it is AstNode.FunctionDeclaration && it.name == key }
-            if (ind == -1)
-                throw RenamerException(
-                    StatusSeverity.ERROR,
-                    "Equations without declaration",
-                    RenamerException.RenamerLocation(0, 0)
-                )
-            topLevelNodes[ind] = (topLevelNodes[ind] as AstNode.FunctionDeclaration)
-                .copy(equations = value)
-        }
+        addEquations(topLevelNodes, globalParserState.equations)
 
         return Program(topLevelNodes)
     }
@@ -54,20 +43,20 @@ class CstParser(
         val parserState = ParserState(operators = globalParserState.localOperators)
         val statements = parseMultiple(node, { parseStatementOrInternal(it, parserState) }, 1u).toMutableList()
 
-        parserState.equations.forEach { (key, value) ->
-            val ind = statements
-                .indexOfFirst { it is AstNode.FunctionDeclaration && it.name == key }
-            if (ind == -1)
-                throw RenamerException(
-                    StatusSeverity.ERROR,
-                    "Equations without declaration",
-                    RenamerException.RenamerLocation(0, 0)
-                )
-            statements[ind] = (statements[ind] as AstNode.FunctionDeclaration)
-                .copy(equations = value)
-        }
+        @Suppress("UNCHECKED_CAST")
+        addEquations(statements as MutableList<AstNode.TopLevelNode>, parserState.equations)
 
         return AstNode.Module(moduleName, statements)
+    }
+
+    private fun addEquations(statements: MutableList<AstNode.TopLevelNode>, equations: MutableList<Pair<String, MutableList<AstNode.FunctionEquation>>>) {
+        var equationIndex = 0
+        statements.forEachIndexed { index, statement ->
+            if (statement !is AstNode.FunctionDeclaration)
+                return@forEachIndexed
+            statements[index] = statement.copy(equations = equations[equationIndex].second)
+            equationIndex++
+        }
     }
 
     private fun parseStatementOrInternal(node: TsSyntaxNode, parserState: ParserState): AstNode.Statement? =
@@ -83,10 +72,12 @@ class CstParser(
             }
 
             "function_declaration" -> {
-                val names = node.getChildOrThrow(0u).text
+                val name = node.getChildOrThrow(0u).text
                 val typeNode = parseType(node.getChildOrThrow(1u), parserState.typeVars)
+
+                parserState.equations.add(Pair(name, mutableListOf()))
                 AstNode.FunctionDeclaration(
-                    names,
+                    name,
                     mutableListOf(),
                     getBoundVars(typeNode).toList(),
                     typeNode
@@ -118,13 +109,14 @@ class CstParser(
             "function_equation" -> {
                 val (functionName, pattern) = parseFunctionPattern(node.getChildOrThrow(0u), parserState.operators)
                 val expr = parseExpression(node.getChildOrThrow(1u), parserState.operators)
-                val equation = AstNode.FunctionEquation(
-                    pattern = pattern,
-                    body = expr
-                )
-                val list = parserState.equations[functionName]
-                if (list != null) list += equation
-                else parserState.equations[functionName] = mutableListOf(equation)
+                val equation = AstNode.FunctionEquation(pattern, expr)
+                val equationList = parserState.equations.findLast { (name, _) -> name == functionName } ?:
+                    throw RenamerException(
+                        StatusSeverity.ERROR,
+                        "Equations without declaration",
+                        node.endPosition.toPosition()
+                    )
+                equationList.second.add(equation)
             }
 
             "infix_declaration" -> {
@@ -189,16 +181,15 @@ class CstParser(
             "binary_type_expression" -> {
                 val type1 = parseType(node.getChildOrThrow(0u), typeVars)
                 val type2 = parseType(node.getChildOrThrow(1u), typeVars)
-                if (node.children[1].text == "->")
-                    AstNode.FunctionalType(type1, type2)
-                else if (node.children[1].text == "#")
-                    AstNode.ProductType(type1, type2)
-                else
-                    throw RenamerException(
+                when (node.children[1].text) {
+                    "->" -> AstNode.FunctionalType(type1, type2)
+                    "#" -> AstNode.ProductType(type1, type2)
+                    else -> throw RenamerException(
                         StatusSeverity.ERROR,
                         "Unknown ADT: ${node.children[1].text}",
                         node.children[1].startPosition.toPosition()
                     )
+                }
             }
 
             "ident" -> {

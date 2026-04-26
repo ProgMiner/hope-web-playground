@@ -5,6 +5,7 @@ import ru.hopec.core.CompilationContext
 import ru.hopec.parser.TreeSitterRepresentation
 import ru.hopec.parser.treesitter.parseHope
 import ru.hopec.renamer.AstNode
+import ru.hopec.renamer.AstNode.FunctionDeclaration
 import ru.hopec.renamer.Program
 import ru.hopec.renamer.RenamedRepresentation
 import ru.hopec.renamer.RenamerPass
@@ -39,7 +40,7 @@ class RenamerTest {
     fun `test function declaration`() = runTest {
         val program = `function declaration`()
         assertEquals(
-            program.list.filterIsInstance<AstNode.FunctionDeclaration>().size,
+            program.list.filterIsInstance<FunctionDeclaration>().size,
             1,
             "Should have one function declaration"
         )
@@ -48,7 +49,7 @@ class RenamerTest {
     @Test
     fun `test function declaration have equation`() = runTest {
         val program = `function declaration`()
-        val functionDeclaration = program.list.filterIsInstance<AstNode.FunctionDeclaration>().first()
+        val functionDeclaration = program.list.filterIsInstance<FunctionDeclaration>().first()
         assertEquals(
             functionDeclaration.equations.size,
             1,
@@ -71,7 +72,7 @@ class RenamerTest {
     @Test
     fun `test application`() = runTest {
         val program = application()
-        val functionDeclaration = program.list.filterIsInstance<AstNode.FunctionDeclaration>()[1]
+        val functionDeclaration = program.list.filterIsInstance<FunctionDeclaration>()[1]
 
         assertEquals(functionDeclaration.equations.first(),
             AstNode.FunctionEquation(
@@ -103,7 +104,7 @@ class RenamerTest {
     @Test
     fun `test complex pattern`() = runTest {
         val program = `complex pattern`()
-        val functionDeclaration = program.list.filterIsInstance<AstNode.FunctionDeclaration>()[0]
+        val functionDeclaration = program.list.filterIsInstance<FunctionDeclaration>()[0]
         assertEquals(functionDeclaration.equations.first(),
             AstNode.FunctionEquation(
                 pattern = AstNode.ConstructorPattern(
@@ -127,9 +128,50 @@ class RenamerTest {
     fun `test binding pattern`() = runTest {
         val code = """
             dec f : WrongType
-            --- f(Test @ (g(x))) <= x
+            --- f(Test @ a :: xs) <= x
         """.trimIndent()
         val res = startRenamer(code) ?: error("renamer failed")
+    }
+
+    @Test
+    fun `test function overload`() = runTest {
+        val code = """
+            dec f : WrongType1
+            --- f(x :: xs) <= x
+            
+            dec f : WrongType2
+            --- f(a, b) <= a
+        """.trimIndent()
+
+        val res = startRenamer(code) ?: error("renamer failed")
+        assertEquals(
+            res.program,
+            Program(
+                list = listOf(
+                    FunctionDeclaration(
+                        name = "f", equations = listOf(AstNode.FunctionEquation(
+                            pattern = AstNode.ConstructorPattern(
+                                constructor = "::",
+                                arguments = listOf(AstNode.BindingPattern(pattern = AstNode.WildcardPattern, bindName = "x"),
+                                    AstNode.BindingPattern(pattern = AstNode.WildcardPattern, bindName = "xs")
+                                )
+                            ), body = AstNode.IdentExpr(name = "x")
+                        )),
+                        boundVars=emptyList(),
+                        typeExpr= AstNode.NamedType(type = "WrongType1", arguments = emptyList())
+                    ),
+                    FunctionDeclaration(name="f", equations= listOf(
+                        AstNode.FunctionEquation(
+                            pattern = AstNode.TuplePattern(tuple = listOf(
+                                AstNode.BindingPattern(pattern = AstNode.WildcardPattern, bindName = "a"),
+                                AstNode.BindingPattern(pattern = AstNode.WildcardPattern, bindName = "b")
+                            )),
+                            body= AstNode.IdentExpr(name = "a")
+                        )),
+                        boundVars=emptyList(),
+                        typeExpr= AstNode.NamedType(type = "WrongType2", arguments = emptyList())
+                    )))
+        )
     }
 
 //    @Test
@@ -141,20 +183,6 @@ class RenamerTest {
 //        val pattern = function.pattern
 //        assertIs<AstNode.PatternExpression>(pattern, "Pattern should be parsed as PatternExpression")
 //        assertIs<AstNode.ListExpr>(pattern.expr, "Expression should be parsed as ListExpr")
-//    }
-
-//    @Test
-//    fun `test multiple application`() = runTest {
-//        val code = "--- x <= f (x (y z))"
-//        val res = startRenamer(code) ?: error("renamer failed")
-//        val list = res.program.list
-//        val equation = list.first() as AstNode.FunctionEquation
-//        assertTrue(equation.body is AstNode.Application)
-//        val application = equation.body
-//        assertEquals(application.arguments.size, 1, "Should be 1 element in arguments")
-//        assertIs<AstNode.Tuple>(application.arguments[0], "First element should be tuple")
-//        val tuple = application.arguments[0] as AstNode.Tuple
-//        assertEquals(tuple.elements.size, 3, "Tuple should have 3 elements")
 //    }
 
 //    @Test
@@ -173,37 +201,6 @@ class RenamerTest {
 //    }
 
 //    @Test
-//    fun `test basic types`() = runTest {
-//        val code = "data x == Int"
-//        val res = startRenamer(code) ?: error("renamer failed")
-//        val list = res.program.list
-//        val data = list.first() as AstNode.DataDeclaration
-//        assertIs<AstNode.IdentType>(data.type, "Type should be parsed as IdentType")
-//    }
-//
-//    @Test
-//    fun `test complex types`() = runTest {
-//        val code = "data x == List String -> Int"
-//        val res = startRenamer(code) ?: error("renamer failed")
-//        val list = res.program.list
-//        val data = list.first() as AstNode.DataDeclaration
-//        assertIs<AstNode.PowType>(data.type, "Type should be parsed as PowType")
-//        val binType = data.type
-//        assertIs<AstNode.ApplicationTypes>(binType.type1, "Type should be parsed as ApplicationTypes")
-//    }
-
-//    @Test
-//    fun `test infix declaration`() = runTest {
-//        val code = "infix x, y : 10"
-//        val res = startRenamer(code) ?: error("renamer failed")
-//        val list = res.program.list
-//        assertIs<AstNode.InfixDeclaration>(list.first(), "Statement should be parsed as InfixDeclaration")
-//        val infix = list.first() as AstNode.InfixDeclaration
-//        assertEquals(infix.priority, 10)
-//        assertEquals(infix.rightAssoc, true)
-//    }
-
-//    @Test
 //    fun `test lambda`() = runTest {
 //        val code = """
 //            --- x <= lambda [] => w
@@ -218,23 +215,59 @@ class RenamerTest {
 //    }
 
     @Test
-    fun `test type`() = runTest {
+    fun `test data constructors`() = runTest {
         val code = "data x == empty ++ cons(x)"
         val res = startRenamer(code) ?: error("renamer failed")
         val list = res.program.list
+
+        assertEquals(list[0],
+            AstNode.DataDeclaration(name = "x",
+                boundVars = emptyList(),
+                dataConstructors =
+                    listOf(Pair("empty", null), Pair("cons", AstNode.NamedType(type = "x", arguments = emptyList())))
+            )
+        )
     }
 
     @Test
-    fun `test declaration and equation`() = runTest {
+    fun `test module use`() = runTest {
         val code = """
             module test
-                dec f : String -> Long
-                --- x <= toLong (length x)
+                dec <> : WrongType
+                infix <> : 6
+                --- a <> b <= a + b
+                pubconst <>
+            end
+            
+            module test2
+                uses test
+                dec f : WrongType
+                --- f(x) <= a <> b
             end
         """.trimIndent()
 
         val res = startRenamer(code) ?: error("renamer failed")
-        assertNotNull(res)
+        assertEquals(
+            res.program.list[1],
+            AstNode.Module(
+                name = "test2",
+                statements = listOf(
+                    AstNode.ModuleUseDeclaration(modules = listOf("test")),
+                    FunctionDeclaration(
+                        name = "f",
+                        equations = listOf(AstNode.FunctionEquation(
+                            pattern = AstNode.BindingPattern(pattern = AstNode.WildcardPattern,
+                            bindName = "x"
+                        ),
+                        body = AstNode.ApplicationExpr(function = AstNode.IdentExpr(name = "<>"),
+                            arguments = listOf(AstNode.IdentExpr(name = "a"), AstNode.IdentExpr(name = "b"))
+                        )
+                        )),
+                        boundVars = emptyList(), typeExpr= AstNode.NamedType(type = "WrongType", arguments = emptyList())
+                    )
+                )
+            )
+        )
     }
 
     @Test
