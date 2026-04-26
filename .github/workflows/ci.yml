@@ -303,12 +303,24 @@ jobs:
           chmod +x ~/.ktlint/ktlint
 
       - name: "ktlint: check Kotlin sources"
-        # `**/*.kt` selectors target sources from every module
-        # (codegen, core, driver, parser, renamer, typecheck) including
-        # commonMain / jvmMain / jvmTest / wasmJsMain / commonTest.
-        # `--reporter=github` emits annotations directly on the PR diff.
+        # Selectors cover sources from every module (codegen, core, driver,
+        # parser, renamer, typecheck) across commonMain / jvmMain / jvmTest /
+        # wasmJsMain / commonTest. ktlint 1.x reporters: baseline, checkstyle,
+        # format, html, json, plain, plain-summary, sarif (no `github`).
+        # `plain` is consumed below by an awk filter that emits
+        # GitHub Actions workflow-command annotations on the PR diff.
         run: |
-          ~/.ktlint/ktlint \
-            --reporter=plain \
-            --reporter=github \
-            "**/src/**/*.kt" "**/src/**/*.kts"
+          set +e
+          ~/.ktlint/ktlint --reporter=plain "**/src/**/*.kt" "**/src/**/*.kts" \
+            | tee ktlint-report.txt
+          status=${PIPESTATUS[0]}
+          # Convert "path:line:col: message" lines into ::error annotations.
+          awk -F: '
+            /^[^[:space:]].*:[0-9]+:[0-9]+:/ {
+              file=$1; line=$2; col=$3;
+              msg=$0;
+              sub(/^[^:]+:[0-9]+:[0-9]+:[[:space:]]*/, "", msg);
+              printf "::error file=%s,line=%s,col=%s::%s\n", file, line, col, msg
+            }
+          ' ktlint-report.txt
+          exit "$status"
