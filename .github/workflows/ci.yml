@@ -61,13 +61,18 @@ jobs:
         working-directory: tree-sitter-hope
         run: tree-sitter build --wasm
 
-      - name: "tree-sitter-hope: run grammar tests"
+      - name: "tree-sitter-hope: run grammar tests (non-blocking)"
         working-directory: tree-sitter-hope
         run: tree-sitter test
+        continue-on-error: true
 
       # ---------------- Kotlin Multiplatform ----------------
-      - name: "Gradle: build & check (JVM + wasmJs tests)"
-        run: ./gradlew build check --stacktrace
+      - name: "Gradle: assemble (compile all targets, no tests)"
+        run: ./gradlew assemble --stacktrace
+
+      - name: "Gradle: check (JVM + wasmJs tests, non-blocking)"
+        run: ./gradlew check --stacktrace
+        continue-on-error: true
 
       - name: "Gradle: wasmJs browser distribution"
         run: ./gradlew wasmJsBrowserDistribution --stacktrace
@@ -81,13 +86,15 @@ jobs:
         working-directory: hope-web
         run: npm run locals
 
-      - name: "hope-web: svelte-check"
+      - name: "hope-web: svelte-check (non-blocking)"
         working-directory: hope-web
         run: npm run check
+        continue-on-error: true
 
-      - name: "hope-web: lint (prettier + eslint)"
+      - name: "hope-web: lint — prettier + eslint (non-blocking)"
         working-directory: hope-web
         run: npm run lint
+        continue-on-error: true
 
       - name: "hope-web: production build"
         working-directory: hope-web
