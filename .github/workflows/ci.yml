@@ -1,0 +1,106 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: Build & test (Kotlin + tree-sitter + hope-web)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    env:
+      TREE_SITTER_CLI_VERSION: 0.26.6
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: |
+            hope-web/package-lock.json
+            tree-sitter-hope/package-lock.json
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      # ---------------- tree-sitter-hope ----------------
+      - name: Install tree-sitter CLI
+        run: npm install -g tree-sitter-cli@${{ env.TREE_SITTER_CLI_VERSION }}
+
+      - name: "tree-sitter-hope: install npm deps"
+        working-directory: tree-sitter-hope
+        run: npm ci
+
+      - name: "tree-sitter-hope: generate parser"
+        working-directory: tree-sitter-hope
+        run: tree-sitter generate
+
+      - name: "tree-sitter-hope: build wasm"
+        working-directory: tree-sitter-hope
+        run: tree-sitter build --wasm
+
+      - name: "tree-sitter-hope: run grammar tests"
+        working-directory: tree-sitter-hope
+        run: tree-sitter test
+
+      # ---------------- Kotlin Multiplatform ----------------
+      - name: "Gradle: build & check (JVM + wasmJs tests)"
+        run: ./gradlew build check --stacktrace
+
+      - name: "Gradle: wasmJs browser distribution"
+        run: ./gradlew wasmJsBrowserDistribution --stacktrace
+
+      # ---------------- hope-web (SvelteKit) ----------------
+      - name: "hope-web: npm ci"
+        working-directory: hope-web
+        run: npm ci
+
+      - name: "hope-web: copy local artifacts (wasm + hopec-driver)"
+        working-directory: hope-web
+        run: npm run locals
+
+      - name: "hope-web: svelte-check"
+        working-directory: hope-web
+        run: npm run check
+
+      - name: "hope-web: lint (prettier + eslint)"
+        working-directory: hope-web
+        run: npm run lint
+
+      - name: "hope-web: production build"
+        working-directory: hope-web
+        run: npm run build
+
+      # ---------------- Diagnostics on failure ----------------
+      - name: Upload Gradle test reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gradle-test-reports
+          path: |
+            **/build/reports/tests/**
+            **/build/test-results/**
+          if-no-files-found: ignore
+          retention-days: 7

@@ -1,3 +1,5 @@
+[![CI](https://github.com/andkashenin/hope-web-playground/actions/workflows/ci.yml/badge.svg)](https://github.com/andkashenin/hope-web-playground/actions/workflows/ci.yml)
+
 ## Build
 
 To build compiler and playground, you will need NPM (easiest to install through [NVM](https://www.nvmnode.com/guide))
