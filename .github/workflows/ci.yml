@@ -80,15 +80,11 @@ jobs:
       - name: "Gradle: wasmJs node distribution"
         run: ./gradlew wasmJsNodeProductionRun --stacktrace
 
-      # `npm ci` followed by an explicit install of the Linux-specific
-      # rollup binary works around npm/cli#4828: optional native deps in
-      # rollup are sometimes skipped when package-lock.json was generated
-      # on a different platform (e.g. macOS dev machines).
       - name: "hope-web: install + locals + production build"
         working-directory: hope-web
         run: |
-          npm ci
-          npm install --no-save @rollup/rollup-linux-x64-gnu
+          rm -rf node_modules package-lock.json
+          npm install --no-audit --no-fund
           npm run locals
           npm run build
 
@@ -213,8 +209,6 @@ jobs:
       - name: Install tree-sitter CLI
         run: npm install -g tree-sitter-cli@${{ env.TREE_SITTER_CLI_VERSION }}
 
-      # hope-web depends on artifacts produced by both tree-sitter and the
-      # Kotlin/WASM driver; svelte-check needs them to resolve imports.
       - name: "tree-sitter-hope: build wasm"
         working-directory: tree-sitter-hope
         run: |
@@ -225,12 +219,11 @@ jobs:
       - name: "Gradle: wasmJs node distribution"
         run: ./gradlew wasmJsNodeProductionRun --stacktrace
 
-      # See note in `build` job about npm/cli#4828.
       - name: "hope-web: install + locals"
         working-directory: hope-web
         run: |
-          npm ci
-          npm install --no-save @rollup/rollup-linux-x64-gnu
+          rm -rf node_modules package-lock.json
+          npm install --no-audit --no-fund
           npm run locals
 
       - name: "hope-web: svelte-check"
@@ -255,12 +248,11 @@ jobs:
           cache: npm
           cache-dependency-path: hope-web/package-lock.json
 
-      # See note in `build` job about npm/cli#4828.
       - name: "hope-web: install"
         working-directory: hope-web
         run: |
-          npm ci
-          npm install --no-save @rollup/rollup-linux-x64-gnu
+          rm -rf node_modules package-lock.json
+          npm install --no-audit --no-fund
 
       - name: "hope-web: lint (prettier + eslint)"
         working-directory: hope-web
@@ -303,12 +295,6 @@ jobs:
           chmod +x ~/.ktlint/ktlint
 
       - name: "ktlint: check Kotlin sources"
-        # Selectors cover sources from every module (codegen, core, driver,
-        # parser, renamer, typecheck) across commonMain / jvmMain / jvmTest /
-        # wasmJsMain / commonTest. ktlint 1.x reporters: baseline, checkstyle,
-        # format, html, json, plain, plain-summary, sarif (no `github`).
-        # `plain` is consumed below by an awk filter that emits
-        # GitHub Actions workflow-command annotations on the PR diff.
         run: |
           set +e
           ~/.ktlint/ktlint --reporter=plain "**/src/**/*.kt" "**/src/**/*.kts" \
