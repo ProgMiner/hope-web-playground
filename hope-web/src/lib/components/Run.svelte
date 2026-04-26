@@ -20,7 +20,7 @@
 
 		const exportsObj = compiled.exports as Record<string, unknown>;
 
-		const result = (add as (left: number, right: number) => number)(2, 2);
+		const result = exportsObj["add"](2, 2);
 		terminal.write(`${result}\n`);
 	}
 </script>
