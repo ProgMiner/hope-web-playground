@@ -6,6 +6,6 @@ import ru.hopec.renamer.RenamedRepresentation
 
 class TypeCheckPass : CompilationPass<RenamedRepresentation, TypedRepresentation> {
     override fun run(from: RenamedRepresentation, context: CompilationContext): TypedRepresentation? {
-        TODO("Not yet implemented")
+        return annotate(DesugaredRepresentation.fromRenamed(from))
     }
 }
