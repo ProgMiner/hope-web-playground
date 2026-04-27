@@ -1,4 +1,4 @@
-[![CI](https://github.com/andkashenin/hope-web-playground/actions/workflows/ci.yml/badge.svg)](https://github.com/andkashenin/hope-web-playground/actions/workflows/ci.yml)
+[![CI](https://github.com/ProgMiner/hope-web-playground/actions/workflows/ci.yml/badge.svg)](https://github.com/ProgMiner/hope-web-playground/actions/workflows/ci.yml)
 
 ## Build
 
