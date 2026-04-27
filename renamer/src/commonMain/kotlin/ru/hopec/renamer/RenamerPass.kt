@@ -21,10 +21,5 @@ class RenamerPass : CompilationPass<TreeSitterRepresentation, RenamedRepresentat
 
     private fun CompilationContext.add(exception: Exception) {
         println("Renaming error: ${exception.message}")
-//    context.report(CompilationStatus.Plain(
-//                e.severity,
-//                e.message ?: "",
-//                StatusLocation(e.location.row, e.location.column)
-//            ))
     }
 }

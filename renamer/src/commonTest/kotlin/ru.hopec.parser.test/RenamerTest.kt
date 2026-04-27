@@ -9,14 +9,10 @@ import ru.hopec.renamer.AstNode.FunctionDeclaration
 import ru.hopec.renamer.Program
 import ru.hopec.renamer.RenamedRepresentation
 import ru.hopec.renamer.RenamerPass
-import kotlin.collections.get
 import kotlin.collections.listOf
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
-import kotlin.test.assertNotNull
-import kotlin.test.assertNull
-import kotlin.test.assertTrue
 
 class RenamerTest {
     private suspend fun startRenamer(input: String) : RenamedRepresentation? {
@@ -40,8 +36,8 @@ class RenamerTest {
     fun `test function declaration`() = runTest {
         val program = `function declaration`()
         assertEquals(
-            program.list.filterIsInstance<FunctionDeclaration>().size,
             1,
+            program.list.filterIsInstance<FunctionDeclaration>().size,
             "Should have one function declaration"
         )
     }
@@ -51,8 +47,8 @@ class RenamerTest {
         val program = `function declaration`()
         val functionDeclaration = program.list.filterIsInstance<FunctionDeclaration>().first()
         assertEquals(
-            functionDeclaration.equations.size,
             1,
+            functionDeclaration.equations.size,
             "Should have one function equation"
         )
     }
@@ -74,7 +70,7 @@ class RenamerTest {
         val program = application()
         val functionDeclaration = program.list.filterIsInstance<FunctionDeclaration>()[1]
 
-        assertEquals(functionDeclaration.equations.first(),
+        assertEquals(
             AstNode.FunctionEquation(
                 pattern = AstNode.BindingPattern(pattern = AstNode.WildcardPattern, bindName = "x"),
                 body = AstNode.ApplicationExpr(
@@ -84,11 +80,12 @@ class RenamerTest {
                             AstNode.IdentExpr(name = "x"),
                             AstNode.ApplicationExpr(
                                 function = AstNode.IdentExpr(name = "f"),
-                                arguments = listOf( AstNode.IdentExpr(name = "12") )
+                                arguments = listOf( AstNode.DecimalLiteral(value = 12) )
                             )
                         )
                 )
-            )
+            ),
+            functionDeclaration.equations.first()
         )
     }
 
@@ -105,7 +102,7 @@ class RenamerTest {
     fun `test complex pattern`() = runTest {
         val program = `complex pattern`()
         val functionDeclaration = program.list.filterIsInstance<FunctionDeclaration>()[0]
-        assertEquals(functionDeclaration.equations.first(),
+        assertEquals(
             AstNode.FunctionEquation(
                 pattern = AstNode.ConstructorPattern(
                     constructor = "g",
@@ -119,8 +116,8 @@ class RenamerTest {
                         )
                     )
                 ), body = AstNode.IdentExpr(name = "a")
-            )
-
+            ),
+            functionDeclaration.equations.first()
         )
     }
 
@@ -145,7 +142,6 @@ class RenamerTest {
 
         val res = startRenamer(code) ?: error("renamer failed")
         assertEquals(
-            res.program,
             Program(
                 list = listOf(
                     FunctionDeclaration(
@@ -170,7 +166,10 @@ class RenamerTest {
                         )),
                         boundVars=emptyList(),
                         typeExpr= AstNode.NamedType(type = "WrongType2", arguments = emptyList())
-                    )))
+                    )
+                )
+            ),
+            res.program
         )
     }
 
@@ -184,7 +183,7 @@ class RenamerTest {
         val list = res.program.list
         val functionDeclaration = list.filterIsInstance<FunctionDeclaration>()[0]
         val pattern = functionDeclaration.equations[0].pattern
-        assertEquals(pattern,
+        assertEquals(
             AstNode.ConstructorPattern(
                 constructor = "::",
                 arguments = listOf(
@@ -197,24 +196,33 @@ class RenamerTest {
                         )
                     )
                 )
-            )
+            ),
+            pattern
         )
     }
 
-//    @Test
-//    fun `test tuple with const`() = runTest {
-//        val code = "--- x <= (42, \"test\", \'c\')"
-//        val res = startRenamer(code) ?: error("renamer failed")
-//        val list = res.program.list
-//        val equation = list.first() as AstNode.FunctionEquation
-//        assertTrue(equation.body is AstNode.Tuple)
-//        val tuple = equation.body
-//        assertEquals(tuple.elements.size, 3, "Tuple should have 3 elements")
-//        // TODO: здесь должны были быть константы (?), но попадаются ident
-//        //assertIs<AstNode.Decimal>(tuple.elements[0], "1st element should be decimal")
-//        assertIs<AstNode.AstString>(tuple.elements[1], "2nd element should be string")
-//        //assertIs<AstNode.AstChar>(tuple.elements[2], "3rd element should be char")
-//    }
+    @Test
+    fun `test tuple with const`() = runTest {
+        val code = """
+            dec f : WrongType
+            --- f(x) <= (42, "test", 'c', true)
+        """.trimIndent()
+        val res = startRenamer(code) ?: error("renamer failed")
+        val list = res.program.list
+        val functionDeclaration = list.filterIsInstance<FunctionDeclaration>()[0]
+        val tuple = functionDeclaration.equations[0].body
+        assertEquals(
+            AstNode.TupleExpr(
+                elements = listOf(
+                    AstNode.DecimalLiteral(value = 42),
+                    AstNode.StringLiteral(string = "test"),
+                    AstNode.CharLiteral(char = 'c'),
+                    AstNode.TruvalLiteral(bool = true)
+                )
+            ),
+            tuple
+        )
+    }
 
     @Test
     fun `test lambda`() = runTest {
@@ -226,12 +234,12 @@ class RenamerTest {
         val res = startRenamer(code) ?: error("renamer failed")
         val list = res.program.list
         val function = list.filterIsInstance<FunctionDeclaration>()[0]
-        assertEquals(function.equations[0].body,
+        assertEquals(
             AstNode.LambdaExpr(branches = listOf(
                     AstNode.LambdaBranch(
                         pattern = AstNode.BindingPattern(
                             pattern = AstNode.WildcardPattern,
-                            bindName = "empty"
+                            bindName = "nil"
                     ),
                     expression = AstNode.IdentExpr(name = "error")
             ), AstNode.LambdaBranch(
@@ -243,7 +251,8 @@ class RenamerTest {
                         ), expression = AstNode.IdentExpr(name = "a")
                     )
                 )
-            )
+            ),
+            function.equations[0].body
         )
     }
 
@@ -253,12 +262,13 @@ class RenamerTest {
         val res = startRenamer(code) ?: error("renamer failed")
         val list = res.program.list
 
-        assertEquals(list[0],
+        assertEquals(
             AstNode.DataDeclaration(name = "x",
                 boundVars = emptyList(),
                 dataConstructors =
                     listOf(Pair("empty", null), Pair("cons", AstNode.NamedType(type = "x", arguments = emptyList())))
-            )
+            ),
+            list[0]
         )
     }
 
@@ -281,7 +291,6 @@ class RenamerTest {
 
         val res = startRenamer(code) ?: error("renamer failed")
         assertEquals(
-            res.program.list[1],
             AstNode.Module(
                 name = "test2",
                 statements = listOf(
@@ -299,7 +308,8 @@ class RenamerTest {
                         boundVars = emptyList(), typeExpr= AstNode.NamedType(type = "WrongType", arguments = emptyList())
                     )
                 )
-            )
+            ),
+            res.program.list[1]
         )
     }
 
