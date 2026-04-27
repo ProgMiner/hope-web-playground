@@ -174,16 +174,32 @@ class RenamerTest {
         )
     }
 
-//    @Test
-//    fun `test list pattern`() = runTest {
-//        val code = "--- [ x, y ] <= f x y"
-//        val res = startRenamer(code) ?: error("renamer failed")
-//        val list = res.program.list
-//        val function = list.first() as AstNode.FunctionEquation
-//        val pattern = function.pattern
-//        assertIs<AstNode.PatternExpression>(pattern, "Pattern should be parsed as PatternExpression")
-//        assertIs<AstNode.ListExpr>(pattern.expr, "Expression should be parsed as ListExpr")
-//    }
+    @Test
+    fun `test list pattern`() = runTest {
+        val code = """
+            dec f : WrongType
+            --- f([x, y]) <= f x y
+            """.trimIndent()
+        val res = startRenamer(code) ?: error("renamer failed")
+        val list = res.program.list
+        val functionDeclaration = list.filterIsInstance<FunctionDeclaration>()[0]
+        val pattern = functionDeclaration.equations[0].pattern
+        assertEquals(pattern,
+            AstNode.ConstructorPattern(
+                constructor = "::",
+                arguments = listOf(
+                    AstNode.BindingPattern(pattern = AstNode.WildcardPattern, bindName = "x"),
+                    AstNode.ConstructorPattern(
+                        constructor = "::",
+                        arguments = listOf(
+                            AstNode.BindingPattern(pattern = AstNode.WildcardPattern, bindName = "y"),
+                            AstNode.BindingPattern(pattern = AstNode.WildcardPattern, bindName = "nil")
+                        )
+                    )
+                )
+            )
+        )
+    }
 
 //    @Test
 //    fun `test tuple with const`() = runTest {
@@ -200,19 +216,36 @@ class RenamerTest {
 //        //assertIs<AstNode.AstChar>(tuple.elements[2], "3rd element should be char")
 //    }
 
-//    @Test
-//    fun `test lambda`() = runTest {
-//        val code = """
-//            --- x <= lambda [] => w
-//                            | [y] => y
-//        """.trimIndent()
-//        val res = startRenamer(code) ?: error("renamer failed")
-//        val list = res.program.list
-//        assertIs<AstNode.FunctionEquation>(list.first(), "Statement should be parsed as FunctionEquation")
-//        val func = list.first() as AstNode.FunctionEquation
-//        assertIs<AstNode.Lambda>(func.body, "Expression should be parsed as Lambda")
-//        assertEquals(func.body.branches.size, 2)
-//    }
+    @Test
+    fun `test lambda`() = runTest {
+        val code = """
+            dec f : WrongType
+            --- f(x) <= lambda nil => error
+                            | a :: xs => a
+        """.trimIndent()
+        val res = startRenamer(code) ?: error("renamer failed")
+        val list = res.program.list
+        val function = list.filterIsInstance<FunctionDeclaration>()[0]
+        assertEquals(function.equations[0].body,
+            AstNode.LambdaExpr(branches = listOf(
+                    AstNode.LambdaBranch(
+                        pattern = AstNode.BindingPattern(
+                            pattern = AstNode.WildcardPattern,
+                            bindName = "empty"
+                    ),
+                    expression = AstNode.IdentExpr(name = "error")
+            ), AstNode.LambdaBranch(
+                    pattern = AstNode.ConstructorPattern(
+                        constructor = "::",
+                        arguments = listOf(
+                                AstNode.BindingPattern(pattern = AstNode.WildcardPattern, bindName = "a"),
+                                AstNode.BindingPattern(pattern = AstNode.WildcardPattern, bindName = "xs"))
+                        ), expression = AstNode.IdentExpr(name = "a")
+                    )
+                )
+            )
+        )
+    }
 
     @Test
     fun `test data constructors`() = runTest {
@@ -272,20 +305,13 @@ class RenamerTest {
 
     @Test
     fun `test error`() = runTest {
-        val noModuleName = """
-            module
-                --- c <= 10
-            end
-        """.trimIndent()
-        val res = startRenamer(noModuleName)
-        assertNull(res)
-
         val noFunctionName = """
             module test
                 dec : String -> Long
             end
         """.trimIndent()
-        val res2 = startRenamer(noFunctionName)
-        assertNull(res2)
+        val res = startRenamer(noFunctionName) ?: error("renamer failed")
+        assertIs<AstNode.Module>(res.program.list[0])
+        assertIs<AstNode.Error>((res.program.list[0] as AstNode.Module).statements[0])
     }
 }

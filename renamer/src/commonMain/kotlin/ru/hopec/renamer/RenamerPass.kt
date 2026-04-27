@@ -14,7 +14,7 @@ class RenamerPass : CompilationPass<TreeSitterRepresentation, RenamedRepresentat
         }
 
     private fun parse(from: TreeSitterRepresentation): RenamedRepresentation {
-        val modulesOperators = parseModuleInfix(from)
+        val modulesOperators = runCatching { parseModuleInfix(from) }.getOrElse { mapOf() }
         val cstParser = CstParser(from, modulesOperators)
         return RenamedRepresentation(cstParser.parse())
     }

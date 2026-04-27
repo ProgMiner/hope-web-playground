@@ -27,9 +27,13 @@ class CstParser(
         val rootNode = from.tree.rootNode
         val globalParserState = ParserState(operators = internalOperators)
         val topLevelNodes = parseMultiple(rootNode, { child ->
-            when (child.type) {
-                "module" -> parseModule(child, globalParserState)
-                else -> parseStatementOrInternal(child, globalParserState)
+            try {
+                when (child.type) {
+                    "module" -> parseModule(child, globalParserState)
+                    else -> parseStatementOrInternal(child, globalParserState)
+                }
+            } catch (e: RenamerException) {
+                AstNode.Error(e)
             }
         }).toMutableList()
 
@@ -39,9 +43,10 @@ class CstParser(
     }
 
     private fun parseModule(node: TsSyntaxNode, globalParserState: ParserState): AstNode.Module {
-        val moduleName = node.getChildOrThrow(0u, "binding").text
+        val moduleName = node.getChildOrThrow(0u).text
         val parserState = ParserState(operators = globalParserState.localOperators)
-        val statements = parseMultiple(node, { parseStatementOrInternal(it, parserState) }, 1u).toMutableList()
+        val statements = parseMultipleOrError(node,
+            { node -> parseStatementOrInternal(node, parserState) }, { AstNode.Error(it) }, 1u).toMutableList()
 
         @Suppress("UNCHECKED_CAST")
         addEquations(statements as MutableList<AstNode.TopLevelNode>, parserState.equations)
@@ -60,14 +65,14 @@ class CstParser(
     }
 
     private fun parseStatementOrInternal(node: TsSyntaxNode, parserState: ParserState): AstNode.Statement? =
-        parseStatement(node, parserState).also { if (it == null) parseInternal(node, parserState) }
+            parseStatement(node, parserState).also { if (it == null) parseInternal(node, parserState) }
 
     private fun parseStatement(node: TsSyntaxNode, parserState: ParserState): AstNode.Statement? {
         return when (node.type) {
             "data_declaration" -> {
                 val name = node.getChildOrThrow(0u).text
                 val params = parseMultiple(node, { it.text }, 1u, node.namedChildCount - 1u)
-                val typeNode = parseTypeDeclaration(node.getChildOrThrow(node.namedChildCount - 1u), parserState)
+                val typeNode = parseTypeDeclaration(node.getChildOrThrow(node.namedChildCount - 1u), parserState.operators, params.toMutableSet())
                 AstNode.DataDeclaration(name, params, typeNode)
             }
 
@@ -126,17 +131,14 @@ class CstParser(
 
             "type_variable_declaration" -> parserState.typeVars.addAll(parseMultipleIdent(node))
 
-            else -> throw RenamerException(
-                StatusSeverity.ERROR,
-                "Unknown statement: ${node.type} in node $node",
-                node.endPosition.toPosition()
-            )
+            else -> throw IllegalStateException("Unknown statement: ${node.type} in node $node")
         }
     }
 
     private fun parseTypeDeclaration(
         node: TsSyntaxNode,
-        parserState: ParserState
+        operators: MutableMap<String, Infix>,
+        typeVars: MutableSet<String>
     ): List<Pair<String, AstNode.TypeExpr?>> {
         if (node.type != "type_expression")
             throw TypeDeclarationException(node)
@@ -146,8 +148,8 @@ class CstParser(
             "binary_type_expression" -> {
                 val op = typeNode.child(1u)!!
                 if (op.type == "++")
-                    parseTypeDeclaration(typeNode.getChildOrThrow(0u), parserState) +
-                            parseTypeDeclaration(typeNode.getChildOrThrow(1u), parserState)
+                    parseTypeDeclaration(typeNode.getChildOrThrow(0u), operators, typeVars) +
+                            parseTypeDeclaration(typeNode.getChildOrThrow(1u), operators, typeVars)
                 else
                     throw TypeDeclarationException(node)
             }
@@ -158,15 +160,19 @@ class CstParser(
                     listOf(Pair(constructor, null))
                 } else if (node.namedChildCount == 2u) {
                     val constructor = node.getChildOrThrow(0u).text
-                    listOf(Pair(constructor, parseType(node.getChildOrThrow(1u), parserState.typeVars)))
+                    listOf(Pair(constructor, parseType(node.getChildOrThrow(1u), typeVars)))
                 } else {
                     val operatorIndex =
-                        node.namedChildren.indexOfFirst { it.text in parserState.operators.keys }.toUInt()
-                    val operator = node.namedChild(operatorIndex)!!
+                        node.namedChildren.indexOfFirst { operators.contains(it.text) }.toUInt()
+                    val operator = node.namedChild(operatorIndex) ?: throw RenamerException(
+                        StatusSeverity.ERROR,
+                        "Unknown operator",
+                        node.endPosition.toPosition()
+                    )
 
-                    val left = parseFunctionalType(node, parserState.typeVars, 0u, operatorIndex)
+                    val left = parseFunctionalType(node, typeVars, 0u, operatorIndex)
                     val right =
-                        parseFunctionalType(node, parserState.typeVars, operatorIndex + 1u, node.namedChildCount)
+                        parseFunctionalType(node, typeVars, operatorIndex + 1u, node.namedChildCount)
 
                     listOf(Pair(operator.text, AstNode.ProductType(left, right)))
                 }
@@ -184,11 +190,7 @@ class CstParser(
                 when (node.children[1].text) {
                     "->" -> AstNode.FunctionalType(type1, type2)
                     "#" -> AstNode.ProductType(type1, type2)
-                    else -> throw RenamerException(
-                        StatusSeverity.ERROR,
-                        "Unknown ADT: ${node.children[1].text}",
-                        node.children[1].startPosition.toPosition()
-                    )
+                    else -> throw IllegalStateException("Unknown ADT: ${node.children[1].text}")
                 }
             }
 
@@ -199,10 +201,8 @@ class CstParser(
                     AstNode.NamedType(node.text, emptyList())
             }
 
-            else -> throw RenamerException(
-                StatusSeverity.ERROR,
+            else -> throw IllegalStateException(
                 "Unknown type: ${node.type} in node $node",
-                node.startPosition.toPosition()
             )
         }
     }
@@ -283,10 +283,8 @@ class CstParser(
                 AstNode.LambdaExpr(branches)
             }
 
-            else -> throw RenamerException(
-                StatusSeverity.ERROR,
-                "Unknown expression: ${node.type} in node $node",
-                node.startPosition.toPosition()
+            else -> throw IllegalStateException(
+                "Unknown expression: ${node.type} in node $node"
             )
         }
     }
@@ -318,11 +316,7 @@ class CstParser(
         }
 
         if (expressions.size != node.namedChildCount.toInt())
-            throw RenamerException(
-                StatusSeverity.ERROR,
-                "Not all nodes were parsed",
-                node.startPosition.toPosition()
-            )
+            throw IllegalStateException("Not all nodes were parsed")
 
         for (ind in 0u until node.namedChildCount) {
             val child = node.namedChild(ind)!!
@@ -404,7 +398,7 @@ class CstParser(
                     else
                         throw RenamerException(
                             StatusSeverity.ERROR, "Types do not have lambdas",
-                            RenamerException.RenamerLocation(0, 0)
+                            node.endPosition.toPosition()
                         )
                 },
                 constructOperator = { name, args -> AstNode.ConstructorPattern(name, args) }
@@ -416,13 +410,14 @@ class CstParser(
                 parsePattern(node.getChildOrThrow(1u), operators),
                 node.getChildOrThrow(0u).text
             )
+            "list_expression" -> {
+                val list = parseMultiple(node, { parsePattern(it, operators) })
+                list.foldRight<AstNode.Pattern, AstNode.Pattern>(AstNode.BindingPattern(AstNode.WildcardPattern, "nil")
+                ) { pattern, acc -> AstNode.ConstructorPattern("::", listOf(pattern, acc)) }
+            }
             "tuple" -> AstNode.TuplePattern(parseMultiple(node, { parsePattern(it, operators) }))
             "wildcard_pattern" -> AstNode.WildcardPattern
-            else -> throw RenamerException(
-                StatusSeverity.ERROR,
-                "Unknown pattern: ${node.type} in node $node",
-                node.startPosition.toPosition()
-            )
+            else -> throw IllegalStateException("Unknown pattern: ${node.type} in node $node")
         }
     }
 

@@ -9,18 +9,19 @@ data class Infix(val priority: Int, val isRightAssoc: Boolean)
 
 fun parseModuleInfix(from: TreeSitterRepresentation): Map<String, Map<String, Infix>> {
     val rootNode = from.tree.rootNode
-    val topLevelNodes = parseMultiple(rootNode, {
+    val topLevelNodes = parseMultipleOrNull(rootNode, {
             child ->
-        if (child.type == "module") {
-            val moduleName = child.getChildOrThrow(0u, "binding").text
-            val operators = parseMultiple(child, ::parseInfix, 1u).flatten()
-            val export = parseMultiple(child, ::parseExport, 1u).flatten().toSet()
-            return@parseMultiple Pair(
-                moduleName,
-                operators.filter { (name, infix) -> export.contains(name) } .toMap())
-        }
-        null
-    })
+            if (child.type == "module") {
+                val moduleName = child.getChildOrThrow(0u).text
+                val operators = parseMultipleOrNull(child, ::parseInfix, 1u).flatten()
+                val export = parseMultipleOrNull(child, ::parseExport, 1u).flatten().toSet()
+                return@parseMultipleOrNull Pair(
+                    moduleName,
+                    operators.filter { (name, _) -> export.contains(name) }.toMap()
+                )
+            }
+            null
+        })
     return topLevelNodes.toMap()
 }
 

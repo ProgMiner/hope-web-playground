@@ -7,7 +7,7 @@ sealed interface AstNode {
     data class Module(val name: String, val statements: List<Statement>) : TopLevelNode
 
     sealed interface Statement : TopLevelNode
-    object Error : Statement
+    data class Error(val error: RenamerException) : Statement
     data class FunctionDeclaration(val name: String, val equations: List<FunctionEquation>, val boundVars: List<String>, val typeExpr: TypeExpr) : Statement
     data class FunctionEquation(val pattern: Pattern, val body: Expr)
     data class DataDeclaration(val name: String, val boundVars: List<String>, val dataConstructors: List<Pair<String, TypeExpr?>>) : Statement
@@ -34,7 +34,6 @@ sealed interface AstNode {
 
     sealed interface Pattern : AstNode
     data class ConstructorPattern(val constructor: String, val arguments: List<Pattern>) : Pattern
-    // FIXME: Временно добавил, возможно сразу рассахарить
     data class TuplePattern(val tuple: List<Pattern>) : Pattern
     data class BindingPattern(val pattern: Pattern, val bindName: String) : Pattern
     object WildcardPattern : Pattern
