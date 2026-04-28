@@ -1,20 +1,5 @@
 [
   {
-    "type": "array_pattern",
-    "named": true,
-    "fields": {},
-    "children": {
-      "multiple": true,
-      "required": false,
-      "types": [
-        {
-          "type": "pattern",
-          "named": true
-        }
-      ]
-    }
-  },
-  {
     "type": "binary_type_expression",
     "named": true,
     "fields": {},
@@ -431,15 +416,11 @@
       "required": true,
       "types": [
         {
-          "type": "array_pattern",
-          "named": true
-        },
-        {
           "type": "binding_pattern",
           "named": true
         },
         {
-          "type": "expression",
+          "type": "ident",
           "named": true
         },
         {
@@ -448,6 +429,14 @@
         },
         {
           "type": "pattern",
+          "named": true
+        },
+        {
+          "type": "set_pattern",
+          "named": true
+        },
+        {
+          "type": "tuple_pattern",
           "named": true
         },
         {
@@ -473,6 +462,21 @@
     }
   },
   {
+    "type": "set_pattern",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "pattern",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "tuple",
     "named": true,
     "fields": {},
@@ -482,6 +486,21 @@
       "types": [
         {
           "type": "expression",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "tuple_pattern",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "pattern",
           "named": true
         }
       ]

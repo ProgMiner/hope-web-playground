@@ -10,8 +10,6 @@ class CstParser(
     private val moduleOperators: Map<String, Map<String, Infix>>
 ) {
     val internalOperators = mutableMapOf(
-        Pair("+", Infix(6, false)),
-        Pair("-", Infix(6, false)),
         Pair("::", Infix(5, true)),
         Pair("<>", Infix(6, true)),
     )
@@ -441,12 +439,12 @@ class CstParser(
                 parsePattern(node.getChildOrThrow(1u), operators),
                 node.getChildOrThrow(0u).text
             )
-            "list_expression" -> {
+            "list_pattern" -> {
                 val list = parseMultiple(node, { parsePattern(it, operators) })
                 list.foldRight<AstNode.Pattern, AstNode.Pattern>(AstNode.BindingPattern(AstNode.WildcardPattern, "nil")
                 ) { pattern, acc -> AstNode.ConstructorPattern("::", listOf(pattern, acc)) }
             }
-            "tuple" -> AstNode.TuplePattern(parseMultiple(node, { parsePattern(it, operators) }))
+            "tuple_pattern" -> AstNode.TuplePattern(parseMultiple(node, { parsePattern(it, operators) }))
             "wildcard_pattern" -> AstNode.WildcardPattern
             else -> throw IllegalStateException("Unknown pattern: ${node.type} in node $node")
         }

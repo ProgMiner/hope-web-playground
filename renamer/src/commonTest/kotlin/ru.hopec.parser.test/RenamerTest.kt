@@ -177,7 +177,7 @@ class RenamerTest {
     fun `test list pattern`() = runTest {
         val code = """
             dec f : WrongType
-            --- f([x, y]) <= f x y
+            --- f([x, y]) <= f (x, y)
             """.trimIndent()
         val res = startRenamer(code) ?: error("renamer failed")
         val list = res.program.list
@@ -278,7 +278,7 @@ class RenamerTest {
             module test
                 dec <> : WrongType
                 infix <> : 6
-                --- a <> b <= a + b
+                --- a <> b <= a :: b
                 pubconst <>
             end
             
@@ -338,7 +338,6 @@ class RenamerTest {
               dec flatten : otree -> list num
 
               --- insert(n,empty) <= tip(n)
-              !тут then else не полностью захватывает определение
               --- insert(n,tip(m))
                     <= n<m then node(tip(n),m,empty)
                            else node(empty,m,tip(n))
@@ -369,7 +368,6 @@ class RenamerTest {
               --- f * (a :: al) <= (f a) :: (f * al)
 
               --- g ## (nil,b) <= b
-              !в грамматике нельзя внутри паттерна использовать операторы
               --- g ## (a :: al , b) <= g ## (al,g(a,b))
 
             end
