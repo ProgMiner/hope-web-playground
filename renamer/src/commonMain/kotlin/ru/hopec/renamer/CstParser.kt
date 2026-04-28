@@ -9,7 +9,12 @@ class CstParser(
     private val from: TreeSitterRepresentation,
     private val moduleOperators: Map<String, Map<String, Infix>>
 ) {
-    val internalOperators = mutableMapOf(Pair("::", Infix(5, false)))
+    val internalOperators = mutableMapOf(
+        Pair("+", Infix(6, false)),
+        Pair("-", Infix(6, false)),
+        Pair("::", Infix(5, true)),
+        Pair("<>", Infix(6, true)),
+    )
 
     data class ParserState(
         val operators: MutableMap<String, Infix> = mutableMapOf(),
@@ -26,16 +31,17 @@ class CstParser(
     fun parse(): Program {
         val rootNode = from.tree.rootNode
         val globalParserState = ParserState(operators = internalOperators)
-        val topLevelNodes = parseMultiple(rootNode, { child ->
-            try {
-                when (child.type) {
-                    "module" -> parseModule(child, globalParserState)
-                    else -> parseStatementOrInternal(child, globalParserState)
+        val topLevelNodes =
+            parseMultiple(rootNode, { child ->
+                try {
+                    when (child.type) {
+                        "module" -> parseModule(child, globalParserState)
+                        else -> parseStatementOrInternal(child, globalParserState)
+                    }
+                } catch (e: RenamerException) {
+                    AstNode.Error(e)
                 }
-            } catch (e: RenamerException) {
-                AstNode.Error(e)
-            }
-        }).toMutableList()
+            }).toMutableList()
 
         addEquations(topLevelNodes, globalParserState.equations)
 
@@ -44,9 +50,16 @@ class CstParser(
 
     private fun parseModule(node: TsSyntaxNode, globalParserState: ParserState): AstNode.Module {
         val moduleName = node.getChildOrThrow(0u).text
-        val parserState = ParserState(operators = globalParserState.localOperators)
-        val statements = parseMultipleOrError(node,
-            { node -> parseStatementOrInternal(node, parserState) }, { AstNode.Error(it) }, 1u).toMutableList()
+        val moduleOperators = internalOperators
+        moduleOperators.putAll(globalParserState.localOperators)
+        val parserState = ParserState(operators = moduleOperators)
+        val statements =
+            parseMultipleOrError(
+                node,
+                { node -> parseStatementOrInternal(node, parserState) },
+                { AstNode.Error(it) },
+                1u,
+            ).toMutableList()
 
         @Suppress("UNCHECKED_CAST")
         addEquations(statements as MutableList<AstNode.TopLevelNode>, parserState.equations)
@@ -57,15 +70,17 @@ class CstParser(
     private fun addEquations(statements: MutableList<AstNode.TopLevelNode>, equations: MutableList<Pair<String, MutableList<AstNode.FunctionEquation>>>) {
         var equationIndex = 0
         statements.forEachIndexed { index, statement ->
-            if (statement !is AstNode.FunctionDeclaration)
-                return@forEachIndexed
+            if (statement !is AstNode.FunctionDeclaration) return@forEachIndexed
             statements[index] = statement.copy(equations = equations[equationIndex].second)
             equationIndex++
         }
     }
 
     private fun parseStatementOrInternal(node: TsSyntaxNode, parserState: ParserState): AstNode.Statement? =
-            parseStatement(node, parserState).also { if (it == null) parseInternal(node, parserState) }
+        parseStatement(
+            node,
+            parserState,
+        ).also { if (it == null) parseInternal(node, parserState) }
 
     private fun parseStatement(node: TsSyntaxNode, parserState: ParserState): AstNode.Statement? {
         return when (node.type) {
@@ -130,7 +145,7 @@ class CstParser(
             }
 
             "type_variable_declaration" -> parserState.typeVars.addAll(parseMultipleIdent(node))
-
+            "line_comment" -> {}
             else -> throw IllegalStateException("Unknown statement: ${node.type} in node $node")
         }
     }
@@ -235,7 +250,12 @@ class CstParser(
                         node = node,
                         infix = operators,
                         parse = { parseExpression(it, operators) },
-                        constructOperand = { func, args -> AstNode.ApplicationExpr(func, args) },
+                        constructOperand = { func, args ->
+                                                AstNode.ApplicationExpr(
+                                                    func,
+                                                    if (args is AstNode.TupleExpr) args.elements else listOf(args)
+                                                )
+                                           },
                         constructOperator = { name, args -> AstNode.ApplicationExpr(AstNode.IdentExpr(name), args) }
                     )
             }
@@ -283,20 +303,19 @@ class CstParser(
                     )
 
             "lambda_expression" -> {
-                val branches = parseMultiple(node, { child ->
-                    val patternNode = child.getChildOrThrow(0u)
-                    val exprNode = child.getChildOrThrow(1u)
-                    AstNode.LambdaBranch(
-                        pattern = parsePattern(patternNode, operators),
-                        expression = parseExpression(exprNode, operators),
-                    )
-                })
+                val branches =
+                    parseMultiple(node, { child ->
+                        val patternNode = child.getChildOrThrow(0u)
+                        val exprNode = child.getChildOrThrow(1u)
+                        AstNode.LambdaBranch(
+                            pattern = parsePattern(patternNode, operators),
+                            expression = parseExpression(exprNode, operators),
+                        )
+                    })
                 AstNode.LambdaExpr(branches)
             }
 
-            else -> throw IllegalStateException(
-                "Unknown expression: ${node.type} in node $node"
-            )
+            else -> throw IllegalStateException("Unknown expression: ${node.type} in node $node")
         }
     }
 
@@ -304,7 +323,7 @@ class CstParser(
         node: TsSyntaxNode,
         infix: MutableMap<String, Infix>,
         parse: (TsSyntaxNode) -> T?,
-        constructOperand: (T, List<T>) -> T,
+        constructOperand: (T, T) -> T,
         constructOperator: (String, List<T>) -> T
     ): T {
         val expressions = parseMultiple(node, parse)
@@ -314,15 +333,18 @@ class CstParser(
         fun popToken() {
             if (tokenStack.size == 1)
                 tokens.add(ApplicationToken.Operand(tokenStack.first()))
-            else if (tokenStack.size > 1)
+            else if (tokenStack.size == 2) {
                 tokens.add(
                     ApplicationToken.Operand(
                         constructOperand(
-                            tokenStack.first(),
-                            tokenStack.drop(1),
+                            tokenStack[0],
+                            tokenStack[1],
                         )
                     )
                 )
+            }
+            else
+                throw IllegalStateException("Can apply only tuple or 1 argument")
             tokenStack.clear()
         }
 
@@ -362,11 +384,9 @@ class CstParser(
                 is ApplicationToken.Operator -> {
                     while (operators.isNotEmpty()) {
                         if (operators.last().infix.priority > token.infix.priority ||
-                            (operators.last().infix.priority == token.infix.priority && !token.infix.isRightAssoc)
-                        ) {
+                            (operators.last().infix.priority == token.infix.priority && !token.infix.isRightAssoc))
                             popOperator()
-                        } else
-                            break
+                        else break
                     }
                     operators.add(token)
                 }
@@ -403,8 +423,8 @@ class CstParser(
                 constructOperand = { func, args ->
                     if (func is AstNode.BindingPattern && func.pattern is AstNode.WildcardPattern)
                         AstNode.ConstructorPattern(
-                            (func.bindName),
-                            args
+                            func.bindName,
+                            if (args is AstNode.TuplePattern) args.tuple else listOf(args)
                         )
                     else
                         throw RenamerException(

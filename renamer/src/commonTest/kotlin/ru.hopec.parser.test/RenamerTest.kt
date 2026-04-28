@@ -324,4 +324,68 @@ class RenamerTest {
         assertIs<AstNode.Module>(res.program.list[0])
         assertIs<AstNode.Error>((res.program.list[0] as AstNode.Module).statements[0])
     }
+
+    @Test
+    fun `test example`() = runTest {
+        val code = """
+            module ordered_trees
+              pubtype otree
+              pubconst empty, insert, flatten
+
+              data otree == empty ++ tip(num) ++ node(otree # num # otree)
+
+              dec insert : num#otree -> otree
+              dec flatten : otree -> list num
+
+              --- insert(n,empty) <= tip(n)
+              !тут then else не полностью захватывает определение
+              --- insert(n,tip(m))
+                    <= n<m then node(tip(n),m,empty)
+                           else node(empty,m,tip(n))
+              --- insert(n,node(t1,m,t2))
+                    <= n<m then node(insert(n,t1),m,t2)
+                           else node(t1,m,insert(n,t2))
+
+              --- flatten(empty) <= nil
+              --- flatten(tip(n)) <= [n]
+              --- flatten(node(t1,n,t2))
+                    <= flatten(t1) <> (n :: flatten(t2))
+
+            end
+
+
+            module list_iterators
+              pubconst *, ##
+
+              typevar alpha, beta
+
+              dec * : (alpha->beta)#list alpha -> list beta
+              dec ## : (alpha#beta->beta)#(list alpha#beta)
+                      -> beta
+
+              infix *, ## : 6
+
+              --- f * nil <= nil
+              --- f * (a :: al) <= (f a) :: (f * al)
+
+              --- g ## (nil,b) <= b
+              !в грамматике нельзя внутри паттерна использовать операторы
+              --- g ## (a :: al , b) <= g ## (al,g(a,b))
+
+            end
+
+
+            module tree_sort
+              pubconst sort
+              uses ordered_trees, list_iterators
+
+              dec sort : list num -> list num
+
+              --- sort(l) <= flatten(insert ## (l,empty))
+
+            end
+        """.trimIndent()
+
+        val res = startRenamer(code) ?: error("renamer failed")
+    }
 }

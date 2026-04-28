@@ -116,7 +116,7 @@ export default grammar({
       prec.right(
         PREC.LET,
         choice(
-          seq("if", $.expression, "then", $.expression, "else", $.expression),
+          seq($.expression, "then", $.expression, "else", $.expression),
           seq($.expression, "if", $.expression, "else", $.expression),
         ),
       ),
