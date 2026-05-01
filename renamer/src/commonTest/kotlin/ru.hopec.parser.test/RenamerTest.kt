@@ -18,9 +18,8 @@ class RenamerTest {
     private suspend fun startRenamer(input: String) : RenamedRepresentation? {
         val parsed = parseHope(input)
         val treeSitterRep = TreeSitterRepresentation(parsed)
-        val pass = RenamerPass()
         val context = CompilationContext()
-        return pass.run(treeSitterRep, context)
+        return RenamerPass.run(treeSitterRep, context)
     }
 
     suspend fun `function declaration`(): Program {

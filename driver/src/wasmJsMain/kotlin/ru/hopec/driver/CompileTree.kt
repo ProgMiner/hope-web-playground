@@ -12,7 +12,7 @@ import kotlin.wasm.unsafe.withScopedMemoryAllocator
 @JsExport
 fun compile(input: Tree): JsNumber {
     val buffer = Buffer()
-    Hopec(CompilationContext()).run(JsTree(input), buffer) ?: return 0.toJsNumber()
+    Hopec(CompilationContext()).run(JsTree(input), buffer)
     val result = buffer.readByteArray()
     withScopedMemoryAllocator {
         val buffer = Pointer(0U)

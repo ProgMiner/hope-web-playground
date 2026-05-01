@@ -4,7 +4,7 @@ import ru.hopec.core.CompilationContext
 import ru.hopec.core.CompilationPass
 import ru.hopec.parser.TreeSitterRepresentation
 
-class RenamerPass : CompilationPass<TreeSitterRepresentation, RenamedRepresentation> {
+object RenamerPass : CompilationPass<TreeSitterRepresentation, RenamedRepresentation> {
     override fun run(from: TreeSitterRepresentation, context: CompilationContext) =
         try {
             parse(from)

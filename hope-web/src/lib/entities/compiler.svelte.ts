@@ -16,7 +16,8 @@ export class Compiler {
 		if (!size) {
 			return undefined;
 		}
-		return await this.instantiateModule(size);
+
+		return this.instantiateModule(size);
 	}
 
 	private async instantiateModule(size: number): Promise<WebAssembly.Instance> {
