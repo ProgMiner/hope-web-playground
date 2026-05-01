@@ -5,29 +5,23 @@ import okio.Sink
 import ru.hopec.core.CompilationContext
 import ru.hopec.parser.treesitter.TsTree
 
-class Hopec(private val context: CompilationContext) {
+expect fun compileWatToBinary(wat: String): ByteArray
 
-    fun run(input: TsTree, output: Sink): Any? {
-        val add = byteArrayOf(
-            0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00,
-            0x01, 0x0A, 0x02, 0x60, 0x02, 0x7F, 0x7F, 0x01,
-            0x7F, 0x60, 0x00, 0x00, 0x03, 0x03, 0x02, 0x00,
-            0x01, 0x04, 0x04, 0x01, 0x70, 0x00, 0x01, 0x05,
-            0x03, 0x01, 0x00, 0x00, 0x06, 0x06, 0x01, 0x7F,
-            0x00, 0x41, 0x08, 0x0B, 0x07, 0x18, 0x03, 0x06,
-            0x6D, 0x65, 0x6D, 0x6F, 0x72, 0x79, 0x02, 0x00,
-            0x05, 0x74, 0x61, 0x62, 0x6C, 0x65, 0x01, 0x00,
-            0x03, 0x61, 0x64, 0x64, 0x00, 0x00, 0x09, 0x07,
-            0x01, 0x00, 0x41, 0x00, 0x0B, 0x01, 0x01, 0x0A,
-            0x0C, 0x02, 0x07, 0x00, 0x20, 0x00, 0x20, 0x01,
-            0x6A, 0x0B, 0x02, 0x00, 0x0B
-        )
-        output.write(Buffer().write(add), add.size.toLong())
+class Hopec(@Suppress("UNUSED_PARAMETER") private val context: CompilationContext) {
+
+    fun run(@Suppress("UNUSED_PARAMETER") input: TsTree, output: Sink): Int {
+        val watCode = """
+            (module
+              (func (export "add") (param i32 i32) (result i32)
+                (i32.add (local.get 0) (local.get 1))
+              )
+              (memory (export "memory") 1)
+              (table (export "table") 1 funcref)
+            )
+        """.trimIndent()
+
+        val wasmBinary = compileWatToBinary(watCode)
+        output.write(Buffer().write(wasmBinary), wasmBinary.size.toLong())
         return 0
-//        val wasm = RenamerPass()
-//            .then(TypeCheckPass())
-//            .then(CodeGenPass())
-//            .run(TreeSitterRepresentation(input), context) ?: return null
-//        return wasm.compile(output)
     }
 }

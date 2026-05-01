@@ -17,6 +17,7 @@
 	"devDependencies": {
 		"@eslint/compat": "^2.0.2",
 		"@eslint/js": "^9.39.2",
+		"@rollup/rollup-linux-x64-gnu": "^4.21.0",
 		"@sveltejs/adapter-static": "^3.0.10",
 		"@sveltejs/kit": "^2.50.2",
 		"@sveltejs/vite-plugin-svelte": "^6.2.4",
@@ -43,5 +44,9 @@
 		"svoast": "^3.0.3",
 		"tree-sitter": "^0.25.0",
 		"web-tree-sitter": "^0.26.7"
+	},
+	"optionalDependencies": {
+		"@tailwindcss/oxide-linux-x64-gnu": "^4.2.2",
+		"lightningcss-linux-x64-gnu": "^1.32.0"
 	}
 }
