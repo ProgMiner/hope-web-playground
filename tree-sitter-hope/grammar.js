@@ -84,7 +84,12 @@ export default grammar({
       ),
 
     expression: ($) =>
-      prec.left(PREC.ARGUMENTS, repeat1($._primary_expression)),
+      prec.left(
+        PREC.ARGUMENTS,
+        choice(
+          $.conditional_expression ,repeat1($._primary_expression)
+        )
+      ),
 
     _primary_expression: ($) =>
       prec(
@@ -98,7 +103,6 @@ export default grammar({
           $.tuple,
           $.list_expression,
           $.set_expression,
-          $.conditional_expression,
           $.local_variable_expression,
           $.lambda_expression,
         ),
@@ -116,7 +120,7 @@ export default grammar({
       prec.right(
         PREC.LET,
         choice(
-          seq("if", $.expression, "then", $.expression, "else", $.expression),
+          seq($.expression, "then", $.expression, "else", $.expression),
           seq($.expression, "if", $.expression, "else", $.expression),
         ),
       ),
@@ -161,17 +165,24 @@ export default grammar({
     pattern: ($) => prec.left(PREC.ARGUMENTS, repeat1($._primary_pattern)),
 
     _primary_pattern: ($) =>
-      choice(
-        $.wildcard_pattern,
-        $.array_pattern,
-        $.list_pattern,
-        seq($.binding, optional(seq("@", $.pattern))),
-        $.expression,
-        seq("(", $.pattern, ")"),
+      prec(
+        PREC.BRACKETS,
+        choice(
+          $.wildcard_pattern,
+          $.list_pattern,
+          $.set_pattern,
+          $.binding_pattern,
+          seq("(", $.pattern, ")"),
+          $.tuple_pattern,
+          $.ident,
+        )
       ),
+
+    binding_pattern: ($) => seq($.binding, "@", $.pattern),
+    tuple_pattern: ($) => seq("(", optional(enumeration($.pattern)), ")"),
     wildcard_pattern: (_) => "_",
-    list_pattern: ($) => seq("{", optional(enumeration($.pattern)), "}"),
-    array_pattern: ($) => seq("[", optional(enumeration($.pattern)), "]"),
+    set_pattern: ($) => seq("{", optional(enumeration($.pattern)), "}"),
+    list_pattern: ($) => seq("[", optional(enumeration($.pattern)), "]"),
 
     binding: ($) => field("name", $.ident),
 

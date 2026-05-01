@@ -15,13 +15,19 @@ kotlin {
 
     @OptIn(ExperimentalWasmDsl::class)
     wasmJs {
-        browser()
+        nodejs()
     }
 
     sourceSets {
         commonMain.dependencies {
             implementation(project(":core"))
             implementation(project(":parser"))
+        }
+
+        commonTest.dependencies {
+            implementation(kotlin("test"))
+            implementation("com.goncalossilva:resources:0.15.0")
+            implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.0")
         }
 
         wasmJsMain.configure {
