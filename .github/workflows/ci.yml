@@ -116,6 +116,12 @@ jobs:
       - name: Install tree-sitter CLI
         run: npm install -g tree-sitter-cli@${{ env.TREE_SITTER_CLI_VERSION }}
 
+      - name: Install Chromium
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y chromium-browser
+          echo "CHROME_BIN=$(which chromium-browser)" >> $GITHUB_ENV
+
       - name: "tree-sitter-hope: build wasm + native (test prerequisite)"
         working-directory: tree-sitter-hope
         run: |
