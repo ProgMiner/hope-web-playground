@@ -32,9 +32,9 @@ export class ImaginaryFile {
 	}
 
 	encode(text: string) {
-		this.contents = new Uint8Array(text.length * 2);
-		const written = new TextEncoder().encodeInto(text, this.contents).written;
-		this.contents = this.contents.slice(0, written);
+		const buffer = new Uint8Array(text.length * 2);
+		const written = new TextEncoder().encodeInto(text, buffer).written;
+		this.contents = buffer.slice(0, written);
 	}
 
 	decode() {

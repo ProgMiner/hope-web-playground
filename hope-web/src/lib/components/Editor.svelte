@@ -62,7 +62,7 @@
 	}
 
 	function open(file: ImaginaryFile) {
-		opened?.encode(value);
+		opened?.encode(editor?.currentContents() ?? '');
 		opened = file;
 		value = file.decode();
 		editor?.installContent(value);
