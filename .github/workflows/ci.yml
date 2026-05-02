@@ -116,14 +116,13 @@ jobs:
       - name: Install tree-sitter CLI
         run: npm install -g tree-sitter-cli@${{ env.TREE_SITTER_CLI_VERSION }}
 
-      # The wasmJs Kotlin test target loads tree-sitter-hope.wasm at runtime,
-      # so we must produce it before running the test suite.
-      - name: "tree-sitter-hope: build wasm (test prerequisite)"
+      - name: "tree-sitter-hope: build wasm + native (test prerequisite)"
         working-directory: tree-sitter-hope
         run: |
           npm ci
           tree-sitter generate
           tree-sitter build --wasm
+          tree-sitter build
 
       - name: "Gradle: check (JVM + wasmJs tests)"
         run: ./gradlew check --stacktrace
