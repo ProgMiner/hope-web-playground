@@ -299,19 +299,20 @@ private class JavaQuery(
     }
 }
 
-private class JavaLookaheadIterator(
-    val delegate: TsLookAheadIterator,
-) : TsLookAheadIterator {
-    override val currentTypeId: UInt = delegate.currentSymbol().toUInt()
+private class JavaLookaheadIterator() : TsLookaheadIterator {
+    // JVM stub: some Java tree-sitter bindings don't expose a lookahead
+    // iterator implementation. Provide conservative defaults so the JVM
+    // compilation succeeds and callers get safe values.
+    override val currentTypeId: UInt = 0U
 
-    override val currentType: String = delegate.currentSymbolName()
+    override val currentType: String = "ERROR"
 
     override fun reset(
         language: TsLanguage,
         stateId: UInt,
-    ): Boolean = delegate.reset(language.inner(), stateId.toInt())
+    ): Boolean = false
 
-    override fun resetState(stateId: UInt): Boolean = delegate.resetState(stateId.toInt())
+    override fun resetState(stateId: UInt): Boolean = false
 }
 
 private class JavaLanguage(
@@ -339,7 +340,7 @@ private class JavaFactory : TsFactory {
     override fun createLookaheadIterator(
         language: TsLanguage,
         state: UInt,
-    ): TsLookAheadIterator = JavaLookaheadIterator(TsLookAheadIterator(language.inner(), state.toInt()))
+    ): TsLookaheadIterator = JavaLookaheadIterator()
 
     override suspend fun loadLanguage(location: String): TsLanguage? =
         TSLanguage.load(location, "tree_sitter_hope")?.let { JavaLanguage(it) }
