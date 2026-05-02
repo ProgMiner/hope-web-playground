@@ -660,7 +660,7 @@ interface TsQuery {
     fun endIndexForPattern(patternIndex: UInt): UInt
 }
 
-interface TsLookaheadIterator {
+interface TsLookAheadIterator {
     /** The current symbol of the lookahead iterator. */
     val currentTypeId: UInt
 
@@ -732,7 +732,7 @@ interface TsFactory {
     fun createLookaheadIterator(
         language: TsLanguage,
         state: UInt,
-    ): TsLookaheadIterator
+    ): TsLookAheadIterator
 
     suspend fun loadLanguage(location: String): TsLanguage?
 }

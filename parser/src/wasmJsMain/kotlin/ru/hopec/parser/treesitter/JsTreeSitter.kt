@@ -265,7 +265,7 @@ private class JsQuery(
 
 private class JsLookaheadIterator(
     val delegate: LookaheadIterator,
-) : TsLookaheadIterator {
+) : TsLookAheadIterator {
     override val currentTypeId: UInt = delegate.currentTypeId
 
     override val currentType: String = delegate.currentType
@@ -304,7 +304,7 @@ private class JsFactory : TsFactory {
     override fun createLookaheadIterator(
         language: TsLanguage,
         state: UInt,
-    ): TsLookaheadIterator = JsLookaheadIterator(LookaheadIterator(language.inner(), state))
+    ): TsLookAheadIterator = JsLookaheadIterator(LookaheadIterator(language.inner(), state))
 
     override suspend fun loadLanguage(location: String): TsLanguage? {
         Parser.init().await<Any>()

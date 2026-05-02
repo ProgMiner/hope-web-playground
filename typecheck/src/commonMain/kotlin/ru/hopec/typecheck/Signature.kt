@@ -1,8 +1,8 @@
 package ru.hopec.typecheck
 
+import ru.hopec.typecheck.DesugaredRepresentation
 import ru.hopec.typecheck.TypedRepresentation.Declarations
 import ru.hopec.typecheck.TypedRepresentation.Declarations.Data.Name.Core
-import ru.hopec.typecheck.DesugaredRepresentation
 import ru.hopec.typecheck.TypedRepresentation.PolymorphicType
 import ru.hopec.typecheck.TypedRepresentation.Type
 

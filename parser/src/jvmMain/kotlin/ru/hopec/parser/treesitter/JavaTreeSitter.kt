@@ -301,7 +301,7 @@ private class JavaQuery(
 
 private class JavaLookaheadIterator(
     val delegate: TsLookAheadIterator,
-) : TsLookaheadIterator {
+) : TsLookAheadIterator {
     override val currentTypeId: UInt = delegate.currentSymbol().toUInt()
 
     override val currentType: String = delegate.currentSymbolName()
@@ -339,7 +339,7 @@ private class JavaFactory : TsFactory {
     override fun createLookaheadIterator(
         language: TsLanguage,
         state: UInt,
-    ): TsLookaheadIterator = JavaLookaheadIterator(TsLookAheadIterator(language.inner(), state.toInt()))
+    ): TsLookAheadIterator = JavaLookaheadIterator(TsLookAheadIterator(language.inner(), state.toInt()))
 
     override suspend fun loadLanguage(location: String): TsLanguage? =
         TSLanguage.load(location, "tree_sitter_hope")?.let { JavaLanguage(it) }
