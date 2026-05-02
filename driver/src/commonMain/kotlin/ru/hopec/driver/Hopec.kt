@@ -11,29 +11,29 @@ import ru.hopec.renamer.RenamerPass
 
 expect fun compileWatToBinary(wat: String): ByteArray
 
-class Hopec(@Suppress("UNUSED_PARAMETER") private val context: CompilationContext) {
+class Hopec(
+    @Suppress("UNUSED_PARAMETER") private val context: CompilationContext,
+) {
+    fun makeChain(): CompilationPass<TreeSitterRepresentation, RenamedRepresentation> = RenamerPass
 
-    fun makeChain(): CompilationPass<TreeSitterRepresentation, RenamedRepresentation> =
-        RenamerPass
-
-    fun run(@Suppress("UNUSED_PARAMETER") input: TsTree, output: Sink): Int {
+    fun run(
+        @Suppress("UNUSED_PARAMETER") input: TsTree,
+        output: Sink,
+    ): Int {
         val context = CompilationContext()
         val res = makeChain().run(TreeSitterRepresentation(input), context)
 
         println("Debug: $res")
 
-        val watCode = """
+        val watCode =
+            """
             (module
-              (func (param i32 i32) (result i32)
+              (func (export "add") (param i32 i32) (result i32)
                 (i32.add (local.get 0) (local.get 1))
               )
-              (func (export "main") (result i32)
-                (call 0 (i32.const 2) (i32.const 3))
-              )
               (memory (export "memory") 1)
-              (table (export "table") 1 funcref)
             )
-        """.trimIndent()
+            """.trimIndent()
 
         val wasmBinary = compileWatToBinary(watCode)
         output.write(Buffer().write(wasmBinary), wasmBinary.size.toLong())

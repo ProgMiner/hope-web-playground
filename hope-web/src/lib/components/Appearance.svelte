@@ -1,10 +1,28 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { getThemes } from '$lib/entities/context';
 
 	const themes = getThemes();
-	let theme = $derived(`<style> ${themes.styles()} </style>`);
+	let theme = $derived(themes.styles());
+	let themeStyle: HTMLStyleElement | undefined = $state();
 	let selection: HTMLDivElement | undefined = $state();
 	let expanded = $state(false);
+
+	onMount(() => {
+		themeStyle = document.createElement('style');
+		document.head.appendChild(themeStyle);
+
+		return () => {
+			themeStyle?.remove();
+			themeStyle = undefined;
+		};
+	});
+
+	$effect(() => {
+		if (themeStyle) {
+			themeStyle.textContent = theme;
+		}
+	});
 
 	function expand() {
 		expanded = true;
@@ -39,10 +57,6 @@
 		return themes.selectedTheme() === name;
 	}
 </script>
-
-<svelte:head>
-	{@html theme}
-</svelte:head>
 
 <div bind:this={selection} class="theme-selection flex flex-col p-0.5">
 	<button onclick={expand} class="inline-flex rounded-xs p-1 font-mono text-sm hover:bg-slate-200">

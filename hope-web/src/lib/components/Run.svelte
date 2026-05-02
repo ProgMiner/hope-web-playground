@@ -20,12 +20,12 @@
 
 		const exportsObj = compiled.exports as Record<string, unknown>;
 
-		if (typeof exportsObj["main"] !== 'function') {
+		if (typeof exportsObj['main'] !== 'function') {
 			terminal.write('No main function found\n');
 			return;
 		}
 
-		terminal.write(`${exportsObj["main"]()}\n`);
+		terminal.write(`${exportsObj['main']()}\n`);
 	}
 </script>
 
