@@ -299,7 +299,7 @@ private class JavaQuery(
     }
 }
 
-private class JavaLookaheadIterator() : TsLookaheadIterator {
+private class JavaLookaheadIterator : TsLookaheadIterator {
     // JVM stub: some Java tree-sitter bindings don't expose a lookahead
     // iterator implementation. Provide conservative defaults so the JVM
     // compilation succeeds and callers get safe values.
