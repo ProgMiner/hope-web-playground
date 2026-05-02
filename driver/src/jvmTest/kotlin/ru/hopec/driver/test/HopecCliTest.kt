@@ -6,7 +6,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class HopecCliTest {
-
     @Test
     fun `simple file compiled`() {
         assertEquals("4\n", compile().stdout)
@@ -15,5 +14,4 @@ class HopecCliTest {
     private fun compile(file: String = helloFile()) = HopecCompile().test(file)
 
     private fun helloFile() = "../parser/src/commonTest/resources/hello.hope"
-
 }

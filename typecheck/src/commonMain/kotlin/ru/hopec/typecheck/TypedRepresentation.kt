@@ -9,8 +9,14 @@ import ru.hopec.core.Representation
  *
  * @param topLevel Declarations from the global scope
  */
-data class TypedRepresentation(val modules: Map<String, Module>, val topLevel: Declarations) : Representation {
-    data class Module(val public: Declarations, val private: Declarations)
+data class TypedRepresentation(
+    val modules: Map<String, Module>,
+    val topLevel: Declarations,
+) : Representation {
+    data class Module(
+        val public: Declarations,
+        val private: Declarations,
+    )
 
     /**
      * Declarations of data and functions
@@ -22,28 +28,39 @@ data class TypedRepresentation(val modules: Map<String, Module>, val topLevel: D
      */
     data class Declarations(
         val data: Map<Data.Name.Defined, Data>,
-        val functions: Map<Declarations.Function.Name, Function>
+        val functions: Map<Declarations.Function.Name, Function>,
     ) {
         /**
          * Declared data representation
          *
          * @param constructors Map from constructors names to list of their arguments
          */
-        data class Data(val constructors: Map<String, List<Type>>, val boundTypeVariables: Int) {
+        data class Data(
+            val constructors: Map<String, List<Type>>,
+            val boundTypeVariables: Int,
+        ) {
             /** Resolved data name*/
             sealed interface Name {
                 /** Core-defined types*/
                 sealed interface Core : Name {
                     data object Char : Core
+
                     data object TruVal : Core
+
                     data object Num : Core
+
                     data object List : Core
+
                     data object Set : Core
+
                     data object Tuple : Core
                 }
 
                 /** User-defined types*/
-                data class Defined(val module: String?, val name: String) : Name
+                data class Defined(
+                    val module: String?,
+                    val name: String,
+                ) : Name
             }
         }
 
@@ -52,20 +69,31 @@ data class TypedRepresentation(val modules: Map<String, Module>, val topLevel: D
          *
          * For convenience, represented as lambda expression
          */
-        data class Function(val lambda: Expr.Lambda, private val boundTypeVariables: Int) {
+        data class Function(
+            val lambda: Expr.Lambda,
+            private val boundTypeVariables: Int,
+        ) {
             sealed interface Name {
                 /**
                  * Core-defined functions like nil, cons, operators etc...
                  *
                  * Represented as string, because there are too much of them
                  */
-                data class Core(val name: String) : Name
+                data class Core(
+                    val name: String,
+                ) : Name
 
                 /** User defined functions (with **`dec`** keyword) */
-                data class User(val module: String?, val name: String) : Name
+                data class User(
+                    val module: String?,
+                    val name: String,
+                ) : Name
 
                 /** Core and user defined data constructors*/
-                data class Constructor(val data: Data.Name, val constructor: String) : Name
+                data class Constructor(
+                    val data: Data.Name,
+                    val constructor: String,
+                ) : Name
             }
 
             val type = PolymorphicType(lambda.type, boundTypeVariables)
@@ -76,45 +104,78 @@ data class TypedRepresentation(val modules: Map<String, Module>, val topLevel: D
         /** Type of subexpression in the context of the whole expression */
         val type: Type
 
-        data class Application(override val type: Type, val left: Expr, val right: Expr) : Expr
+        data class Application(
+            override val type: Type,
+            val left: Expr,
+            val right: Expr,
+        ) : Expr
 
         /**
          * Identifiers, defined outside of expression (i.e not variables)
          */
-        data class Identifier(override val type: Type, val name: Declarations.Function.Name) : Expr
+        data class Identifier(
+            override val type: Type,
+            val name: Declarations.Function.Name,
+        ) : Expr
 
         /**
          * Variables, defined in expression
          *
          * @param name -- name from RenamedRepresentation
          */
-        data class Variable(override val type: Type, val name: String) : Expr
-        data class Lambda(override val type: Type.Arrow, val branches: List<Branch>) : Expr {
-            data class Branch(val pattern: Pattern, val body: Expr)
+        data class Variable(
+            override val type: Type,
+            val name: String,
+        ) : Expr
+
+        data class Lambda(
+            override val type: Type.Arrow,
+            val branches: List<Branch>,
+        ) : Expr {
+            data class Branch(
+                val pattern: Pattern,
+                val body: Expr,
+            )
         }
 
-        data class If(val condition: Expr, val positive: Expr, val negative: Expr) : Expr {
+        data class If(
+            val condition: Expr,
+            val positive: Expr,
+            val negative: Expr,
+        ) : Expr {
             override val type = positive.type
         }
 
-        data class Let(val pattern: Pattern, val matcher: Expr, val body: Expr) : Expr {
+        data class Let(
+            val pattern: Pattern,
+            val matcher: Expr,
+            val body: Expr,
+        ) : Expr {
             override val type = body.type
         }
 
         sealed interface Literal : Expr {
-            data class TruVal(val value: Boolean) : Literal {
+            data class TruVal(
+                val value: Boolean,
+            ) : Literal {
                 override val type = Type.Data.truval
             }
 
-            data class Num(val value: Long) : Literal {
+            data class Num(
+                val value: Long,
+            ) : Literal {
                 override val type = Type.Data.num
             }
 
-            data class Char(val value: kotlin.Char) : Literal {
+            data class Char(
+                val value: kotlin.Char,
+            ) : Literal {
                 override val type = Type.Data.char
             }
 
-            data class String(val value: kotlin.String) : Literal {
+            data class String(
+                val value: kotlin.String,
+            ) : Literal {
                 override val type = Type.Data.string
             }
         }
@@ -124,26 +185,49 @@ data class TypedRepresentation(val modules: Map<String, Module>, val topLevel: D
         /** Type of subpattern in the context of the whole expression */
         val type: Type
 
-        data class Wildcard(override val type: Type) : Pattern
-        data class Variable(override val type: Type, val name: String) : Pattern
+        data class Wildcard(
+            override val type: Type,
+        ) : Pattern
+
+        data class Variable(
+            override val type: Type,
+            val name: String,
+        ) : Pattern
+
         data class Data(
             override val type: Type.Data,
             val constructor: Declarations.Function.Name.Constructor,
-            val args: List<Pattern>
+            val args: List<Pattern>,
         ) : Pattern
 
-        data class NamedData(val name: String, val data: Data) : Pattern {
+        data class NamedData(
+            val name: String,
+            val data: Data,
+        ) : Pattern {
             override val type = data.type
         }
     }
 
-    data class PolymorphicType(val type: Type, val boundTypeVariables: Int)
+    data class PolymorphicType(
+        val type: Type,
+        val boundTypeVariables: Int,
+    )
 
     sealed interface Type {
         /** Type variable, represented as De Brujin index */
-        data class Variable(val index: Int) : Type
-        data class Arrow(val argument: Type, val result: Type) : Type
-        data class Data(val constructor: Declarations.Data.Name, val args: List<Type>) : Type {
+        data class Variable(
+            val index: Int,
+        ) : Type
+
+        data class Arrow(
+            val argument: Type,
+            val result: Type,
+        ) : Type
+
+        data class Data(
+            val constructor: Declarations.Data.Name,
+            val args: List<Type>,
+        ) : Type {
             companion object {
                 val char = Data(Declarations.Data.Name.Core.Char, arrayListOf())
                 val truval = Data(Declarations.Data.Name.Core.TruVal, arrayListOf())
@@ -151,8 +235,13 @@ data class TypedRepresentation(val modules: Map<String, Module>, val topLevel: D
                 val string = Data(Declarations.Data.Name.Core.List, arrayListOf(char))
 
                 fun list(arg: Type) = Data(Declarations.Data.Name.Core.List, arrayListOf(arg))
+
                 fun set(arg: Type) = Data(Declarations.Data.Name.Core.Set, arrayListOf(arg))
-                fun tuple(left: Type, right: Type) = Data(Declarations.Data.Name.Core.Tuple, arrayListOf(left, right))
+
+                fun tuple(
+                    left: Type,
+                    right: Type,
+                ) = Data(Declarations.Data.Name.Core.Tuple, arrayListOf(left, right))
             }
         }
     }
