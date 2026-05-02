@@ -314,4 +314,4 @@ private class JsFactory : TsFactory {
 
 actual fun factory(): TsFactory = JsFactory()
 
-actual fun sharedLibraryLocation(): String = "kotlin/lib/tree-sitter-hope.wasm"
+actual fun sharedLibraryLocation(): String = "../tree-sitter-hope/tree-sitter-hope.wasm"

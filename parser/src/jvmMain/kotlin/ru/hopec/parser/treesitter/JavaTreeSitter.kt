@@ -1,6 +1,7 @@
 package ru.hopec.parser.treesitter
 
 import org.treesitter.TSLanguage
+import kotlin.system.getProperty
 import org.treesitter.TSNode
 import org.treesitter.TSParser
 import org.treesitter.TSPoint
@@ -348,4 +349,12 @@ private class JavaFactory : TsFactory {
 
 actual fun factory(): TsFactory = JavaFactory()
 
-actual fun sharedLibraryLocation(): String = "../tree-sitter-hope/hope"
+actual fun sharedLibraryLocation(): String {
+    val os = getProperty("os.name").lowercase()
+    val extension = when {
+        os.contains("win") -> ".dll"
+        os.contains("mac") || os.contains("darwin") -> ".dylib"
+        else -> ".so"
+    }
+    return "../tree-sitter-hope/hope$extension"
+}

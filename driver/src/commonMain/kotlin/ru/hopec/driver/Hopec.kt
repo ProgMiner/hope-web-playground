@@ -28,14 +28,10 @@ class Hopec(
         val watCode =
             """
             (module
-              (func (param i32 i32) (result i32)
+              (func (export "add") (param i32 i32) (result i32)
                 (i32.add (local.get 0) (local.get 1))
               )
-              (func (export "main") (result i32)
-                (call 0 (i32.const 2) (i32.const 3))
-              )
               (memory (export "memory") 1)
-              (table (export "table") 1 funcref)
             )
             """.trimIndent()
 
