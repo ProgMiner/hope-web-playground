@@ -68,6 +68,7 @@ export class Themes {
 		this.css = this.generatedCss(loaded);
 		editor.defineTheme(matching.monacoKey(), loaded);
 		editor.setTheme(matching.monacoKey());
+		this.installColors(loaded.base, loaded.colors);
 	}
 
 	private generatedCss(theme: editor.IStandaloneThemeData): string {
@@ -86,5 +87,19 @@ export class Themes {
 			body.push(`color: #${rule.foreground};`);
 		}
 		return `span.${rule.token}{${body.join('')}}`;
+	}
+
+	public installColors(base: editor.BuiltinTheme, colors: editor.IColors) {
+		const style = document.documentElement.style;
+		Object.keys(colors).forEach((key) => style.setProperty(this.toTailwind(key), colors[key]));
+		if (base == 'vs-dark') {
+			style.setProperty('--hover-brightness', '2');
+		} else {
+			style.setProperty('--hover-brightness', '0.8');
+		}
+	}
+
+	private toTailwind(key: string): string {
+		return `--${key.replaceAll('.', '-')}`;
 	}
 }

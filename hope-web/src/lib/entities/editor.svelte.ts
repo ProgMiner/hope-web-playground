@@ -60,4 +60,8 @@ export class MonacoEditor {
 	currentContents(): string {
 		return this.standalone.getValue();
 	}
+
+	installContent(text: string) {
+		this.standalone.setValue(text);
+	}
 }
