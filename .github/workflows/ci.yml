@@ -90,59 +90,59 @@ jobs:
   # TEST: Kotlin — JVM + wasmJs unit tests (HopecCliTest, TreeSitterTest).
   # Non-blocking.
   # =========================================================================
-  # test-kotlin:
-  #   name: Tests · Kotlin
-  #   runs-on: ubuntu-latest
-  #   timeout-minutes: 30
-  #   continue-on-error: true
+  test-kotlin:
+    name: Tests · Kotlin
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    continue-on-error: true
 
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - run: chmod +x ./gradlew
+    steps:
+      - uses: actions/checkout@v4
+      - run: chmod +x ./gradlew
 
-  #     - uses: actions/setup-java@v4
-  #       with:
-  #         distribution: temurin
-  #         java-version: ${{ env.JAVA_VERSION }}
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
 
-  #     - uses: actions/setup-node@v4
-  #       with:
-  #         node-version: ${{ env.NODE_VERSION }}
-  #         cache: npm
-  #         cache-dependency-path: tree-sitter-hope/package-lock.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: tree-sitter-hope/package-lock.json
 
-  #     - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v4
 
-  #     - name: Install tree-sitter CLI
-  #       run: npm install -g tree-sitter-cli@${{ env.TREE_SITTER_CLI_VERSION }}
+      - name: Install tree-sitter CLI
+        run: npm install -g tree-sitter-cli@${{ env.TREE_SITTER_CLI_VERSION }}
 
-  #     - name: Install Chromium
-  #       run: |
-  #         sudo apt-get update
-  #         sudo apt-get install -y chromium-browser
-  #         echo "CHROME_BIN=$(which chromium-browser)" >> $GITHUB_ENV
+      - name: Install Chromium
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y chromium-browser
+          echo "CHROME_BIN=$(which chromium-browser)" >> $GITHUB_ENV
 
-  #     - name: "tree-sitter-hope: build wasm + native (test prerequisite)"
-  #       working-directory: tree-sitter-hope
-  #       run: |
-  #         npm ci
-  #         tree-sitter generate
-  #         tree-sitter build --wasm
-  #         tree-sitter build
+      - name: "tree-sitter-hope: build wasm + native (test prerequisite)"
+        working-directory: tree-sitter-hope
+        run: |
+          npm ci
+          tree-sitter generate
+          tree-sitter build --wasm
+          tree-sitter build
 
-  #     - name: "Gradle: check (JVM + wasmJs tests)"
-  #       run: ./gradlew check --stacktrace
+      - name: "Gradle: check (JVM + wasmJs tests)"
+        run: ./gradlew check --stacktrace
 
-  #     - name: Upload Gradle test reports
-  #       if: failure()
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         name: gradle-test-reports
-  #         path: |
-  #           **/build/reports/tests/**
-  #           **/build/test-results/**
-  #         if-no-files-found: ignore
-  #         retention-days: 7
+      - name: Upload Gradle test reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gradle-test-reports
+          path: |
+            **/build/reports/tests/**
+            **/build/test-results/**
+          if-no-files-found: ignore
+          retention-days: 7
 
   # =========================================================================
   # TEST: tree-sitter grammar corpus.
