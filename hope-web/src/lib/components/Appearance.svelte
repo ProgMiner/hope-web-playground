@@ -6,8 +6,6 @@
 	const themes = getThemes();
 	let theme = $derived(themes.styles());
 	let themeStyle: HTMLStyleElement | undefined = $state();
-	let selection: HTMLDivElement | undefined = $state();
-	let expanded = $state(false);
 
 	onMount(() => {
 		themeStyle = document.createElement('style');
@@ -25,30 +23,6 @@
 		}
 	});
 
-	function expand() {
-		expanded = true;
-		document.addEventListener('click', onClick);
-	}
-
-	function onClick(e: PointerEvent) {
-		const rect = selection?.getBoundingClientRect();
-		if (
-			!rect ||
-			(e.clientX >= rect.left &&
-				e.clientX <= rect.right &&
-				e.clientY >= rect.top &&
-				e.clientY <= rect.bottom)
-		) {
-			return;
-		}
-		collapse();
-	}
-
-	function collapse() {
-		document.removeEventListener('click', onClick);
-		expanded = false;
-	}
-
 	async function selectTheme(theme: string): Promise<void> {
 		await themes.loadTheme(theme);
 	}
@@ -59,6 +33,7 @@
 </script>
 
 <svelte:head>
+	<!-- svelte-ignore svelte/no_at_html_tags -->
 	{@html theme}
 </svelte:head>
 

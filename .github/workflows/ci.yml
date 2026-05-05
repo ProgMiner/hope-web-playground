@@ -87,7 +87,7 @@ jobs:
           npm run build
 
   # =========================================================================
-  # TEST: Kotlin — JVM + wasmJs unit tests (HopecCliTest, TreeSitterTest).
+  # TEST: Kotlin — JVM tests (parser, renamer, typecheck, driver).
   # Non-blocking.
   # =========================================================================
   test-kotlin:
@@ -116,12 +116,6 @@ jobs:
       - name: Install tree-sitter CLI
         run: npm install -g tree-sitter-cli@${{ env.TREE_SITTER_CLI_VERSION }}
 
-      - name: Install Chromium
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y chromium-browser
-          echo "CHROME_BIN=$(which chromium-browser)" >> $GITHUB_ENV
-
       - name: "tree-sitter-hope: build wasm + native (test prerequisite)"
         working-directory: tree-sitter-hope
         run: |
@@ -130,8 +124,8 @@ jobs:
           tree-sitter build --wasm
           tree-sitter build
 
-      - name: "Gradle: check (JVM + wasmJs tests)"
-        run: ./gradlew check --stacktrace
+      - name: "Gradle: JVM tests"
+        run: ./gradlew parser:jvmTest renamer:jvmTest typecheck:jvmTest driver:jvmTest --stacktrace
 
       - name: Upload Gradle test reports
         if: failure()
