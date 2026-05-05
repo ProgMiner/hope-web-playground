@@ -58,12 +58,19 @@
 	}
 </script>
 
-<div bind:this={selection} class="theme-selection flex flex-col p-0.5">
-	<button onclick={expand} class="inline-flex rounded-xs p-1 font-mono text-sm hover:bg-slate-200">
-		Theme
-	</button>
-	{#if expanded}
-		<div class="fixed top-6 z-10 flex h-50 flex-col items-stretch overflow-auto bg-slate-100 p-1">
+<svelte:head>
+	{@html theme}
+</svelte:head>
+
+<DropdownMenu.Root>
+	<DropdownMenu.Trigger
+		class="rounded-m inline-flex bg-(--editor-background) p-1.5 font-mono text-sm hover:brightness-(--hover-brightness)"
+		>Theme</DropdownMenu.Trigger
+	>
+	<DropdownMenu.Portal>
+		<DropdownMenu.Content
+			class="h-50 items-stretch justify-center overflow-auto bg-(--editor-background) p-1"
+		>
 			{#each themes.themes() ?? [] as theme (theme)}
 				<DropdownMenu.Item
 					class="flex-1 bg-(--editor-background) p-1 font-mono {isSelected(theme)
