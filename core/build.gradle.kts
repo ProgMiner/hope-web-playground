@@ -26,7 +26,3 @@ kotlin {
         }
     }
 }
-
-afterEvaluate {
-    tasks.findByName("wasmJsBrowserTest")?.enabled = false
-}

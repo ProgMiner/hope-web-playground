@@ -35,12 +35,3 @@ kotlin {
         implementation(kotlin("test"))
     }
 }
-
-val grammarBuilt = rootProject.file("tree-sitter-hope/tree-sitter-hope.wasm").exists()
-afterEvaluate {
-    if (!grammarBuilt) {
-        listOf("jvmTest", "wasmJsNodeTest", "wasmJsBrowserTest").forEach { name ->
-            tasks.findByName(name)?.enabled = false
-        }
-    }
-}
