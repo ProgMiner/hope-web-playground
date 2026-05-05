@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { getThemes } from '$lib/entities/context';
+	import { DropdownMenu } from 'bits-ui';
 
 	const themes = getThemes();
 	let theme = $derived(themes.styles());
@@ -50,7 +51,6 @@
 
 	async function selectTheme(theme: string): Promise<void> {
 		await themes.loadTheme(theme);
-		collapse();
 	}
 
 	function isSelected(name: string): boolean {
@@ -65,12 +65,16 @@
 	{#if expanded}
 		<div class="fixed top-6 z-10 flex h-50 flex-col items-stretch overflow-auto bg-slate-100 p-1">
 			{#each themes.themes() ?? [] as theme (theme)}
-				<button onclick={async () => await selectTheme(theme)}>
-					<div class="font-mono {isSelected(theme) ? 'bg-slate-200' : 'hover:bg-slate-200'}">
+				<DropdownMenu.Item
+					class="flex-1 bg-(--editor-background) p-1 font-mono {isSelected(theme)
+						? 'brightness-(--hover-brightness)'
+						: 'hover:brightness-(--hover-brightness)'}"
+				>
+					<button onclick={async () => await selectTheme(theme)}>
 						{theme}
-					</div>
-				</button>
+					</button>
+				</DropdownMenu.Item>
 			{/each}
-		</div>
-	{/if}
-</div>
+		</DropdownMenu.Content>
+	</DropdownMenu.Portal>
+</DropdownMenu.Root>

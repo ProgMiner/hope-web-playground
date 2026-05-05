@@ -29,8 +29,11 @@
 	}
 </script>
 
-<div class="theme-selection flex flex-col p-0.5">
-	<button onclick={run} class="inline-flex rounded-xs p-1 font-mono text-sm hover:bg-slate-200">
+<div class="flex flex-col p-0.5">
+	<button
+		onclick={run}
+		class="inline-flex rounded-xs bg-(--editor-background) p-1 font-mono text-sm hover:brightness-(--hover-brightness)"
+	>
 		Run
 	</button>
 </div>

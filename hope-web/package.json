@@ -17,7 +17,6 @@
 	"devDependencies": {
 		"@eslint/compat": "^2.0.2",
 		"@eslint/js": "^9.39.2",
-		"@rollup/rollup-linux-x64-gnu": "^4.21.0",
 		"@sveltejs/adapter-static": "^3.0.10",
 		"@sveltejs/kit": "^2.50.2",
 		"@sveltejs/vite-plugin-svelte": "^6.2.4",
@@ -38,6 +37,7 @@
 		"vite": "^7.3.1"
 	},
 	"dependencies": {
+		"bits-ui": "^2.18.0",
 		"hopec-driver": "file:../build/wasm/packages/hopec-driver",
 		"monaco-editor": "^0.55.1",
 		"monaco-themes": "^0.4.8",
@@ -46,6 +46,7 @@
 		"web-tree-sitter": "^0.26.7"
 	},
 	"optionalDependencies": {
+		"@rollup/rollup-linux-x64-gnu": "^4.21.0",
 		"@tailwindcss/oxide-linux-x64-gnu": "^4.2.2",
 		"lightningcss-linux-x64-gnu": "^1.32.0"
 	}
