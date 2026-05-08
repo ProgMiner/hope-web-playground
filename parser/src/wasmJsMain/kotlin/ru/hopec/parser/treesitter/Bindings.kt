@@ -6,14 +6,28 @@ package ru.hopec.parser.treesitter
 import kotlin.js.Promise
 
 open external class Parser {
-    fun parse(input: JsAny, oldTree: Tree?, options: Options?): Tree
+    fun parse(
+        input: JsAny,
+        oldTree: Tree?,
+        options: Options?,
+    ): Tree
+
     fun getIncludedRanges(): JsArray<Range>
+
     fun getTimeoutMicros(): UInt
+
     fun setTimeoutMicros(timeout: UInt)
+
     fun reset()
+
     fun getLanguage(): Language
+
     fun setLanguage(language: Language?)
-    fun printDotGraphs(enabled: Boolean?, fd: UInt?)
+
+    fun printDotGraphs(
+        enabled: Boolean?,
+        fd: UInt?,
+    )
 
     companion object {
         fun init(): Promise<JsAny>
@@ -73,32 +87,69 @@ external interface SyntaxNode : JsAny {
     val previousNamedSibling: SyntaxNode?
     val descendantCount: UInt
     val fields: JsArray<JsAny>
+
     override fun toString(): String
+
     fun toJSON(): JsAny
+
     fun child(index: UInt): SyntaxNode?
+
     fun namedChild(index: UInt): SyntaxNode?
+
     fun childForFieldName(fieldName: String): SyntaxNode?
+
     fun childForFieldId(fieldId: UInt): SyntaxNode?
+
     fun fieldNameForChild(childIndex: UInt): String?
+
     fun fieldNameForNamedChild(namedChildIndex: UInt): String?
+
     fun childrenForFieldName(fieldName: String): JsArray<SyntaxNode>
+
     fun childrenForFieldId(fieldId: UInt): JsArray<SyntaxNode>
+
     fun firstChildForIndex(index: UInt): SyntaxNode?
+
     fun firstNamedChildForIndex(index: UInt): SyntaxNode?
+
     fun childWithDescendant(descendant: SyntaxNode): SyntaxNode?
+
     fun descendantForIndex(index: UInt): SyntaxNode
-    fun descendantForIndex(startIndex: UInt, endIndex: UInt): SyntaxNode
+
+    fun descendantForIndex(
+        startIndex: UInt,
+        endIndex: UInt,
+    ): SyntaxNode
+
     fun namedDescendantForIndex(index: UInt): SyntaxNode
-    fun namedDescendantForIndex(startIndex: UInt, endIndex: UInt): SyntaxNode
+
+    fun namedDescendantForIndex(
+        startIndex: UInt,
+        endIndex: UInt,
+    ): SyntaxNode
+
     fun descendantForPosition(position: Point): SyntaxNode
-    fun descendantForPosition(startPosition: Point, endPosition: Point): SyntaxNode
+
+    fun descendantForPosition(
+        startPosition: Point,
+        endPosition: Point,
+    ): SyntaxNode
+
     fun namedDescendantForPosition(position: Point): SyntaxNode
-    fun namedDescendantForPosition(startPosition: Point, endPosition: Point): SyntaxNode
+
+    fun namedDescendantForPosition(
+        startPosition: Point,
+        endPosition: Point,
+    ): SyntaxNode
+
     fun descendantsOfType(
-        types: JsArray<JsString>, startPosition: Point?, endPosition: Point?
+        types: JsArray<JsString>,
+        startPosition: Point?,
+        endPosition: Point?,
     ): JsArray<SyntaxNode>
 
     fun closest(types: JsArray<JsString>): SyntaxNode?
+
     fun walk(): TreeCursor
 }
 
@@ -118,23 +169,40 @@ external interface TreeCursor {
     val currentFieldId: UInt
     val currentDepth: UInt
     val currentDescendantIndex: UInt
+
     fun reset(node: SyntaxNode)
+
     fun resetTo(cursor: TreeCursor)
+
     fun gotoParent(): Boolean
+
     fun gotoFirstChild(): Boolean
+
     fun gotoLastChild(): Boolean
+
     fun gotoFirstChildForIndex(goalIndex: UInt): Boolean
+
     fun gotoFirstChildForPosition(goalPosition: Point): Boolean
+
     fun gotoNextSibling(): Boolean
+
     fun gotoPreviousSibling(): Boolean
+
     fun gotoDescendant(goalDescendantIndex: UInt)
 }
 
 external interface Tree {
     val rootNode: SyntaxNode
-    fun rootNodeWithOffset(offsetBytes: UInt, offsetExtent: Point): SyntaxNode
+
+    fun rootNodeWithOffset(
+        offsetBytes: UInt,
+        offsetExtent: Point,
+    ): SyntaxNode
+
     fun walk(): TreeCursor
+
     fun getChangedRanges(other: Tree): JsArray<Range>
+
     fun getIncludedRanges(): JsArray<Range>
 }
 
@@ -163,15 +231,30 @@ open external class Query {
 
     constructor(language: Language, source: String)
 
-    fun captures(node: SyntaxNode, options: QueryOptions?): JsArray<QueryCapture>
-    fun matches(node: SyntaxNode, options: QueryOptions?): JsArray<QueryMatch>
+    fun captures(
+        node: SyntaxNode,
+        options: QueryOptions?,
+    ): JsArray<QueryCapture>
+
+    fun matches(
+        node: SyntaxNode,
+        options: QueryOptions?,
+    ): JsArray<QueryMatch>
+
     fun disableCapture(captureName: String)
+
     fun disablePattern(patternIndex: UInt)
+
     fun isPatternGuaranteedAtStep(byteOffset: UInt): Boolean
+
     fun isPatternRooted(patternIndex: UInt): Boolean
+
     fun isPatternNonLocal(patternIndex: UInt): Boolean
+
     fun startIndexForPattern(patternIndex: UInt): UInt
+
     fun endIndexForPattern(patternIndex: UInt): UInt
+
     fun didExceedMatchLimit(): Boolean
 }
 
@@ -181,7 +264,11 @@ open external class LookaheadIterator {
 
     constructor(language: Language, state: UInt)
 
-    fun reset(language: Language, stateId: UInt): Boolean
+    fun reset(
+        language: Language,
+        stateId: UInt,
+    ): Boolean
+
     fun resetState(stateId: UInt): Boolean
 }
 

@@ -12,21 +12,22 @@ import kotlin.test.assertNotNull
 
 class TreeSitterTest {
     @Test
-    fun `language loaded`() = runTest {
-        assertNotNull(factory().loadLanguage(sharedLibraryLocation()))
-    }
+    fun `language loaded`() =
+        runTest {
+            assertNotNull(factory().loadLanguage(sharedLibraryLocation()))
+        }
 
     @Test
-    fun `simple file parsed`() = runTest {
-        assertEquals(1U, parseHello().rootNode.childCount)
-    }
+    fun `simple file parsed`() =
+        runTest {
+            assertEquals(1U, parseHello().rootNode.childCount)
+        }
 
     @Test
-    fun `node contains text`() = runTest {
-        assertEquals("""write "Hello world\n"""", parseHello().rootNode.text)
-    }
+    fun `node contains text`() =
+        runTest {
+            assertEquals("""write "Hello world\n"""", parseHello().rootNode.text)
+        }
 
-    private suspend fun parseHello(): TsTree =
-        parseHope(Resource("hello.hope").readText())
-
+    private suspend fun parseHello(): TsTree = parseHope(Resource("hello.hope").readText())
 }

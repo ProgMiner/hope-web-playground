@@ -294,7 +294,10 @@ interface TsSyntaxNode {
      * @param endIndex - The ending byte offset
      * @returns The smallest node spanning the range
      */
-    fun descendantForIndex(startIndex: UInt, endIndex: UInt): TsSyntaxNode
+    fun descendantForIndex(
+        startIndex: UInt,
+        endIndex: UInt,
+    ): TsSyntaxNode
 
     /**
      * Get the smallest named node within this node that spans the given byte offset.
@@ -311,7 +314,10 @@ interface TsSyntaxNode {
      * @param endIndex - The ending byte offset
      * @returns The smallest named node spanning the range
      */
-    fun namedDescendantForIndex(startIndex: UInt, endIndex: UInt): TsSyntaxNode
+    fun namedDescendantForIndex(
+        startIndex: UInt,
+        endIndex: UInt,
+    ): TsSyntaxNode
 
     /**
      * Get the smallest node within this node that spans the given position.
@@ -329,7 +335,10 @@ interface TsSyntaxNode {
      * @param endPosition - The ending position
      * @returns The smallest node spanning the range
      */
-    fun descendantForPosition(startPosition: TsPoint, endPosition: TsPoint): TsSyntaxNode
+    fun descendantForPosition(
+        startPosition: TsPoint,
+        endPosition: TsPoint,
+    ): TsSyntaxNode
 
     /**
      * Get the smallest named node within this node that spans the given position.
@@ -347,7 +356,10 @@ interface TsSyntaxNode {
      * @param endPosition - The ending position
      * @returns The smallest named node spanning the range
      */
-    fun namedDescendantForPosition(startPosition: TsPoint, endPosition: TsPoint): TsSyntaxNode
+    fun namedDescendantForPosition(
+        startPosition: TsPoint,
+        endPosition: TsPoint,
+    ): TsSyntaxNode
 
     /**
      * Get all descendants of this node that have the given type(s)
@@ -357,7 +369,11 @@ interface TsSyntaxNode {
      * @param endPosition - Optional ending position to search to
      * @returns List of descendant nodes matching the given types
      */
-    fun descendantsOfType(types: List<String>, startPosition: TsPoint?, endPosition: TsPoint?): List<TsSyntaxNode>
+    fun descendantsOfType(
+        types: List<String>,
+        startPosition: TsPoint?,
+        endPosition: TsPoint?,
+    ): List<TsSyntaxNode>
 
     /**
      * Find the closest ancestor of the current node that matches the given type(s).
@@ -384,7 +400,6 @@ interface TsSyntaxNode {
      * @returns A new cursor positioned at this node
      */
     fun walk(): TsTreeCursor
-
 }
 
 /** A stateful object for walking a syntax {@link Tree} efficiently */
@@ -491,7 +506,6 @@ interface TsTreeCursor {
      * @returns true if cursor successfully moved, false if there was no previous sibling
      */
     fun gotoPreviousSibling(): Boolean
-
 }
 
 /**
@@ -511,7 +525,10 @@ interface TsTree {
      * @param offsetExtent - The UInt of rows/columns to shift by
      * @returns The root node with its position offset
      */
-    fun rootNodeWithOffset(offsetBytes: UInt, offsetExtent: TsPoint): TsSyntaxNode
+    fun rootNodeWithOffset(
+        offsetBytes: UInt,
+        offsetExtent: TsPoint,
+    ): TsSyntaxNode
 
     /**
      * Create a new TreeCursor starting from the root of the tree.
@@ -659,7 +676,10 @@ interface TsLookaheadIterator {
      * @param language - The language to use for the lookahead iterator
      * @param stateId - The parse state to use for the lookahead iterator
      */
-    fun reset(language: TsLanguage, stateId: UInt): Boolean
+    fun reset(
+        language: TsLanguage,
+        stateId: UInt,
+    ): Boolean
 
     /**
      * Reset the lookahead iterator to another state.
@@ -676,7 +696,6 @@ interface TsLookaheadIterator {
 interface TsLanguage
 
 interface TsFactory {
-
     suspend fun createParser(): TsParser
 
     /**
@@ -687,7 +706,10 @@ interface TsFactory {
      * on syntax nodes parsed with that language. References to Queries can be
      * shared between multiple threads.
      */
-    fun createQuery(language: TsLanguage, source: String): TsQuery
+    fun createQuery(
+        language: TsLanguage,
+        source: String,
+    ): TsQuery
 
     /**
      * Create a new lookahead iterator for this language and parse state.
@@ -707,7 +729,10 @@ interface TsFactory {
      * @param language - The language to use for the lookahead iterator
      * @param state - The parse state to use for the lookahead iterator
      */
-    fun createLookaheadIterator(language: TsLanguage, state: UInt): TsLookaheadIterator
+    fun createLookaheadIterator(
+        language: TsLanguage,
+        state: UInt,
+    ): TsLookaheadIterator
 
     suspend fun loadLanguage(location: String): TsLanguage?
 }

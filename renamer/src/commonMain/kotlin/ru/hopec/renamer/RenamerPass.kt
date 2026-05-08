@@ -5,13 +5,15 @@ import ru.hopec.core.CompilationPass
 import ru.hopec.parser.TreeSitterRepresentation
 
 object RenamerPass : CompilationPass<TreeSitterRepresentation, RenamedRepresentation> {
-    override fun run(from: TreeSitterRepresentation, context: CompilationContext) =
-        try {
-            parse(from)
-        } catch (e: Exception) {
-            context.add(e)
-            null
-        }
+    override fun run(
+        from: TreeSitterRepresentation,
+        context: CompilationContext,
+    ) = try {
+        parse(from)
+    } catch (e: Exception) {
+        context.add(e)
+        null
+    }
 
     private fun parse(from: TreeSitterRepresentation): RenamedRepresentation {
         val modulesOperators = runCatching { parseModuleInfix(from) }.getOrElse { mapOf() }

@@ -1,4 +1,4 @@
-import { Tree, Node, Language, Query } from 'web-tree-sitter';
+import { Node, Language, Query } from 'web-tree-sitter';
 
 export interface Highlighted {
 	term: string;

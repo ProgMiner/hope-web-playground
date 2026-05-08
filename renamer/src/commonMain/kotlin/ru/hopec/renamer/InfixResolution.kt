@@ -4,10 +4,9 @@ import ru.hopec.parser.TreeSitterRepresentation
 import ru.hopec.parser.treesitter.TsSyntaxNode
 import kotlin.collections.flatten
 
-
 data class Infix(
     val priority: Int,
-    val isRightAssoc: Boolean
+    val isRightAssoc: Boolean,
 )
 
 fun parseModuleInfix(from: TreeSitterRepresentation): Map<String, Map<String, Infix>> {
