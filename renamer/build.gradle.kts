@@ -15,7 +15,7 @@ kotlin {
 
     @OptIn(ExperimentalWasmDsl::class)
     wasmJs {
-        nodejs()
+        browser()
     }
 
     sourceSets {

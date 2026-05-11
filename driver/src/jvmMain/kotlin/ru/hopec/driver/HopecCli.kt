@@ -23,7 +23,6 @@ class HopecCompile : CliktCommand() {
         val entrance = Instance.builder(Parser.parse(buffer.readByteArray())).build().export("add")
         echo(entrance.apply(2, 2)[0])
     }
-
 }
 
 fun main(args: Array<String>) = HopecCompile().main(args)

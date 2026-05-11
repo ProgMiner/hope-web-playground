@@ -14,12 +14,22 @@ import ru.hopec.typecheck.TypeCheckPass
 
 expect fun compileWatToBinary(wat: String): ByteArray
 
-class Hopec(@Suppress("UNUSED_PARAMETER") private val context: CompilationContext) {
+class Hopec(
+    @Suppress("UNUSED_PARAMETER") private val context: CompilationContext,
+) {
+    fun makeChain(): CompilationPass<TreeSitterRepresentation, RenamedRepresentation> = RenamerPass
 
+<<<<<<< HEAD
     fun makeChain(): CompilationPass<TreeSitterRepresentation, WasmRepresentation> =
         RenamerPass.then(TypeCheckPass()).then(CodeGenPass())
 
     fun run(@Suppress("UNUSED_PARAMETER") input: TsTree, output: Sink): Int {
+=======
+    fun run(
+        @Suppress("UNUSED_PARAMETER") input: TsTree,
+        output: Sink,
+    ): Int {
+>>>>>>> master
         val context = CompilationContext()
 
         // TypeCheckPass is pending full implementation (DesugaredRepresentation.fromRenamed is TODO).
@@ -32,6 +42,7 @@ class Hopec(@Suppress("UNUSED_PARAMETER") private val context: CompilationContex
             null
         } ?: STUB_WAT
 
+<<<<<<< HEAD
         val wasmBinary = compileWatToBinary(watCode)
         output.write(Buffer().write(wasmBinary), wasmBinary.size.toLong())
         return 0
@@ -39,16 +50,26 @@ class Hopec(@Suppress("UNUSED_PARAMETER") private val context: CompilationContex
 
     private companion object {
         val STUB_WAT = """
+=======
+        val watCode =
+            """
+>>>>>>> master
             (module
-              (func (param i32 i32) (result i32)
+              (func (export "add") (param i32 i32) (result i32)
                 (i32.add (local.get 0) (local.get 1))
               )
               (func (export "main") (result i32)
                 (call 0 (i32.const 2) (i32.const 3))
               )
-              (memory (export "memory") 1)
-              (table (export "table") 1 funcref)
             )
+<<<<<<< HEAD
         """.trimIndent()
+=======
+            """.trimIndent()
+
+        val wasmBinary = compileWatToBinary(watCode)
+        output.write(Buffer().write(wasmBinary), wasmBinary.size.toLong())
+        return 0
+>>>>>>> master
     }
 }

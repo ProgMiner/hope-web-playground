@@ -6,10 +6,12 @@ enum class StatusSeverity {
     ERROR,
 }
 
-data class StatusLocation(val from: Int, val to: Int)
+data class StatusLocation(
+    val from: Int,
+    val to: Int,
+)
 
 interface CompilationStatus {
-
     val severity: StatusSeverity
 
     val message: String
@@ -19,17 +21,20 @@ interface CompilationStatus {
     data class Plain(
         override val severity: StatusSeverity,
         override val message: String,
-        override val location: StatusLocation
+        override val location: StatusLocation,
     ) : CompilationStatus
 }
 
 fun CompilationStatus.isError(): Boolean = this.severity == StatusSeverity.ERROR
 
-fun ok(): CompilationStatus =
-    CompilationStatus.Plain(StatusSeverity.INFO, "", StatusLocation(0, 0))
+fun ok(): CompilationStatus = CompilationStatus.Plain(StatusSeverity.INFO, "", StatusLocation(0, 0))
 
-fun warning(message: String, location: StatusLocation): CompilationStatus =
-    CompilationStatus.Plain(StatusSeverity.WARNING, message, location)
+fun warning(
+    message: String,
+    location: StatusLocation,
+): CompilationStatus = CompilationStatus.Plain(StatusSeverity.WARNING, message, location)
 
-fun error(message: String, location: StatusLocation): CompilationStatus =
-    CompilationStatus.Plain(StatusSeverity.ERROR, message, location)
+fun error(
+    message: String,
+    location: StatusLocation,
+): CompilationStatus = CompilationStatus.Plain(StatusSeverity.ERROR, message, location)
