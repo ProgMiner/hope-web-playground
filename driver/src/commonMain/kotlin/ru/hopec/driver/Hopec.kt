@@ -15,18 +15,16 @@ import ru.hopec.typecheck.TypeCheckPass
 expect fun compileWatToBinary(wat: String): ByteArray
 
 class Hopec(
-    @Suppress("UNUSED_PARAMETER") private val context: CompilationContext,
+    private val context: CompilationContext,
 ) {
     fun makeChain(): CompilationPass<TreeSitterRepresentation, WasmRepresentation> = RenamerPass.then(TypeCheckPass()).then(CodeGenPass())
 
     fun run(
-        @Suppress("UNUSED_PARAMETER") input: TsTree,
+        input: TsTree,
         output: Sink,
     ): Int {
         val context = CompilationContext()
 
-        // TypeCheckPass is pending full implementation (DesugaredRepresentation.fromRenamed is TODO).
-        // Fall back to the stub WAT when the pipeline is not yet complete.
         val watCode =
             try {
                 makeChain().run(TreeSitterRepresentation(input), context)?.wat
