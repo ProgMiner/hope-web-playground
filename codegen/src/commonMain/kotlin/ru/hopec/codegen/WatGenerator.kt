@@ -9,42 +9,44 @@ import ru.hopec.typecheck.TypedRepresentation.Declarations.Data.Name as DataName
 import ru.hopec.typecheck.TypedRepresentation.Declarations.Function.Name as FuncName
 
 /**
- * Translates [TypedRepresentation] to WebAssembly Text Format (WAT).
+ * Переводит [TypedRepresentation] в WebAssembly Text Format (WAT).
  *
- * ## Memory representation
- * Every HOPE value is an `i32`.
+ * ## Представление в памяти
+ * Любое значение HOPE — это `i32`.
  *
- * | HOPE type          | WAT value                                          |
- * |--------------------|----------------------------------------------------|
- * | `Num`              | unboxed `i32` (low 32 bits of the `Long` literal)  |
- * | `Char`             | unboxed `i32` (Unicode code point)                 |
- * | `TruVal`           | unboxed `i32`: 0 = false, 1 = true                 |
- * | `nil`              | `i32` == 0 (null pointer)                          |
- * | `cons(arg)`        | heap pointer → `[field: i32]`                      |
- * | `Tuple # (a, b)`   | heap pointer → `[fst: i32, snd: i32]`              |
- * | user ADT ctor      | heap pointer → `[tag: i32, field₀: i32, …]`        |
- * | closure `a → b`    | heap pointer → `[func_idx: i32, n_caps: i32, …]`   |
+ * | Тип HOPE                  | Значение в WAT                                        |
+ * |---------------------------|-------------------------------------------------------|
+ * | `Num`                     | распакованный `i32` (младшие 32 бита `Long`)          |
+ * | `Char`                    | распакованный `i32` (код Unicode)                     |
+ * | `TruVal`                  | распакованный `i32`: 0 = false, 1 = true              |
+ * | `nil`                     | `i32` == 0 (нулевой указатель)                        |
+ * | `cons(arg)`               | указатель на кучу → `[field: i32]`                    |
+ * | `Tuple # (a, b)`          | указатель на кучу → `[fst: i32, snd: i32]`            |
+ * | `emptySet`                | `i32` == 0 (нулевой указатель)                        |
+ * | `set a` (непустое)        | указатель на кучу → `[value: i32, next: i32]`         |
+ * | пользовательский ADT ctor | указатель на кучу → `[tag: i32, field₀: i32, …]`      |
+ * | замыкание `a → b`         | указатель на кучу → `[func_idx: i32, n_caps: i32, …]` |
  *
- * Expression and pattern-match code generation is delegated to [WatCodeEmitter].
+ * Генерация кода выражений и сопоставления с паттернами вынесена в [WatCodeEmitter].
  */
 class WatGenerator(
     private val program: TypedRepresentation,
 ) {
-    // ── Output emitter ──────────────────────────────────────────────────────
+    // ── Эмиттер вывода ──────────────────────────────────────────────────────
     private val out = WatEmitter()
 
-    // ── Counters ────────────────────────────────────────────────────────────
+    // ── Счётчики ────────────────────────────────────────────────────────────
     private var labelCounter = 0
     private var liftedCounter = 0
 
-    // ── Constructor tags: (DataName × ctorName) → tag within the type ───────
+    // ── Теги конструкторов: (DataName × ctorName) → тег в рамках типа ───────
     internal val constructorTags = mutableMapOf<Pair<DataName, String>, Int>()
 
-    // ── Function table for indirect calls (closures) ─────────────────────────
+    // ── Таблица функций для косвенных вызовов (замыкания) ────────────────────
     private val funcTable = mutableListOf<String>()
     private val funcTableIdx = mutableMapOf<String, Int>()
 
-    // ── Lambdas lifted to module scope ───────────────────────────────────────
+    // ── Лямбды, поднятые в область модуля ────────────────────────────────────
     internal data class LiftedLambda(
         val watName: String,
         val captures: List<String>,
@@ -53,11 +55,11 @@ class WatGenerator(
 
     private val liftedLambdas = mutableListOf<LiftedLambda>()
 
-    // ── Delegate for expression / pattern code ───────────────────────────────
+    // ── Делегат для кода выражений / паттернов ───────────────────────────────
     private val code = WatCodeEmitter(this)
 
     // ═══════════════════════════════════════════════════════════════════════
-    // API exposed to WatCodeEmitter
+    // API, доступное WatCodeEmitter
     // ═══════════════════════════════════════════════════════════════════════
 
     internal fun freshLabel(prefix: String = "lbl") = "\$$prefix${labelCounter++}"
@@ -104,7 +106,7 @@ class WatGenerator(
         }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Entry point
+    // Точка входа
     // ═══════════════════════════════════════════════════════════════════════
 
     fun generate(): String {
@@ -122,7 +124,7 @@ class WatGenerator(
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Constructor-tag assignment
+    // Назначение тегов конструкторам
     // ═══════════════════════════════════════════════════════════════════════
 
     private fun assignConstructorTags() {
@@ -141,7 +143,7 @@ class WatGenerator(
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Memory, globals, runtime
+    // Память, глобальные переменные, рантайм
     // ═══════════════════════════════════════════════════════════════════════
 
     private fun emitMemoryAndGlobals() {
@@ -154,6 +156,8 @@ class WatGenerator(
         emitMkTuple()
         emitMkCons()
         emitApply()
+        emitSetContains()
+        emitSetInsert()
     }
 
     private fun emitMalloc() {
@@ -212,8 +216,95 @@ class WatGenerator(
         out.line(")")
     }
 
+    /**
+     * `$rt.set_contains(set, value) -> i32`
+     *
+     * Линейный поиск значения [value] в [set]. Возвращает 1, если найдено,
+     * 0 — иначе. Сравнение по [i32.eq]: подходит для распакованных значений
+     * (`Num`, `Char`, `TruVal`, `nil`) и для ссылочного равенства указателей.
+     */
+    private fun emitSetContains() {
+        out.line("(func \$rt.set_contains (param \$set i32) (param \$value i32) (result i32)")
+        out.indent {
+            out.line("(local \$cur i32)")
+            out.line("local.get \$set")
+            out.line("local.set \$cur")
+            out.line("(block \$done (result i32)")
+            out.indent {
+                out.line("(loop \$walk")
+                out.indent {
+                    // Если cur == 0, значение не найдено.
+                    out.line("local.get \$cur")
+                    out.line("i32.eqz")
+                    out.line("(if")
+                    out.indent {
+                        out.line("(then i32.const 0 br \$done)")
+                    }
+                    out.line(")")
+                    // Если *cur == value, нашли.
+                    out.line("local.get \$cur")
+                    out.line("i32.load offset=0")
+                    out.line("local.get \$value")
+                    out.line("i32.eq")
+                    out.line("(if")
+                    out.indent {
+                        out.line("(then i32.const 1 br \$done)")
+                    }
+                    out.line(")")
+                    // cur = cur->next, продолжаем цикл.
+                    out.line("local.get \$cur")
+                    out.line("i32.load offset=4")
+                    out.line("local.set \$cur")
+                    out.line("br \$walk")
+                }
+                out.line(")")
+                out.line("unreachable")
+            }
+            out.line(")")
+        }
+        out.line(")")
+    }
+
+    /**
+     * `$rt.set_insert(set, value) -> set`
+     *
+     * Если [value] уже есть в [set], возвращает исходный [set] без изменений.
+     * Иначе аллоцирует новую ячейку `[value, set]` и возвращает указатель
+     * на неё (prepend). Среднее время: O(n). Дубликаты не создаются.
+     */
+    private fun emitSetInsert() {
+        out.line("(func \$rt.set_insert (param \$set i32) (param \$value i32) (result i32)")
+        out.indent {
+            out.line("(local \$cell i32)")
+            // Если value уже в множестве — возвращаем сам set.
+            out.line("local.get \$set")
+            out.line("local.get \$value")
+            out.line("call \$rt.set_contains")
+            out.line("(if (result i32)")
+            out.indent {
+                out.line("(then local.get \$set)")
+                out.line("(else")
+                out.indent {
+                    // Аллоцируем 8 байт: [value, next=set].
+                    out.line("i32.const 8")
+                    out.line("call \$rt.malloc")
+                    out.line("local.tee \$cell")
+                    out.line("local.get \$value")
+                    out.line("i32.store offset=0")
+                    out.line("local.get \$cell")
+                    out.line("local.get \$set")
+                    out.line("i32.store offset=4")
+                    out.line("local.get \$cell")
+                }
+                out.line(")")
+            }
+            out.line(")")
+        }
+        out.line(")")
+    }
+
     // ═══════════════════════════════════════════════════════════════════════
-    // Function emission
+    // Эмиссия функций
     // ═══════════════════════════════════════════════════════════════════════
 
     private fun emitAllFunctions() {
@@ -222,7 +313,7 @@ class WatGenerator(
             emitDeclFunctions(module.public)
             emitDeclFunctions(module.private)
         }
-        // Lifted lambdas may grow as we emit (lambdas inside lambdas).
+        // Список поднятых лямбд может расти в процессе эмиссии (лямбды внутри лямбд).
         var i = 0
         while (i < liftedLambdas.size) {
             emitLiftedLambda(liftedLambdas[i++])
@@ -233,7 +324,7 @@ class WatGenerator(
         for ((name, func) in decls.functions) emitFunction(watId(name), func.lambda)
     }
 
-    /** Emits a top-level function with one `i32` argument. */
+    /** Эмиттирует функцию верхнего уровня с одним аргументом типа `i32`. */
     private fun emitFunction(
         watName: String,
         lambda: Expr.Lambda,
@@ -241,7 +332,8 @@ class WatGenerator(
         val ctx = WatFunctionContext(::esc)
         collectLambdaVars(lambda, ctx)
 
-        // Generate body into a sub-emitter so tmps are known before emitting locals.
+        // Сначала собираем тело во вспомогательный эмиттер, чтобы знать набор
+        // временных переменных до момента вывода объявлений локалов.
         val body = WatEmitter()
         code.emitBranchMatch(lambda.branches, "\$arg", ctx, body)
 
@@ -254,9 +346,10 @@ class WatGenerator(
     }
 
     /**
-     * A lifted lambda takes `(closure_ptr: i32, arg: i32) → i32` so it can be
-     * called via `$rt.apply`.  Captures are loaded from `closure_ptr` at offsets
-     * 8, 12, 16, … (skipping func_idx[4] and n_caps[4]).
+     * Поднятая лямбда принимает `(closure_ptr: i32, arg: i32) → i32`,
+     * чтобы её можно было вызвать через `$rt.apply`. Захваченные переменные
+     * загружаются из `closure_ptr` по смещениям 8, 12, 16, … (после
+     * func_idx[4] и n_caps[4]).
      */
     private fun emitLiftedLambda(lifted: LiftedLambda) {
         val ctx = WatFunctionContext(::esc)
@@ -280,7 +373,8 @@ class WatGenerator(
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Pre-scan: collect user-visible variable names from patterns and lets
+    // Предварительный обход: собираем имена пользовательских переменных
+    // из паттернов и let-выражений
     // ═══════════════════════════════════════════════════════════════════════
 
     private fun collectLambdaVars(
@@ -337,7 +431,7 @@ class WatGenerator(
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Exports
+    // Экспорты
     // ═══════════════════════════════════════════════════════════════════════
 
     private fun emitExports() {
@@ -356,7 +450,7 @@ class WatGenerator(
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Function table
+    // Таблица функций
     // ═══════════════════════════════════════════════════════════════════════
 
     private fun emitFunctionTable() {

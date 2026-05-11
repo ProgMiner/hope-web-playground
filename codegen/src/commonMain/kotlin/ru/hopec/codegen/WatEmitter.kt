@@ -1,9 +1,9 @@
 package ru.hopec.codegen
 
 /**
- * Builds WAT text with correct indentation.
- * Internally stores (relativeDepth, text) pairs so that sub-emitters can be
- * embedded into a parent emitter at any depth without string manipulation.
+ * Собирает WAT-текст с правильными отступами.
+ * Внутри хранит пары (относительная глубина, текст), чтобы вложенные эмиттеры
+ * можно было встраивать в родительский на любой глубине без манипуляций со строкой.
  */
 internal class WatEmitter {
     private data class Entry(
@@ -24,7 +24,7 @@ internal class WatEmitter {
         depth--
     }
 
-    /** Appends another emitter's lines, shifted by this emitter's current depth. */
+    /** Добавляет строки другого эмиттера, сдвинутые на текущую глубину этого эмиттера. */
     fun append(other: WatEmitter) {
         for (e in other.entries) {
             entries.add(Entry(depth + e.depth, e.text))

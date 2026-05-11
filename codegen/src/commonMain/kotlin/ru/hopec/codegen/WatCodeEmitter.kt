@@ -7,23 +7,23 @@ import ru.hopec.typecheck.TypedRepresentation.Declarations.Data.Name as DataName
 import ru.hopec.typecheck.TypedRepresentation.Declarations.Function.Name as FuncName
 
 /**
- * Generates WAT instructions for expressions and pattern-matching branches.
- * All mutable generation state (labels, lifted lambdas, function table) lives
- * in [gen] so that the two halves stay in sync.
+ * Генерирует WAT-инструкции для выражений и веток сопоставления с паттернами.
+ * Всё изменяемое состояние генерации (метки, поднятые лямбды, таблица функций)
+ * хранится в [gen] — так обе половины остаются согласованы.
  */
 internal class WatCodeEmitter(
     private val gen: WatGenerator,
 ) {
     // ═══════════════════════════════════════════════════════════════════════
-    // Branch / pattern-match
+    // Ветвление / сопоставление с паттернами
     // ═══════════════════════════════════════════════════════════════════════
 
     /**
-     * Emits a multi-branch pattern match into [out].
+     * Эмиттирует многоветочное сопоставление с паттернами в [out].
      *
-     * Each branch is wrapped in a `(block $skip …)` guard: a failing pattern
-     * check does `br_if $skip`, skipping the body and falling through to the
-     * next branch. A succeeding check executes the body, then `br $match_end`.
+     * Каждая ветка обёрнута в `(block $skip …)`: неуспешная проверка паттерна
+     * делает `br_if $skip`, пропуская тело и переходя к следующей ветке.
+     * Успешная проверка выполняет тело, затем `br $match_end`.
      */
     fun emitBranchMatch(
         branches: List<Expr.Lambda.Branch>,
@@ -54,13 +54,14 @@ internal class WatCodeEmitter(
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Pattern checking
+    // Проверка паттернов
     // ═══════════════════════════════════════════════════════════════════════
 
     /**
-     * Emits checks for [pattern] against the value in WAT local [argLocal].
-     * On mismatch: `br_if $failLabel` is emitted (exits the enclosing block).
-     * On match: variable-binding locals are set, falls through.
+     * Эмиттирует проверки паттерна [pattern] для значения в WAT-локале [argLocal].
+     * При несовпадении: эмиттируется `br_if $failLabel` (выход из охватывающего блока).
+     * При совпадении: устанавливаются локалы для связанных переменных, управление
+     * проваливается дальше.
      */
     fun emitPatternCheck(
         pattern: Pattern,
@@ -70,7 +71,7 @@ internal class WatCodeEmitter(
         out: WatEmitter,
     ) {
         when (pattern) {
-            is Pattern.Wildcard -> { /* always matches */ }
+            is Pattern.Wildcard -> { /* всегда совпадает */ }
             is Pattern.Variable -> {
                 out.line("local.get $argLocal")
                 out.line("local.set ${ctx.getOrAdd(pattern.name)}")
@@ -102,17 +103,23 @@ internal class WatCodeEmitter(
                 out.line("br_if $failLabel")
             }
 
-            // ── nil: heap pointer == 0 ───────────────────────────────────────
+            // ── nil: указатель на кучу == 0 ─────────────────────────────────
             ctor.data == DataName.Core.List && ctor.constructor == "nil" -> {
                 out.line("local.get $argLocal")
-                out.line("br_if $failLabel") // non-zero = cons = fail
+                out.line("br_if $failLabel") // ненулевой = cons = не совпадает
             }
 
-            // ── cons: stores one field (the (head,tail) tuple ptr) ───────────
+            // ── emptySet: указатель на кучу == 0 (как и nil) ────────────────
+            ctor.data == DataName.Core.Set && ctor.constructor == "emptySet" -> {
+                out.line("local.get $argLocal")
+                out.line("br_if $failLabel") // ненулевой = непустое множество = не совпадает
+            }
+
+            // ── cons: хранит одно поле (указатель на кортеж (head, tail)) ───
             ctor.data == DataName.Core.List && ctor.constructor == "cons" -> {
                 out.line("local.get $argLocal")
                 out.line("i32.eqz")
-                out.line("br_if $failLabel") // zero = nil = fail
+                out.line("br_if $failLabel") // ноль = nil = не совпадает
                 if (pattern.args.isNotEmpty()) {
                     val tmp = ctx.freshTmp()
                     out.line("local.get $argLocal")
@@ -122,7 +129,7 @@ internal class WatCodeEmitter(
                 }
             }
 
-            // ── Tuple # (fst, snd): {fst: i32, snd: i32} heap object ─────────
+            // ── Tuple # (fst, snd): объект в куче {fst: i32, snd: i32} ──────
             ctor.data == DataName.Core.Tuple -> {
                 if (pattern.args.isNotEmpty()) {
                     val t0 = ctx.freshTmp()
@@ -140,7 +147,7 @@ internal class WatCodeEmitter(
                 }
             }
 
-            // ── User ADT: {tag: i32, field₀: i32, …} ────────────────────────
+            // ── Пользовательский ADT: {tag: i32, field₀: i32, …} ─────────────
             else -> {
                 val tag = gen.constructorTags[ctor.data to ctor.constructor] ?: 0
                 out.line("local.get $argLocal")
@@ -160,10 +167,10 @@ internal class WatCodeEmitter(
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Expression code generation
+    // Генерация кода для выражений
     // ═══════════════════════════════════════════════════════════════════════
 
-    /** Generates code for [expr], leaving its `i32` result on the operand stack. */
+    /** Генерирует код для [expr], оставляя результат типа `i32` на стеке операндов. */
     fun genExpr(
         expr: Expr,
         ctx: WatFunctionContext,
@@ -209,8 +216,9 @@ internal class WatCodeEmitter(
         val tmp = ctx.freshTmp()
         genExpr(expr.matcher, ctx, out)
         out.line("local.set $tmp")
-        // In well-typed programs the let pattern always matches.
-        // We still emit the block structure; an unreachable br target is valid WAT.
+        // В корректно типизированных программах let-паттерн всегда совпадает.
+        // Тем не менее, эмиттируем структуру блока — недостижимая ветка br
+        // остаётся валидным WAT.
         val letFail = gen.freshLabel("let_fail")
         out.line("(block $letFail")
         out.indent { emitPatternCheck(expr.pattern, tmp, letFail, ctx, out) }
@@ -218,7 +226,7 @@ internal class WatCodeEmitter(
         genExpr(expr.body, ctx, out)
     }
 
-    // ── Identifiers ──────────────────────────────────────────────────────────
+    // ── Идентификаторы ──────────────────────────────────────────────────────
 
     private fun genIdentifier(
         expr: Expr.Identifier,
@@ -246,14 +254,14 @@ internal class WatCodeEmitter(
         }
     }
 
-    // ── Applications ─────────────────────────────────────────────────────────
+    // ── Применения функций ──────────────────────────────────────────────────
 
     private fun genApplication(
         expr: Expr.Application,
         ctx: WatFunctionContext,
         out: WatEmitter,
     ) {
-        // Detect fully-applied constructor.
+        // Распознаём полностью применённый конструктор.
         val (ctor, ctorArgs) = unwrapCtorApp(expr)
         if (ctor != null && expr.type !is Type.Arrow) {
             genConstructorCall(ctor, ctorArgs, ctx, out)
@@ -261,7 +269,7 @@ internal class WatCodeEmitter(
         }
 
         when {
-            // Core `+`: argument is a Tuple(Num, Num) heap object.
+            // Core `+`: аргумент — объект Tuple(Num, Num) в куче.
             expr.left is Expr.Identifier &&
                 (expr.left as Expr.Identifier).name == FuncName.Core("+") -> {
                 val tmp = ctx.freshTmp()
@@ -273,14 +281,15 @@ internal class WatCodeEmitter(
                 out.line("i32.add")
             }
 
-            // Direct user-function call.
+            // Прямой вызов пользовательской функции.
             expr.left is Expr.Identifier &&
                 (expr.left as Expr.Identifier).name is FuncName.User -> {
                 genExpr(expr.right, ctx, out)
                 out.line("call ${gen.watId((expr.left as Expr.Identifier).name)}")
             }
 
-            // General case: evaluate left to a closure pointer, then apply.
+            // Общий случай: вычисляем левую часть до указателя на замыкание
+            // и применяем его.
             else -> {
                 genExpr(expr.left, ctx, out)
                 genExpr(expr.right, ctx, out)
@@ -290,8 +299,9 @@ internal class WatCodeEmitter(
     }
 
     /**
-     * Peels a left-spine application chain to find a constructor at the root.
-     * Returns `(ctor, [arg₀, arg₁, …])` or `(null, [])` if not a constructor call.
+     * Разворачивает левый «хребет» цепочки применений до корня и проверяет,
+     * не конструктор ли в корне.
+     * Возвращает `(ctor, [arg₀, arg₁, …])` либо `(null, [])`, если корень — не конструктор.
      */
     private fun unwrapCtorApp(expr: Expr): Pair<FuncName.Constructor?, List<Expr>> {
         val args = mutableListOf<Expr>()
@@ -331,8 +341,11 @@ internal class WatCodeEmitter(
                 out.line("call \$rt.mk_tuple")
             }
 
+            // Пустое множество — нулевой указатель.
+            // TODO: Добавление элементов делается через рантайм-помощник `$rt.set_insert` (вызывается
+            // из пользовательских функций, когда они появятся в Signature.core).
             ctor.data == DataName.Core.Set && ctor.constructor == "emptySet" ->
-                out.line("i32.const 0") // TODO: set implementation
+                out.line("i32.const 0")
 
             else -> {
                 val tag = gen.constructorTags[ctor.data to ctor.constructor] ?: 0
@@ -352,7 +365,7 @@ internal class WatCodeEmitter(
         }
     }
 
-    // ── String literal ────────────────────────────────────────────────────────
+    // ── Строковый литерал ───────────────────────────────────────────────────
 
     private fun genString(
         value: String,
@@ -374,7 +387,7 @@ internal class WatCodeEmitter(
         out.line("local.get $tmpList")
     }
 
-    // ── Lambda as value → lifted function + closure object ───────────────────
+    // ── Лямбда как значение → поднятая функция + объект-замыкание ────────────
 
     private fun genLambdaClosure(
         lambda: Expr.Lambda,
@@ -388,8 +401,8 @@ internal class WatCodeEmitter(
     }
 
     /**
-     * Allocates a closure heap object `{func_table_idx: i32, n_caps: i32, cap₀: i32, …}`
-     * and leaves its pointer on the operand stack.
+     * Выделяет в куче объект-замыкание `{func_table_idx: i32, n_caps: i32, cap₀: i32, …}`
+     * и оставляет указатель на него на стеке операндов.
      */
     internal fun genClosureRef(
         watFuncName: String,
@@ -416,7 +429,7 @@ internal class WatCodeEmitter(
         out.line("local.get $tmp")
     }
 
-    // ── Free-variable analysis ─────────────────────────────────────────────
+    // ── Анализ свободных переменных ─────────────────────────────────────────
 
     private fun computeFreeVars(lambda: Expr.Lambda): List<String> {
         val bound = mutableSetOf<String>()
