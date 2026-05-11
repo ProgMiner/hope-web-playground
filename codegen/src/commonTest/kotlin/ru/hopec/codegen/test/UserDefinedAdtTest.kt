@@ -9,6 +9,7 @@ import ru.hopec.typecheck.TypedRepresentation.Pattern
 import ru.hopec.typecheck.TypedRepresentation.Type
 import kotlin.test.Test
 import kotlin.test.assertTrue
+import kotlin.test.assertContains
 
 class UserDefinedAdtTest {
     @Test

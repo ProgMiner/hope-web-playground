@@ -15,11 +15,11 @@ val truvalType = Type.Data.truval
 val charType = Type.Data.char
 
 val userName = Function.Name.User(null, "f")
-val trueCtor = Function.Name.Constructor(Type.Data.truval.name, "true")
-val falseCtor = Function.Name.Constructor(Type.Data.truval.name, "false")
-val nilCtor = Function.Name.Constructor(Type.Data.list(numType).name, "nil")
-val consCtor = Function.Name.Constructor(Type.Data.list(numType).name, "cons")
-val tupleCtor = Function.Name.Constructor(Type.Data.tuple(numType, numType).name, "#")
+val trueCtor = Function.Name.Constructor(Type.Data.truval.constructor, "true")
+val falseCtor = Function.Name.Constructor(Type.Data.truval.constructor, "false")
+val nilCtor = Function.Name.Constructor(Type.Data.list(numType).constructor, "nil")
+val consCtor = Function.Name.Constructor(Type.Data.list(numType).constructor, "cons")
+val tupleCtor = Function.Name.Constructor(Type.Data.tuple(numType, numType).constructor, "#")
 val plusCore = Function.Name.Core("+")
 
 fun emptyProgram() = TypedRepresentation(emptyMap(), Declarations(emptyMap(), emptyMap()))

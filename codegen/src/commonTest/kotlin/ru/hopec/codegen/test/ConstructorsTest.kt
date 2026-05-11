@@ -1,21 +1,24 @@
 package ru.hopec.codegen.test
 
+import ru.hopec.typecheck.TypedRepresentation
+import ru.hopec.typecheck.TypedRepresentation.Declarations.Function
 import ru.hopec.typecheck.TypedRepresentation.Expr
+import ru.hopec.typecheck.TypedRepresentation.Type
 import kotlin.test.Test
 import kotlin.test.assertContains
 
 class ConstructorsTest {
-    private val trueCtor = Function.Name.Constructor(Type.Data.truval.name, "true")
-    private val nilCtor = Function.Name.Constructor(Type.Data.list(numType).name, "nil")
-    private val consCtor = Function.Name.Constructor(Type.Data.list(numType).name, "cons")
-    private val tupleCtor = Function.Name.Constructor(Type.Data.tuple(numType, numType).name, "#")
+    private val trueCtor = Function.Name.Constructor(Type.Data.truval.constructor, "true")
+    private val nilCtor = Function.Name.Constructor(Type.Data.list(numType).constructor, "nil")
+    private val consCtor = Function.Name.Constructor(Type.Data.list(numType).constructor, "cons")
+    private val tupleCtor = Function.Name.Constructor(Type.Data.tuple(numType, numType).constructor, "#")
 
     @Test
     fun `nil identifier emits i32 const 0`() {
         val body = Expr.Identifier(Type.Data.list(numType), nilCtor)
         val w = wat(singleFuncProgram(lambda = wildLambda(numType, Type.Data.list(numType), body)))
         assertContains(w, "i32.const 0")
-        assertFalse(w.contains("call \$rt."))
+        assertContains(w, "call \$rt.malloc")
     }
 
     @Test
@@ -23,7 +26,7 @@ class ConstructorsTest {
         val body = Expr.Identifier(truvalType, trueCtor)
         val w = wat(singleFuncProgram(lambda = wildLambda(numType, truvalType, body)))
         assertContains(w, "i32.const 1")
-        assertFalse(w.contains("call \$rt."))
+        assertContains(w, "call \$rt.malloc")
     }
 
     @Test

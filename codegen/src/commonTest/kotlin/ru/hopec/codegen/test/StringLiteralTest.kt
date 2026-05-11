@@ -1,8 +1,11 @@
 package ru.hopec.codegen.test
 
+import ru.hopec.typecheck.TypedRepresentation
 import ru.hopec.typecheck.TypedRepresentation.Expr
+import ru.hopec.typecheck.TypedRepresentation.Type
 import kotlin.test.Test
 import kotlin.test.assertTrue
+import kotlin.test.assertContains
 
 class StringLiteralTest {
     @Test

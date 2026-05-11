@@ -30,9 +30,6 @@ class ExpressionsTest {
             Expr.Let(
                 Pattern.Variable(numType, "y"),
                 Expr.Literal.Num(10),
-                Expr.Variable(numLet binding emits local set then body`() {
-        val letExpr =
-            Expr.Literal.Num(10),
                 Expr.Variable(numType, "y"),
             )
         val w = wat(singleFuncProgram(lambda = wildLambda(numType, numType, letExpr)))

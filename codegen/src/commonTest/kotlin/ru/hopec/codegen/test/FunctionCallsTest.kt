@@ -11,7 +11,7 @@ import kotlin.test.assertContains
 
 class FunctionCallsTest {
     private val plusCore = Function.Name.Core("+")
-    private val tupleCtor = Function.Name.Constructor(Type.Data.tuple(Type.Data.num, Type.Data.num).name, "#")
+    private val tupleCtor = Function.Name.Constructor(Type.Data.tuple(Type.Data.num, Type.Data.num).constructor, "#")
 
     @Test
     fun `user function emits direct call`() {
