@@ -1,18 +1,19 @@
 package ru.hopec.codegen
 
-import ru.hopec.typecheck.TypedRepresentation.Declarations.Data.Name as DataName
-import ru.hopec.typecheck.TypedRepresentation.Declarations.Function.Name as FuncName
 import ru.hopec.typecheck.TypedRepresentation.Expr
 import ru.hopec.typecheck.TypedRepresentation.Pattern
 import ru.hopec.typecheck.TypedRepresentation.Type
+import ru.hopec.typecheck.TypedRepresentation.Declarations.Data.Name as DataName
+import ru.hopec.typecheck.TypedRepresentation.Declarations.Function.Name as FuncName
 
 /**
  * Generates WAT instructions for expressions and pattern-matching branches.
  * All mutable generation state (labels, lifted lambdas, function table) lives
  * in [gen] so that the two halves stay in sync.
  */
-internal class WatCodeEmitter(private val gen: WatGenerator) {
-
+internal class WatCodeEmitter(
+    private val gen: WatGenerator,
+) {
     // ═══════════════════════════════════════════════════════════════════════
     // Branch / pattern-match
     // ═══════════════════════════════════════════════════════════════════════
@@ -28,9 +29,12 @@ internal class WatCodeEmitter(private val gen: WatGenerator) {
         branches: List<Expr.Lambda.Branch>,
         argLocal: String,
         ctx: WatFunctionContext,
-        out: WatEmitter
+        out: WatEmitter,
     ) {
-        if (branches.isEmpty()) { out.line("unreachable"); return }
+        if (branches.isEmpty()) {
+            out.line("unreachable")
+            return
+        }
         val matchEnd = gen.freshLabel("match_end")
         out.line("(block $matchEnd (result i32)")
         out.indent {
@@ -63,11 +67,11 @@ internal class WatCodeEmitter(private val gen: WatGenerator) {
         argLocal: String,
         failLabel: String,
         ctx: WatFunctionContext,
-        out: WatEmitter
+        out: WatEmitter,
     ) {
         when (pattern) {
-            is Pattern.Wildcard  -> { /* always matches */ }
-            is Pattern.Variable  -> {
+            is Pattern.Wildcard -> { /* always matches */ }
+            is Pattern.Variable -> {
                 out.line("local.get $argLocal")
                 out.line("local.set ${ctx.getOrAdd(pattern.name)}")
             }
@@ -76,7 +80,7 @@ internal class WatCodeEmitter(private val gen: WatGenerator) {
                 out.line("local.set ${ctx.getOrAdd(pattern.name)}")
                 emitPatternCheck(pattern.data, argLocal, failLabel, ctx, out)
             }
-            is Pattern.Data      -> emitDataCheck(pattern, argLocal, failLabel, ctx, out)
+            is Pattern.Data -> emitDataCheck(pattern, argLocal, failLabel, ctx, out)
         }
     }
 
@@ -85,7 +89,7 @@ internal class WatCodeEmitter(private val gen: WatGenerator) {
         argLocal: String,
         failLabel: String,
         ctx: WatFunctionContext,
-        out: WatEmitter
+        out: WatEmitter,
     ) {
         val ctor = pattern.constructor
         when {
@@ -101,14 +105,14 @@ internal class WatCodeEmitter(private val gen: WatGenerator) {
             // ── nil: heap pointer == 0 ───────────────────────────────────────
             ctor.data == DataName.Core.List && ctor.constructor == "nil" -> {
                 out.line("local.get $argLocal")
-                out.line("br_if $failLabel")           // non-zero = cons = fail
+                out.line("br_if $failLabel") // non-zero = cons = fail
             }
 
             // ── cons: stores one field (the (head,tail) tuple ptr) ───────────
             ctor.data == DataName.Core.List && ctor.constructor == "cons" -> {
                 out.line("local.get $argLocal")
                 out.line("i32.eqz")
-                out.line("br_if $failLabel")           // zero = nil = fail
+                out.line("br_if $failLabel") // zero = nil = fail
                 if (pattern.args.isNotEmpty()) {
                     val tmp = ctx.freshTmp()
                     out.line("local.get $argLocal")
@@ -160,22 +164,30 @@ internal class WatCodeEmitter(private val gen: WatGenerator) {
     // ═══════════════════════════════════════════════════════════════════════
 
     /** Generates code for [expr], leaving its `i32` result on the operand stack. */
-    fun genExpr(expr: Expr, ctx: WatFunctionContext, out: WatEmitter) {
+    fun genExpr(
+        expr: Expr,
+        ctx: WatFunctionContext,
+        out: WatEmitter,
+    ) {
         when (expr) {
-            is Expr.Literal.Num    -> out.line("i32.const ${expr.value.toInt()}")
+            is Expr.Literal.Num -> out.line("i32.const ${expr.value.toInt()}")
             is Expr.Literal.TruVal -> out.line("i32.const ${if (expr.value) 1 else 0}")
-            is Expr.Literal.Char   -> out.line("i32.const ${expr.value.code}")
+            is Expr.Literal.Char -> out.line("i32.const ${expr.value.code}")
             is Expr.Literal.String -> genString(expr.value, ctx, out)
-            is Expr.Variable       -> out.line("local.get ${ctx.getOrAdd(expr.name)}")
-            is Expr.Identifier     -> genIdentifier(expr, ctx, out)
-            is Expr.Application    -> genApplication(expr, ctx, out)
-            is Expr.If             -> genIf(expr, ctx, out)
-            is Expr.Let            -> genLet(expr, ctx, out)
-            is Expr.Lambda         -> genLambdaClosure(expr, ctx, out)
+            is Expr.Variable -> out.line("local.get ${ctx.getOrAdd(expr.name)}")
+            is Expr.Identifier -> genIdentifier(expr, ctx, out)
+            is Expr.Application -> genApplication(expr, ctx, out)
+            is Expr.If -> genIf(expr, ctx, out)
+            is Expr.Let -> genLet(expr, ctx, out)
+            is Expr.Lambda -> genLambdaClosure(expr, ctx, out)
         }
     }
 
-    private fun genIf(expr: Expr.If, ctx: WatFunctionContext, out: WatEmitter) {
+    private fun genIf(
+        expr: Expr.If,
+        ctx: WatFunctionContext,
+        out: WatEmitter,
+    ) {
         genExpr(expr.condition, ctx, out)
         out.line("(if (result i32)")
         out.indent {
@@ -189,7 +201,11 @@ internal class WatCodeEmitter(private val gen: WatGenerator) {
         out.line(")")
     }
 
-    private fun genLet(expr: Expr.Let, ctx: WatFunctionContext, out: WatEmitter) {
+    private fun genLet(
+        expr: Expr.Let,
+        ctx: WatFunctionContext,
+        out: WatEmitter,
+    ) {
         val tmp = ctx.freshTmp()
         genExpr(expr.matcher, ctx, out)
         out.line("local.set $tmp")
@@ -204,29 +220,39 @@ internal class WatCodeEmitter(private val gen: WatGenerator) {
 
     // ── Identifiers ──────────────────────────────────────────────────────────
 
-    private fun genIdentifier(expr: Expr.Identifier, ctx: WatFunctionContext, out: WatEmitter) {
+    private fun genIdentifier(
+        expr: Expr.Identifier,
+        ctx: WatFunctionContext,
+        out: WatEmitter,
+    ) {
         when (val name = expr.name) {
-            is FuncName.Core -> when (name.name) {
-                "nil"      -> out.line("i32.const 0")
-                "true"     -> out.line("i32.const 1")
-                "false"    -> out.line("i32.const 0")
-                "emptySet" -> out.line("i32.const 0")
-                else       -> genClosureRef(gen.watId(name), emptyList(), ctx, out)
-            }
-            is FuncName.Constructor -> when {
-                name.data == DataName.Core.TruVal && name.constructor == "true"     -> out.line("i32.const 1")
-                name.data == DataName.Core.TruVal && name.constructor == "false"    -> out.line("i32.const 0")
-                name.data == DataName.Core.List   && name.constructor == "nil"      -> out.line("i32.const 0")
-                name.data == DataName.Core.Set    && name.constructor == "emptySet" -> out.line("i32.const 0")
-                else -> genClosureRef(gen.watId(name), emptyList(), ctx, out)
-            }
+            is FuncName.Core ->
+                when (name.name) {
+                    "nil" -> out.line("i32.const 0")
+                    "true" -> out.line("i32.const 1")
+                    "false" -> out.line("i32.const 0")
+                    "emptySet" -> out.line("i32.const 0")
+                    else -> genClosureRef(gen.watId(name), emptyList(), ctx, out)
+                }
+            is FuncName.Constructor ->
+                when {
+                    name.data == DataName.Core.TruVal && name.constructor == "true" -> out.line("i32.const 1")
+                    name.data == DataName.Core.TruVal && name.constructor == "false" -> out.line("i32.const 0")
+                    name.data == DataName.Core.List && name.constructor == "nil" -> out.line("i32.const 0")
+                    name.data == DataName.Core.Set && name.constructor == "emptySet" -> out.line("i32.const 0")
+                    else -> genClosureRef(gen.watId(name), emptyList(), ctx, out)
+                }
             is FuncName.User -> genClosureRef(gen.watId(name), emptyList(), ctx, out)
         }
     }
 
     // ── Applications ─────────────────────────────────────────────────────────
 
-    private fun genApplication(expr: Expr.Application, ctx: WatFunctionContext, out: WatEmitter) {
+    private fun genApplication(
+        expr: Expr.Application,
+        ctx: WatFunctionContext,
+        out: WatEmitter,
+    ) {
         // Detect fully-applied constructor.
         val (ctor, ctorArgs) = unwrapCtorApp(expr)
         if (ctor != null && expr.type !is Type.Arrow) {
@@ -237,19 +263,19 @@ internal class WatCodeEmitter(private val gen: WatGenerator) {
         when {
             // Core `+`: argument is a Tuple(Num, Num) heap object.
             expr.left is Expr.Identifier &&
-            (expr.left as Expr.Identifier).name == FuncName.Core("+") -> {
+                (expr.left as Expr.Identifier).name == FuncName.Core("+") -> {
                 val tmp = ctx.freshTmp()
                 genExpr(expr.right, ctx, out)
                 out.line("local.tee $tmp")
-                out.line("i32.load offset=0")   // fst
+                out.line("i32.load offset=0") // fst
                 out.line("local.get $tmp")
-                out.line("i32.load offset=4")   // snd
+                out.line("i32.load offset=4") // snd
                 out.line("i32.add")
             }
 
             // Direct user-function call.
             expr.left is Expr.Identifier &&
-            (expr.left as Expr.Identifier).name is FuncName.User -> {
+                (expr.left as Expr.Identifier).name is FuncName.User -> {
                 genExpr(expr.right, ctx, out)
                 out.line("call ${gen.watId((expr.left as Expr.Identifier).name)}")
             }
@@ -270,18 +296,22 @@ internal class WatCodeEmitter(private val gen: WatGenerator) {
     private fun unwrapCtorApp(expr: Expr): Pair<FuncName.Constructor?, List<Expr>> {
         val args = mutableListOf<Expr>()
         var cur: Expr = expr
-        while (cur is Expr.Application) { args.add(0, cur.right); cur = cur.left }
-        return if (cur is Expr.Identifier && cur.name is FuncName.Constructor)
+        while (cur is Expr.Application) {
+            args.add(0, cur.right)
+            cur = cur.left
+        }
+        return if (cur is Expr.Identifier && cur.name is FuncName.Constructor) {
             (cur.name as FuncName.Constructor) to args
-        else
+        } else {
             null to emptyList()
+        }
     }
 
     private fun genConstructorCall(
         ctor: FuncName.Constructor,
         args: List<Expr>,
         ctx: WatFunctionContext,
-        out: WatEmitter
+        out: WatEmitter,
     ) {
         when {
             ctor.data == DataName.Core.TruVal ->
@@ -302,11 +332,11 @@ internal class WatCodeEmitter(private val gen: WatGenerator) {
             }
 
             ctor.data == DataName.Core.Set && ctor.constructor == "emptySet" ->
-                out.line("i32.const 0")   // TODO: set implementation
+                out.line("i32.const 0") // TODO: set implementation
 
             else -> {
-                val tag  = gen.constructorTags[ctor.data to ctor.constructor] ?: 0
-                val tmp  = ctx.freshTmp()
+                val tag = gen.constructorTags[ctor.data to ctor.constructor] ?: 0
+                val tmp = ctx.freshTmp()
                 out.line("i32.const ${4 + args.size * 4}")
                 out.line("call \$rt.malloc")
                 out.line("local.tee $tmp")
@@ -324,8 +354,12 @@ internal class WatCodeEmitter(private val gen: WatGenerator) {
 
     // ── String literal ────────────────────────────────────────────────────────
 
-    private fun genString(value: String, ctx: WatFunctionContext, out: WatEmitter) {
-        val tmpList  = ctx.freshTmp()
+    private fun genString(
+        value: String,
+        ctx: WatFunctionContext,
+        out: WatEmitter,
+    ) {
+        val tmpList = ctx.freshTmp()
         val tmpTuple = ctx.freshTmp()
         out.line("i32.const 0")
         out.line("local.set $tmpList")
@@ -342,9 +376,13 @@ internal class WatCodeEmitter(private val gen: WatGenerator) {
 
     // ── Lambda as value → lifted function + closure object ───────────────────
 
-    private fun genLambdaClosure(lambda: Expr.Lambda, ctx: WatFunctionContext, out: WatEmitter) {
+    private fun genLambdaClosure(
+        lambda: Expr.Lambda,
+        ctx: WatFunctionContext,
+        out: WatEmitter,
+    ) {
         val freeVars = computeFreeVars(lambda)
-        val name     = "\$lifted_${gen.nextLiftedId()}"
+        val name = "\$lifted_${gen.nextLiftedId()}"
         gen.addLiftedLambda(WatGenerator.LiftedLambda(name, freeVars, lambda))
         genClosureRef(name, freeVars, ctx, out)
     }
@@ -357,11 +395,11 @@ internal class WatCodeEmitter(private val gen: WatGenerator) {
         watFuncName: String,
         captureNames: List<String>,
         ctx: WatFunctionContext,
-        out: WatEmitter
+        out: WatEmitter,
     ) {
-        val idx   = gen.registerInFuncTable(watFuncName)
+        val idx = gen.registerInFuncTable(watFuncName)
         val nCaps = captureNames.size
-        val tmp   = ctx.freshTmp()
+        val tmp = ctx.freshTmp()
         out.line("i32.const ${8 + nCaps * 4}")
         out.line("call \$rt.malloc")
         out.line("local.tee $tmp")
@@ -382,33 +420,47 @@ internal class WatCodeEmitter(private val gen: WatGenerator) {
 
     private fun computeFreeVars(lambda: Expr.Lambda): List<String> {
         val bound = mutableSetOf<String>()
-        val free  = linkedSetOf<String>()
+        val free = linkedSetOf<String>()
 
         fun pat(p: Pattern) {
             when (p) {
-                is Pattern.Variable  -> bound.add(p.name)
-                is Pattern.NamedData -> { bound.add(p.name); pat(p.data) }
-                is Pattern.Data      -> p.args.forEach(::pat)
-                is Pattern.Wildcard  -> {}
+                is Pattern.Variable -> bound.add(p.name)
+                is Pattern.NamedData -> {
+                    bound.add(p.name)
+                    pat(p.data)
+                }
+                is Pattern.Data -> p.args.forEach(::pat)
+                is Pattern.Wildcard -> {}
             }
         }
 
         fun expr(e: Expr) {
             when (e) {
-                is Expr.Variable    -> if (e.name !in bound) free.add(e.name)
-                is Expr.Application -> { expr(e.left); expr(e.right) }
-                is Expr.If          -> { expr(e.condition); expr(e.positive); expr(e.negative) }
+                is Expr.Variable -> if (e.name !in bound) free.add(e.name)
+                is Expr.Application -> {
+                    expr(e.left)
+                    expr(e.right)
+                }
+                is Expr.If -> {
+                    expr(e.condition)
+                    expr(e.positive)
+                    expr(e.negative)
+                }
                 is Expr.Let -> {
                     expr(e.matcher)
                     val saved = bound.toMutableSet()
-                    pat(e.pattern); expr(e.body)
-                    bound.clear(); bound.addAll(saved)
+                    pat(e.pattern)
+                    expr(e.body)
+                    bound.clear()
+                    bound.addAll(saved)
                 }
                 is Expr.Lambda -> {
                     for (b in e.branches) {
                         val saved = bound.toMutableSet()
-                        pat(b.pattern); expr(b.body)
-                        bound.clear(); bound.addAll(saved)
+                        pat(b.pattern)
+                        expr(b.body)
+                        bound.clear()
+                        bound.addAll(saved)
                     }
                 }
                 else -> {}
@@ -417,8 +469,10 @@ internal class WatCodeEmitter(private val gen: WatGenerator) {
 
         for (b in lambda.branches) {
             val saved = bound.toMutableSet()
-            pat(b.pattern); expr(b.body)
-            bound.clear(); bound.addAll(saved)
+            pat(b.pattern)
+            expr(b.body)
+            bound.clear()
+            bound.addAll(saved)
         }
         return free.toList()
     }

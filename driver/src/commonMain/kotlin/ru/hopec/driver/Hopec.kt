@@ -17,19 +17,22 @@ expect fun compileWatToBinary(wat: String): ByteArray
 class Hopec(
     @Suppress("UNUSED_PARAMETER") private val context: CompilationContext,
 ) {
-    fun makeChain(): CompilationPass<TreeSitterRepresentation, WasmRepresentation> =
-        RenamerPass.then(TypeCheckPass()).then(CodeGenPass())
+    fun makeChain(): CompilationPass<TreeSitterRepresentation, WasmRepresentation> = RenamerPass.then(TypeCheckPass()).then(CodeGenPass())
 
-    fun run(@Suppress("UNUSED_PARAMETER") input: TsTree, output: Sink): Int {
+    fun run(
+        @Suppress("UNUSED_PARAMETER") input: TsTree,
+        output: Sink,
+    ): Int {
         val context = CompilationContext()
 
         // TypeCheckPass is pending full implementation (DesugaredRepresentation.fromRenamed is TODO).
         // Fall back to the stub WAT when the pipeline is not yet complete.
-        val watCode = try {
-            makeChain().run(TreeSitterRepresentation(input), context)?.wat
-        } catch (_: NotImplementedError) {
-            null
-        } ?: STUB_WAT
+        val watCode =
+            try {
+                makeChain().run(TreeSitterRepresentation(input), context)?.wat
+            } catch (_: NotImplementedError) {
+                null
+            } ?: STUB_WAT
 
         val wasmBinary = compileWatToBinary(watCode)
         output.write(Buffer().write(wasmBinary), wasmBinary.size.toLong())
@@ -37,7 +40,8 @@ class Hopec(
     }
 
     private companion object {
-        val STUB_WAT = """
+        val STUB_WAT =
+            """
             (module
               (func (export "add") (param i32 i32) (result i32)
                 (i32.add (local.get 0) (local.get 1))
@@ -46,6 +50,6 @@ class Hopec(
                 (call 0 (i32.const 2) (i32.const 3))
               )
             )
-        """.trimIndent()
+            """.trimIndent()
     }
 }

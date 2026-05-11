@@ -3,7 +3,6 @@ package ru.hopec.codegen
 import ru.hopec.typecheck.TypedRepresentation
 import ru.hopec.typecheck.TypedRepresentation.Declarations
 import ru.hopec.typecheck.TypedRepresentation.Declarations.Data
-import ru.hopec.typecheck.TypedRepresentation.Declarations.Function
 import ru.hopec.typecheck.TypedRepresentation.Expr
 import ru.hopec.typecheck.TypedRepresentation.Pattern
 import ru.hopec.typecheck.TypedRepresentation.Declarations.Data.Name as DataName
@@ -28,28 +27,30 @@ import ru.hopec.typecheck.TypedRepresentation.Declarations.Function.Name as Func
  *
  * Expression and pattern-match code generation is delegated to [WatCodeEmitter].
  */
-class WatGenerator(private val program: TypedRepresentation) {
-
+class WatGenerator(
+    private val program: TypedRepresentation,
+) {
     // ── Output emitter ──────────────────────────────────────────────────────
     private val out = WatEmitter()
 
     // ── Counters ────────────────────────────────────────────────────────────
-    private var labelCounter  = 0
+    private var labelCounter = 0
     private var liftedCounter = 0
 
     // ── Constructor tags: (DataName × ctorName) → tag within the type ───────
     internal val constructorTags = mutableMapOf<Pair<DataName, String>, Int>()
 
     // ── Function table for indirect calls (closures) ─────────────────────────
-    private val funcTable    = mutableListOf<String>()
+    private val funcTable = mutableListOf<String>()
     private val funcTableIdx = mutableMapOf<String, Int>()
 
     // ── Lambdas lifted to module scope ───────────────────────────────────────
     internal data class LiftedLambda(
-        val watName  : String,
-        val captures : List<String>,
-        val lambda   : Expr.Lambda
+        val watName: String,
+        val captures: List<String>,
+        val lambda: Expr.Lambda,
     )
+
     private val liftedLambdas = mutableListOf<LiftedLambda>()
 
     // ── Delegate for expression / pattern code ───────────────────────────────
@@ -63,36 +64,44 @@ class WatGenerator(private val program: TypedRepresentation) {
 
     internal fun nextLiftedId() = liftedCounter++
 
-    internal fun addLiftedLambda(lifted: LiftedLambda) { liftedLambdas.add(lifted) }
+    internal fun addLiftedLambda(lifted: LiftedLambda) {
+        liftedLambdas.add(lifted)
+    }
 
     internal fun registerInFuncTable(watName: String): Int =
-        funcTableIdx.getOrPut(watName) { funcTable.add(watName); funcTable.size - 1 }
+        funcTableIdx.getOrPut(watName) {
+            funcTable.add(watName)
+            funcTable.size - 1
+        }
 
-    internal fun watId(name: FuncName): String = when (name) {
-        is FuncName.Core        -> "\$core.${esc(name.name)}"
-        is FuncName.User        -> "\$fn.${name.module ?: "top"}.${esc(name.name)}"
-        is FuncName.Constructor -> "\$ctor.${dataStr(name.data)}.${esc(name.constructor)}"
-    }
+    internal fun watId(name: FuncName): String =
+        when (name) {
+            is FuncName.Core -> "\$core.${esc(name.name)}"
+            is FuncName.User -> "\$fn.${name.module ?: "top"}.${esc(name.name)}"
+            is FuncName.Constructor -> "\$ctor.${dataStr(name.data)}.${esc(name.constructor)}"
+        }
 
     internal fun esc(s: String): String =
-        s.replace("+", "_plus")
-         .replace("-", "_minus")
-         .replace("*", "_mul")
-         .replace("/", "_div")
-         .replace("#", "hash")
-         .replace(".", "_dot")
-         .replace(" ", "_")
-         .filter { it.isLetterOrDigit() || it == '_' }
+        s
+            .replace("+", "_plus")
+            .replace("-", "_minus")
+            .replace("*", "_mul")
+            .replace("/", "_div")
+            .replace("#", "hash")
+            .replace(".", "_dot")
+            .replace(" ", "_")
+            .filter { it.isLetterOrDigit() || it == '_' }
 
-    private fun dataStr(name: DataName): String = when (name) {
-        DataName.Core.Char   -> "Char"
-        DataName.Core.TruVal -> "TruVal"
-        DataName.Core.Num    -> "Num"
-        DataName.Core.List   -> "List"
-        DataName.Core.Set    -> "Set"
-        DataName.Core.Tuple  -> "Tuple"
-        is DataName.Defined  -> "${name.module ?: "top"}.${name.name}"
-    }
+    private fun dataStr(name: DataName): String =
+        when (name) {
+            DataName.Core.Char -> "Char"
+            DataName.Core.TruVal -> "TruVal"
+            DataName.Core.Num -> "Num"
+            DataName.Core.List -> "List"
+            DataName.Core.Set -> "Set"
+            DataName.Core.Tuple -> "Tuple"
+            is DataName.Defined -> "${name.module ?: "top"}.${name.name}"
+        }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Entry point
@@ -117,13 +126,16 @@ class WatGenerator(private val program: TypedRepresentation) {
     // ═══════════════════════════════════════════════════════════════════════
 
     private fun assignConstructorTags() {
-        fun process(name: DataName, data: Data) {
+        fun process(
+            name: DataName,
+            data: Data,
+        ) {
             var tag = 0
             for ((ctor, _) in data.constructors) constructorTags[name to ctor] = tag++
         }
         for ((name, data) in program.topLevel.data) process(name, data)
         for ((_, module) in program.modules) {
-            for ((name, data) in module.public.data)  process(name, data)
+            for ((name, data) in module.public.data) process(name, data)
             for ((name, data) in module.private.data) process(name, data)
         }
     }
@@ -212,7 +224,9 @@ class WatGenerator(private val program: TypedRepresentation) {
         }
         // Lifted lambdas may grow as we emit (lambdas inside lambdas).
         var i = 0
-        while (i < liftedLambdas.size) { emitLiftedLambda(liftedLambdas[i++]) }
+        while (i < liftedLambdas.size) {
+            emitLiftedLambda(liftedLambdas[i++])
+        }
     }
 
     private fun emitDeclFunctions(decls: Declarations) {
@@ -220,8 +234,11 @@ class WatGenerator(private val program: TypedRepresentation) {
     }
 
     /** Emits a top-level function with one `i32` argument. */
-    private fun emitFunction(watName: String, lambda: Expr.Lambda) {
-        val ctx  = WatFunctionContext(::esc)
+    private fun emitFunction(
+        watName: String,
+        lambda: Expr.Lambda,
+    ) {
+        val ctx = WatFunctionContext(::esc)
         collectLambdaVars(lambda, ctx)
 
         // Generate body into a sub-emitter so tmps are known before emitting locals.
@@ -266,31 +283,50 @@ class WatGenerator(private val program: TypedRepresentation) {
     // Pre-scan: collect user-visible variable names from patterns and lets
     // ═══════════════════════════════════════════════════════════════════════
 
-    private fun collectLambdaVars(lambda: Expr.Lambda, ctx: WatFunctionContext) {
-        for (b in lambda.branches) { collectPatVars(b.pattern, ctx); collectExprVars(b.body, ctx) }
-    }
-
-    private fun collectPatVars(p: Pattern, ctx: WatFunctionContext) {
-        when (p) {
-            is Pattern.Variable  -> ctx.getOrAdd(p.name)
-            is Pattern.NamedData -> { ctx.getOrAdd(p.name); collectPatVars(p.data, ctx) }
-            is Pattern.Data      -> p.args.forEach { collectPatVars(it, ctx) }
-            is Pattern.Wildcard  -> {}
+    private fun collectLambdaVars(
+        lambda: Expr.Lambda,
+        ctx: WatFunctionContext,
+    ) {
+        for (b in lambda.branches) {
+            collectPatVars(b.pattern, ctx)
+            collectExprVars(b.body, ctx)
         }
     }
 
-    private fun collectExprVars(e: Expr, ctx: WatFunctionContext) {
+    private fun collectPatVars(
+        p: Pattern,
+        ctx: WatFunctionContext,
+    ) {
+        when (p) {
+            is Pattern.Variable -> ctx.getOrAdd(p.name)
+            is Pattern.NamedData -> {
+                ctx.getOrAdd(p.name)
+                collectPatVars(p.data, ctx)
+            }
+            is Pattern.Data -> p.args.forEach { collectPatVars(it, ctx) }
+            is Pattern.Wildcard -> {}
+        }
+    }
+
+    private fun collectExprVars(
+        e: Expr,
+        ctx: WatFunctionContext,
+    ) {
         when (e) {
-            is Expr.Let    -> {
+            is Expr.Let -> {
                 collectPatVars(e.pattern, ctx)
                 collectExprVars(e.matcher, ctx)
                 collectExprVars(e.body, ctx)
             }
-            is Expr.Lambda -> e.branches.forEach {
-                collectPatVars(it.pattern, ctx)
-                collectExprVars(it.body, ctx)
+            is Expr.Lambda ->
+                e.branches.forEach {
+                    collectPatVars(it.pattern, ctx)
+                    collectExprVars(it.body, ctx)
+                }
+            is Expr.Application -> {
+                collectExprVars(e.left, ctx)
+                collectExprVars(e.right, ctx)
             }
-            is Expr.Application -> { collectExprVars(e.left, ctx); collectExprVars(e.right, ctx) }
             is Expr.If -> {
                 collectExprVars(e.condition, ctx)
                 collectExprVars(e.positive, ctx)

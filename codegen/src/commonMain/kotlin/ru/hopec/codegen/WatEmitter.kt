@@ -6,7 +6,10 @@ package ru.hopec.codegen
  * embedded into a parent emitter at any depth without string manipulation.
  */
 internal class WatEmitter {
-    private data class Entry(val depth: Int, val text: String)
+    private data class Entry(
+        val depth: Int,
+        val text: String,
+    )
 
     private val entries = mutableListOf<Entry>()
     private var depth = 0

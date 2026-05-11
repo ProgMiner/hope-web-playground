@@ -9,16 +9,16 @@ package ru.hopec.codegen
  * [WatGenerator] can declare them all in one pass after the body has been
  * generated into a [WatEmitter].
  */
-internal class WatFunctionContext(private val escapeName: (String) -> String) {
-
+internal class WatFunctionContext(
+    private val escapeName: (String) -> String,
+) {
     // Ordered so that declarations are emitted in insertion order.
     private val userLocals = LinkedHashMap<String, String>()
-    private val tmpLocals  = mutableListOf<String>()
+    private val tmpLocals = mutableListOf<String>()
     private var tmpCounter = 0
 
     /** Returns the WAT local identifier for [name], creating one if absent. */
-    fun getOrAdd(name: String): String =
-        userLocals.getOrPut(name) { "\$v_${escapeName(name)}_${userLocals.size}" }
+    fun getOrAdd(name: String): String = userLocals.getOrPut(name) { "\$v_${escapeName(name)}_${userLocals.size}" }
 
     /** Allocates a fresh compiler-generated temporary. */
     fun freshTmp(): String {
