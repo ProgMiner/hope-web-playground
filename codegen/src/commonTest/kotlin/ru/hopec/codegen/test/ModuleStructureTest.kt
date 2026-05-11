@@ -1,8 +1,5 @@
 package ru.hopec.codegen.test
 
-import ru.hopec.codegen.WatGenerator
-import ru.hopec.typecheck.TypedRepresentation
-import ru.hopec.typecheck.TypedRepresentation.Declarations
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertTrue

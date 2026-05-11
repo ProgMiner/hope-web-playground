@@ -7,8 +7,8 @@ import ru.hopec.typecheck.TypedRepresentation.Expr
 import ru.hopec.typecheck.TypedRepresentation.Pattern
 import ru.hopec.typecheck.TypedRepresentation.Type
 import kotlin.test.Test
-import kotlin.test.assertTrue
 import kotlin.test.assertContains
+import kotlin.test.assertTrue
 
 class MultiBranchMatchingTest {
     private val trueCtor = Function.Name.Constructor(Data.Name.Core.TruVal, "true")
