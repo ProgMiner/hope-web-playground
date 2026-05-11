@@ -87,7 +87,7 @@ jobs:
           npm run build
 
   # =========================================================================
-  # TEST: Kotlin — JVM tests (parser, renamer, typecheck, driver).
+  # TEST: Kotlin — JVM tests (parser, renamer, typecheck, codegen, driver).
   # Non-blocking.
   # =========================================================================
   test-kotlin:
@@ -125,7 +125,7 @@ jobs:
           tree-sitter build
 
       - name: "Gradle: JVM tests"
-        run: ./gradlew parser:jvmTest renamer:jvmTest typecheck:jvmTest driver:jvmTest --stacktrace
+        run: ./gradlew parser:jvmTest renamer:jvmTest typecheck:jvmTest codegen:jvmTest driver:jvmTest --stacktrace
 
       - name: Upload Gradle test reports
         if: failure()
