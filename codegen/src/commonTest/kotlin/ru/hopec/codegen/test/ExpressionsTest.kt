@@ -4,7 +4,6 @@ import ru.hopec.typecheck.TypedRepresentation.Expr
 import ru.hopec.typecheck.TypedRepresentation.Pattern
 import kotlin.test.Test
 import kotlin.test.assertContains
-import kotlin.test.assertFalse
 
 class ExpressionsTest {
     @Test
