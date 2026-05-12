@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { getThemes } from '$lib/entities/context';
 	import { DropdownMenu } from 'bits-ui';
 
@@ -18,7 +17,7 @@
 </script>
 
 <svelte:head>
-	<!-- svelte-ignore svelte/no_at_html_tags -->
+	<!-- svelte-ignore svelte/no-at-html-tags -->
 	{@html theme}
 </svelte:head>
 
