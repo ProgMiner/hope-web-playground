@@ -3,7 +3,7 @@
 	import { DropdownMenu } from 'bits-ui';
 
 	const themes = getThemes();
-	let theme = $derived(themes.styles());
+	let theme = $derived(`<style> ${themes.styles()} </style>`);
 
 	async function selectTheme(theme: string): Promise<void> {
 		await themes.loadTheme(theme);
