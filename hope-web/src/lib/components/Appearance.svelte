@@ -5,23 +5,6 @@
 
 	const themes = getThemes();
 	let theme = $derived(themes.styles());
-	let themeStyle: HTMLStyleElement | undefined = $state();
-
-	onMount(() => {
-		themeStyle = document.createElement('style');
-		document.head.appendChild(themeStyle);
-
-		return () => {
-			themeStyle?.remove();
-			themeStyle = undefined;
-		};
-	});
-
-	$effect(() => {
-		if (themeStyle) {
-			themeStyle.textContent = theme;
-		}
-	});
 
 	async function selectTheme(theme: string): Promise<void> {
 		await themes.loadTheme(theme);
@@ -30,6 +13,8 @@
 	function isSelected(name: string): boolean {
 		return themes.selectedTheme() === name;
 	}
+
+	/* eslint svelte/no-unused-svelte-ignore: "off" */
 </script>
 
 <svelte:head>
