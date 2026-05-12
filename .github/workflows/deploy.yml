@@ -2,7 +2,7 @@ name: GitHub Pages
 
 on:
   push:
-    branches: [master]
+    branches: [ master ]
 
 env:
   TREE_SITTER_CLI_VERSION: 0.26.6
