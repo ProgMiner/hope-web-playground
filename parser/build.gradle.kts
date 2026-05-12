@@ -11,6 +11,14 @@ repositories {
     mavenCentral()
 }
 
+tasks.withType<ProcessResources> {
+    copy {
+        from("../tree-sitter-hope")
+        into(project.layout.projectDirectory.file("src/wasmJsTest/resources/lib"))
+        include("*.wasm")
+    }
+}
+
 kotlin {
     jvm()
 

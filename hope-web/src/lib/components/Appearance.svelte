@@ -1,27 +1,9 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { getThemes } from '$lib/entities/context';
 	import { DropdownMenu } from 'bits-ui';
 
 	const themes = getThemes();
-	let theme = $derived(themes.styles());
-	let themeStyle: HTMLStyleElement | undefined = $state();
-
-	onMount(() => {
-		themeStyle = document.createElement('style');
-		document.head.appendChild(themeStyle);
-
-		return () => {
-			themeStyle?.remove();
-			themeStyle = undefined;
-		};
-	});
-
-	$effect(() => {
-		if (themeStyle) {
-			themeStyle.textContent = theme;
-		}
-	});
+	let theme = $derived(`<style> ${themes.styles()} </style>`);
 
 	async function selectTheme(theme: string): Promise<void> {
 		await themes.loadTheme(theme);
@@ -33,7 +15,7 @@
 </script>
 
 <svelte:head>
-	<!-- svelte-ignore svelte/no_at_html_tags -->
+	<!-- eslint-disable -->
 	{@html theme}
 </svelte:head>
 
