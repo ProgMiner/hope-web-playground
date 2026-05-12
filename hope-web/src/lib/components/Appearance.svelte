@@ -12,12 +12,10 @@
 	function isSelected(name: string): boolean {
 		return themes.selectedTheme() === name;
 	}
-
-	/* eslint svelte/no-unused-svelte-ignore: "off" */
 </script>
 
 <svelte:head>
-	<!-- svelte-ignore svelte/no-at-html-tags -->
+	// eslint-disable-next-line svelte/no-at-html-tags
 	{@html theme}
 </svelte:head>
 
