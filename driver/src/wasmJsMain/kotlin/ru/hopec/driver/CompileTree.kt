@@ -1,7 +1,11 @@
 package ru.hopec.driver
 
 import okio.Buffer
-import ru.hopec.core.*
+import ru.hopec.core.CompilationContext
+import ru.hopec.core.JsObject
+import ru.hopec.core.genericTreeType
+import ru.hopec.core.set
+import ru.hopec.core.toJsObject
 import ru.hopec.core.tree.GenericLocation
 import ru.hopec.core.tree.GenericNode
 import ru.hopec.core.tree.GenericTree
