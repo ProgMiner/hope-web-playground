@@ -109,13 +109,15 @@ private class JsSyntaxNode(
 
     override fun fieldNameForChild(childIndex: UInt): String? = delegate.fieldNameForChild(childIndex)
 
-    override fun fieldNameForNamedChild(namedChildIndex: UInt): String? = delegate.fieldNameForNamedChild(namedChildIndex)
+    override fun fieldNameForNamedChild(namedChildIndex: UInt): String? =
+        delegate.fieldNameForNamedChild(namedChildIndex)
 
     override fun firstChildForIndex(index: UInt): TsSyntaxNode? = delegate.firstChildForIndex(index)?.wrap()
 
     override fun firstNamedChildForIndex(index: UInt): TsSyntaxNode? = delegate.firstNamedChildForIndex(index)?.wrap()
 
-    override fun childWithDescendant(descendant: TsSyntaxNode): TsSyntaxNode? = delegate.childWithDescendant(descendant.inner())?.wrap()
+    override fun childWithDescendant(descendant: TsSyntaxNode): TsSyntaxNode? =
+        delegate.childWithDescendant(descendant.inner())?.wrap()
 
     override fun descendantForIndex(index: UInt): TsSyntaxNode = delegate.descendantForIndex(index).wrap()
 
@@ -131,14 +133,16 @@ private class JsSyntaxNode(
         endIndex: UInt,
     ): TsSyntaxNode = delegate.namedDescendantForIndex(startIndex, endIndex).wrap()
 
-    override fun descendantForPosition(position: TsPoint): TsSyntaxNode = delegate.descendantForPosition(position.inner()).wrap()
+    override fun descendantForPosition(position: TsPoint): TsSyntaxNode =
+        delegate.descendantForPosition(position.inner()).wrap()
 
     override fun descendantForPosition(
         startPosition: TsPoint,
         endPosition: TsPoint,
     ): TsSyntaxNode = delegate.descendantForPosition(startPosition.inner(), endPosition.inner()).wrap()
 
-    override fun namedDescendantForPosition(position: TsPoint): TsSyntaxNode = delegate.namedDescendantForPosition(position.inner()).wrap()
+    override fun namedDescendantForPosition(position: TsPoint): TsSyntaxNode =
+        delegate.namedDescendantForPosition(position.inner()).wrap()
 
     override fun namedDescendantForPosition(
         startPosition: TsPoint,
@@ -160,7 +164,8 @@ private class JsSyntaxNode(
                 SyntaxNode::wrap,
             )
 
-    override fun closest(types: List<String>): TsSyntaxNode? = delegate.closest(types.map { it.toJsString() }.toJsArray())?.wrap()
+    override fun closest(types: List<String>): TsSyntaxNode? =
+        delegate.closest(types.map { it.toJsString() }.toJsArray())?.wrap()
 
     override fun walk(): TsTreeCursor = JsTreeCursor(delegate.walk())
 }
@@ -204,7 +209,8 @@ private class JsTreeCursor(
 
     override fun gotoFirstChildForIndex(goalIndex: UInt): Boolean = delegate.gotoFirstChildForIndex(goalIndex)
 
-    override fun gotoFirstChildForPosition(goalPosition: TsPoint): Boolean = delegate.gotoFirstChildForPosition(goalPosition.inner())
+    override fun gotoFirstChildForPosition(goalPosition: TsPoint): Boolean =
+        delegate.gotoFirstChildForPosition(goalPosition.inner())
 
     override fun gotoNextSibling(): Boolean = delegate.gotoNextSibling()
 
@@ -246,7 +252,8 @@ private class JsQuery(
     override fun captures(node: TsSyntaxNode): List<TsQueryCapture> =
         delegate.captures(node.inner(), null).toList().map { JsQueryCapture(it) }
 
-    override fun matches(node: TsSyntaxNode): List<TsQueryMatch> = delegate.matches(node.inner(), null).toList().map { JsQueryMatch(it) }
+    override fun matches(node: TsSyntaxNode): List<TsQueryMatch> =
+        delegate.matches(node.inner(), null).toList().map { JsQueryMatch(it) }
 
     override fun disableCapture(captureName: String) = delegate.disableCapture(captureName)
 
@@ -314,4 +321,4 @@ private class JsFactory : TsFactory {
 
 actual fun factory(): TsFactory = JsFactory()
 
-actual fun sharedLibraryLocation(): String = "../tree-sitter-hope/tree-sitter-hope.wasm"
+actual fun sharedLibraryLocation(): String = "./kotlin/lib/tree-sitter-hope.wasm"

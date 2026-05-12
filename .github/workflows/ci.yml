@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, master]
+    branches: [ main, master ]
   pull_request:
   workflow_dispatch:
 
@@ -126,6 +126,9 @@ jobs:
 
       - name: "Gradle: JVM tests"
         run: ./gradlew parser:jvmTest renamer:jvmTest typecheck:jvmTest driver:jvmTest --stacktrace
+
+      - name: "Gradle: WASM tests"
+        run: ./gradlew parser:wasmJsTest renamer:wasmJsTest typecheck:wasmJsTest driver:wasmJsTest --stacktrace
 
       - name: Upload Gradle test reports
         if: failure()

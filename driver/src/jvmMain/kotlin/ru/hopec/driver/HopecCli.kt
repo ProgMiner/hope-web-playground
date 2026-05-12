@@ -20,8 +20,8 @@ class HopecCompile : CliktCommand() {
         val tree = runBlocking { parseHope(input.readText()) }
         val buffer = Buffer()
         Hopec(CompilationContext()).run(tree, buffer)
-        val entrance = Instance.builder(Parser.parse(buffer.readByteArray())).build().export("add")
-        echo(entrance.apply(2, 2)[0])
+        val entrance = Instance.builder(Parser.parse(buffer.readByteArray())).build().export("main")
+        echo(entrance.apply()[0])
     }
 }
 
