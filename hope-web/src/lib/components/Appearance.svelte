@@ -15,7 +15,7 @@
 </script>
 
 <svelte:head>
-	// eslint-disable-next-line svelte/no-at-html-tags
+	<!-- eslint-disable -->
 	{@html theme}
 </svelte:head>
 
