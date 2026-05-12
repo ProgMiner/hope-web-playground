@@ -26,23 +26,27 @@ fun compile(input: Tree): JsObject {
     }
 }
 
-data class CompilationResult(val size: Int, val representations: List<GenericTree>) {
+data class CompilationResult(
+    val size: Int,
+    val representations: List<GenericTree>,
+) {
     constructor(size: Int, context: CompilationContext) : this(size, context.trees())
 
     @OptIn(ExperimentalWasmJsInterop::class)
-    fun toJsObject() = JsObject().apply {
-        set("size", size)
-        set("representations", representations.map { it.toJsObject() }.toJsArray())
-    }
+    fun toJsObject() =
+        JsObject().apply {
+            set("size", size)
+            set("representations", representations.map { it.toJsObject() }.toJsArray())
+        }
 }
 
 @OptIn(ExperimentalWasmJsInterop::class)
-private fun generateGenericTree(): GenericTree {
-    return GenericTree(
-        genericTreeType(), GenericNode(
+private fun generateGenericTree(): GenericTree =
+    GenericTree(
+        genericTreeType(),
+        GenericNode(
             GenericLocation("main.hope", 0, 0),
             "hello",
-            listOf()
-        )
+            listOf(),
+        ),
     )
-}

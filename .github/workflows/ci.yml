@@ -75,9 +75,6 @@ jobs:
       - name: "Gradle: assemble (compile all targets)"
         run: ./gradlew assemble --stacktrace
 
-      - name: "Gradle: wasmJs browser distribution"
-        run: ./gradlew wasmJsBrowserProductionWebpack --stacktrace
-
       - name: "hope-web: install + locals + production build"
         working-directory: hope-web
         run: |
@@ -209,8 +206,8 @@ jobs:
           tree-sitter generate
           tree-sitter build --wasm
 
-      - name: "Gradle: wasmJs node distribution"
-        run: ./gradlew wasmJsNodeProductionRun --stacktrace
+      - name: "Gradle: wasmJs browser distribution"
+        run: ./gradlew wasmJsBrowserProductionWebpack --stacktrace
 
       - name: "hope-web: install + locals"
         working-directory: hope-web
