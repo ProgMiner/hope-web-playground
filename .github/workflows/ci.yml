@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, master]
+    branches: [ master ]
   pull_request:
   workflow_dispatch:
 
@@ -15,23 +15,6 @@ env:
   JAVA_VERSION: "21"
   NODE_VERSION: "22"
   KTLINT_VERSION: "1.5.0"
-
-# -----------------------------------------------------------------------------
-# Pipeline overview
-#
-#   build  ─────────────► (blocking)         compiles everything
-#     │
-#     ├──► test-kotlin         ./gradlew check (JVM + wasmJs)
-#     ├──► test-tree-sitter    tree-sitter corpus tests
-#     ├──► test-hope-web       svelte-check
-#     ├──► lint-hope-web       prettier + eslint
-#     └──► lint-kotlin         ktlint (standalone CLI)
-#
-# `continue-on-error: true` at job level means a failed test job is rendered
-# as ❌ red in the PR check list, but the overall workflow conclusion stays
-# success (only `build` gates the workflow). Branch protection should require
-# only the `build` check.
-# -----------------------------------------------------------------------------
 
 jobs:
   # =========================================================================
@@ -75,9 +58,6 @@ jobs:
       - name: "Gradle: assemble (compile all targets)"
         run: ./gradlew assemble --stacktrace
 
-      - name: "Gradle: wasmJs node distribution"
-        run: ./gradlew wasmJsNodeProductionRun --stacktrace
-
       - name: "hope-web: install + locals + production build"
         working-directory: hope-web
         run: |
@@ -94,7 +74,6 @@ jobs:
     name: Tests · Kotlin
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    continue-on-error: true
 
     steps:
       - uses: actions/checkout@v4
@@ -127,6 +106,9 @@ jobs:
       - name: "Gradle: JVM tests"
         run: ./gradlew parser:jvmTest renamer:jvmTest typecheck:jvmTest codegen:jvmTest driver:jvmTest --stacktrace
 
+      - name: "Gradle: WASM tests"
+        run: ./gradlew parser:wasmJsTest renamer:wasmJsTest typecheck:wasmJsTest driver:wasmJsTest --stacktrace
+
       - name: Upload Gradle test reports
         if: failure()
         uses: actions/upload-artifact@v4
@@ -145,7 +127,6 @@ jobs:
     name: Tests · tree-sitter corpus
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    continue-on-error: true
 
     steps:
       - uses: actions/checkout@v4
@@ -175,7 +156,6 @@ jobs:
     name: Tests · hope-web svelte-check
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    continue-on-error: true
 
     steps:
       - uses: actions/checkout@v4
@@ -206,8 +186,8 @@ jobs:
           tree-sitter generate
           tree-sitter build --wasm
 
-      - name: "Gradle: wasmJs node distribution"
-        run: ./gradlew wasmJsNodeProductionRun --stacktrace
+      - name: "Gradle: wasmJs browser distribution"
+        run: ./gradlew wasmJsBrowserProductionWebpack --stacktrace
 
       - name: "hope-web: install + locals"
         working-directory: hope-web
@@ -227,7 +207,6 @@ jobs:
     name: Lint · hope-web
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    continue-on-error: true
 
     steps:
       - uses: actions/checkout@v4
@@ -259,7 +238,6 @@ jobs:
     name: Lint · Kotlin ktlint
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    continue-on-error: true
 
     steps:
       - uses: actions/checkout@v4

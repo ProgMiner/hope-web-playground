@@ -1,0 +1,79 @@
+name: GitHub Pages
+
+on:
+  push:
+    branches: [ master ]
+
+env:
+  TREE_SITTER_CLI_VERSION: 0.26.6
+  JAVA_VERSION: "21"
+  NODE_VERSION: "22"
+  KTLINT_VERSION: "1.5.0"
+
+jobs:
+  build_site:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+      - run: chmod +x ./gradlew
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            hope-web/package-lock.json
+            tree-sitter-hope/package-lock.json
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Install tree-sitter CLI
+        run: npm install -g tree-sitter-cli@${{ env.TREE_SITTER_CLI_VERSION }}
+
+      - name: "tree-sitter-hope: install + generate + build wasm"
+        working-directory: tree-sitter-hope
+        run: |
+          npm ci
+          tree-sitter generate
+          tree-sitter build --wasm
+
+      - name: "Gradle: assemble (compile all targets)"
+        run: ./gradlew assemble --stacktrace
+
+      - name: "hope-web: install + locals + production build"
+        working-directory: hope-web
+        run: |
+          rm -rf node_modules package-lock.json
+          npm install --no-audit --no-fund
+          npm run locals
+          npm run build
+
+      - name: "hope-web: upload pages"
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: 'build/'
+
+  deploy:
+    needs: build_site
+    runs-on: ubuntu-latest
+    continue-on-error: true
+
+    permissions:
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
