@@ -1,5 +1,8 @@
 package ru.hopec.parser.treesitter
 
+import ru.hopec.core.topography.Point
+import ru.hopec.core.topography.Range
+
 interface TsParser {
     /**
      * Parse UTF8 text into a syntax tree.
@@ -401,6 +404,12 @@ interface TsSyntaxNode {
      */
     fun walk(): TsTreeCursor
 }
+
+fun TsSyntaxNode.range(): Range =
+    Range(
+        from = Point(startIndex, startPosition.row, startPosition.column),
+        to = Point(endIndex, endPosition.row, endPosition.column),
+    )
 
 /** A stateful object for walking a syntax {@link Tree} efficiently */
 interface TsTreeCursor {

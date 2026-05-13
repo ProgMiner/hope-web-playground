@@ -2,7 +2,9 @@
 
 package ru.hopec.core
 
-import ru.hopec.core.tree.GenericLocation
+import ru.hopec.core.topography.Point
+import ru.hopec.core.topography.Range
+import ru.hopec.core.topography.Resource
 import ru.hopec.core.tree.GenericNode
 import ru.hopec.core.tree.GenericTree
 
@@ -14,16 +16,28 @@ fun GenericTree.toJsObject(): JsObject =
 
 fun GenericNode.toJsObject(): JsObject =
     JsObject().apply {
-        set("location", location.toJsObject())
+        set("location", range.toJsObject())
         set("text", text)
         set("children", children.map { it.toJsObject() }.toJsArray())
     }
 
-fun GenericLocation.toJsObject(): JsObject =
+fun Range.toJsObject(): JsObject =
     JsObject().apply {
-        set("file", file)
-        set("from", from)
-        set("to", to)
+        set("resource", resource?.toJsObject())
+        set("from", from?.toJsObject())
+        set("to", to?.toJsObject())
+    }
+
+fun Resource.toJsObject(): JsObject =
+    JsObject().apply {
+        set("path", path)
+    }
+
+fun Point.toJsObject(): JsObject =
+    JsObject().apply {
+        set("index", index)
+        set("row", row)
+        set("column", column)
     }
 
 @OptIn(ExperimentalJsExport::class)

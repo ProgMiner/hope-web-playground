@@ -3,7 +3,7 @@ package ru.hopec.renamer
 import ru.hopec.core.StatusSeverity
 import ru.hopec.parser.TreeSitterRepresentation
 import ru.hopec.parser.treesitter.TsSyntaxNode
-import kotlin.collections.listOf
+import ru.hopec.parser.treesitter.range
 
 class CstParser(
     private val from: TreeSitterRepresentation,
@@ -105,7 +105,11 @@ class CstParser(
                 val name = node.getChildOrThrow(0u).text
                 val params = parseMultiple(node, { it.text }, 1u, node.namedChildCount - 1u)
                 val typeNode =
-                    parseTypeDeclaration(node.getChildOrThrow(node.namedChildCount - 1u), parserState.operators, params.toMutableSet())
+                    parseTypeDeclaration(
+                        node.getChildOrThrow(node.namedChildCount - 1u),
+                        parserState.operators,
+                        params.toMutableSet(),
+                    )
                 AstNode.DataDeclaration(name, params, typeNode)
             }
 
@@ -122,8 +126,14 @@ class CstParser(
                 )
             }
 
-            "type_export_declaration" -> AstNode.TypeExportDeclaration(parseMultipleIdent(node))
-            "constant_export_declaration" -> AstNode.ConstantExportDeclaration(parseMultipleIdent(node))
+            "type_export_declaration" -> {
+                AstNode.TypeExportDeclaration(parseMultipleIdent(node))
+            }
+
+            "constant_export_declaration" -> {
+                AstNode.ConstantExportDeclaration(parseMultipleIdent(node))
+            }
+
             "module_use_declaration" -> {
                 val names = parseMultipleIdent(node)
                 names.forEach {
@@ -131,14 +141,16 @@ class CstParser(
                         moduleOperators[it] ?: throw RenamerException(
                             StatusSeverity.ERROR,
                             "Module \"$it\" does not exist",
-                            node.endPosition.toPosition(),
+                            node.range(),
                         ),
                     )
                 }
                 AstNode.ModuleUseDeclaration(parseMultipleIdent(node))
             }
 
-            else -> null
+            else -> {
+                null
+            }
         }
 
     private fun parseInternal(
@@ -155,7 +167,7 @@ class CstParser(
                         ?: throw RenamerException(
                             StatusSeverity.ERROR,
                             "Equations without declaration",
-                            node.endPosition.toPosition(),
+                            node.range(),
                         )
                 equationList.second.add(equation)
             }
@@ -165,9 +177,15 @@ class CstParser(
                 parserState.localOperators.putAll(parseInfix(node)!!)
             }
 
-            "type_variable_declaration" -> parserState.typeVars.addAll(parseMultipleIdent(node))
+            "type_variable_declaration" -> {
+                parserState.typeVars.addAll(parseMultipleIdent(node))
+            }
+
             "line_comment" -> {}
-            else -> throw IllegalStateException("Unknown statement: ${node.type} in node $node")
+
+            else -> {
+                throw IllegalStateException("Unknown statement: ${node.type} in node $node")
+            }
         }
     }
 
@@ -206,7 +224,7 @@ class CstParser(
                         node.namedChild(operatorIndex) ?: throw RenamerException(
                             StatusSeverity.ERROR,
                             "Unknown operator",
-                            node.endPosition.toPosition(),
+                            node.range(),
                         )
 
                     val left = parseFunctionalType(node, typeVars, 0u, operatorIndex)
@@ -224,7 +242,9 @@ class CstParser(
         typeVars: MutableSet<String>,
     ): AstNode.TypeExpr =
         when (node.type) {
-            "type_expression" -> parseFunctionalType(node, typeVars, 0u, node.namedChildCount)
+            "type_expression" -> {
+                parseFunctionalType(node, typeVars, 0u, node.namedChildCount)
+            }
 
             "binary_type_expression" -> {
                 val type1 = parseType(node.getChildOrThrow(0u), typeVars)
@@ -244,9 +264,11 @@ class CstParser(
                 }
             }
 
-            else -> throw IllegalStateException(
-                "Unknown type: ${node.type} in node $node",
-            )
+            else -> {
+                throw IllegalStateException(
+                    "Unknown type: ${node.type} in node $node",
+                )
+            }
         }
 
     private fun parseFunctionalType(
@@ -307,22 +329,43 @@ class CstParser(
                 }
             }
 
-            "decimal" -> AstNode.DecimalLiteral(node.text.toInt())
-            "string" -> AstNode.StringLiteral(node.text.substring(1, node.text.length - 1))
-            "char" -> AstNode.CharLiteral(node.text.first())
-            "truval" -> AstNode.TruvalLiteral(node.text.toBoolean())
-            "tuple" -> AstNode.TupleExpr(parseMultiple(node, { parseExpression(it, operators) }))
-            "list_expression" -> AstNode.ListExpr(parseMultiple(node, { parseExpression(it, operators) }))
-            "set_expression" -> AstNode.SetExpr(parseMultiple(node, { parseExpression(it, operators) }))
+            "decimal" -> {
+                AstNode.DecimalLiteral(node.text.toInt())
+            }
 
-            "conditional_expression" ->
+            "string" -> {
+                AstNode.StringLiteral(node.text.substring(1, node.text.length - 1))
+            }
+
+            "char" -> {
+                AstNode.CharLiteral(node.text.first())
+            }
+
+            "truval" -> {
+                AstNode.TruvalLiteral(node.text.toBoolean())
+            }
+
+            "tuple" -> {
+                AstNode.TupleExpr(parseMultiple(node, { parseExpression(it, operators) }))
+            }
+
+            "list_expression" -> {
+                AstNode.ListExpr(parseMultiple(node, { parseExpression(it, operators) }))
+            }
+
+            "set_expression" -> {
+                AstNode.SetExpr(parseMultiple(node, { parseExpression(it, operators) }))
+            }
+
+            "conditional_expression" -> {
                 AstNode.IfExpr(
                     condition = parseExpression(node.getChildOrThrow(0u), operators),
                     thenBranch = parseExpression(node.getChildOrThrow(1u), operators),
                     elseBranch = parseExpression(node.getChildOrThrow(2u), operators),
                 )
+            }
 
-            "local_variable_expression" ->
+            "local_variable_expression" -> {
                 if (node.child(0u)!!.text == "let") {
                     AstNode.LetExpr(
                         pattern = parsePattern(node.getChildOrThrow(0u), operators),
@@ -336,6 +379,7 @@ class CstParser(
                         body = parseExpression(node.getChildOrThrow(0u), operators),
                     )
                 }
+            }
 
             "lambda_expression" -> {
                 val branches =
@@ -350,7 +394,9 @@ class CstParser(
                 AstNode.LambdaExpr(branches)
             }
 
-            else -> throw IllegalStateException("Unknown expression: ${node.type} in node $node")
+            else -> {
+                throw IllegalStateException("Unknown expression: ${node.type} in node $node")
+            }
         }
 
     private fun <T> parseApplication(
@@ -393,7 +439,7 @@ class CstParser(
                     throw RenamerException(
                         StatusSeverity.ERROR,
                         "Not fully applied operator ${child.text}",
-                        node.endPosition.toPosition(),
+                        node.range(),
                     )
                 }
                 popToken()
@@ -430,7 +476,10 @@ class CstParser(
                     }
                     operators.add(token)
                 }
-                is ApplicationToken.Operand<*> -> operands.add(token.expr as T)
+
+                is ApplicationToken.Operand<*> -> {
+                    operands.add(token.expr as T)
+                }
             }
         }
 
@@ -459,7 +508,7 @@ class CstParser(
         operators: MutableMap<String, Infix>,
     ): AstNode.Pattern =
         when (node.type) {
-            "pattern" ->
+            "pattern" -> {
                 parseApplication(
                     node = node,
                     infix = operators,
@@ -474,29 +523,47 @@ class CstParser(
                             throw RenamerException(
                                 StatusSeverity.ERROR,
                                 "Types do not have lambdas",
-                                node.endPosition.toPosition(),
+                                node.range(),
                             )
                         }
                     },
                     constructOperator = { name, args -> AstNode.ConstructorPattern(name, args) },
                 )
+            }
 
-            "expression" -> parsePattern(node.getChildOrThrow(0u), operators)
-            "ident" -> AstNode.BindingPattern(AstNode.WildcardPattern, node.text)
-            "binding_pattern" ->
+            "expression" -> {
+                parsePattern(node.getChildOrThrow(0u), operators)
+            }
+
+            "ident" -> {
+                AstNode.BindingPattern(AstNode.WildcardPattern, node.text)
+            }
+
+            "binding_pattern" -> {
                 AstNode.BindingPattern(
                     parsePattern(node.getChildOrThrow(1u), operators),
                     node.getChildOrThrow(0u).text,
                 )
+            }
+
             "list_pattern" -> {
                 val list = parseMultiple(node, { parsePattern(it, operators) })
                 list.foldRight<AstNode.Pattern, AstNode.Pattern>(
                     AstNode.BindingPattern(AstNode.WildcardPattern, "nil"),
                 ) { pattern, acc -> AstNode.ConstructorPattern("::", listOf(pattern, acc)) }
             }
-            "tuple_pattern" -> AstNode.TuplePattern(parseMultiple(node, { parsePattern(it, operators) }))
-            "wildcard_pattern" -> AstNode.WildcardPattern
-            else -> throw IllegalStateException("Unknown pattern: ${node.type} in node $node")
+
+            "tuple_pattern" -> {
+                AstNode.TuplePattern(parseMultiple(node, { parsePattern(it, operators) }))
+            }
+
+            "wildcard_pattern" -> {
+                AstNode.WildcardPattern
+            }
+
+            else -> {
+                throw IllegalStateException("Unknown pattern: ${node.type} in node $node")
+            }
         }
 
     class TypeDeclarationException(
@@ -504,6 +571,6 @@ class CstParser(
     ) : RenamerException(
             StatusSeverity.ERROR,
             "No data constructor",
-            node.endPosition.toPosition(),
+            node.range(),
         )
 }

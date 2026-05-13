@@ -1,18 +1,15 @@
 package ru.hopec.renamer
 
 import ru.hopec.core.StatusSeverity
+import ru.hopec.core.topography.Range
 
 open class RenamerException : IllegalStateException {
     val severity: StatusSeverity
-    val location: RenamerLocation
-    constructor(severity: StatusSeverity, message: String, location: RenamerLocation) :
-        super("[${severity.name}] " + "${location.row}:${location.column} " + message) {
-        this.severity = severity
-        this.location = location
-    }
+    val range: Range
 
-    data class RenamerLocation(
-        val row: Int,
-        val column: Int,
-    )
+    constructor(severity: StatusSeverity, message: String, range: Range) :
+        super("[${severity.name}] " + "${range.from?.row}:${range.from?.column} " + message) {
+        this.severity = severity
+        this.range = range
+    }
 }
