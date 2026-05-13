@@ -8,8 +8,6 @@ import ru.hopec.typecheck.TypedRepresentation.Expr
 import ru.hopec.typecheck.TypedRepresentation.Pattern
 import ru.hopec.typecheck.TypedRepresentation.Type
 
-// ─── Test helpers ──────────────────────────────────────────────────────────────
-
 val numType = Type.Data.num
 val truvalType = Type.Data.truval
 val charType = Type.Data.char
