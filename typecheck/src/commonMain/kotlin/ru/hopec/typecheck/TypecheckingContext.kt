@@ -71,8 +71,13 @@ internal class TypecheckingContext private constructor(
                     }
                 }
 
-                is Type.Arrow -> Type.Arrow(fullWalk(type.argument), fullWalk(type.result))
-                is Type.Data -> Type.Data(type.constructor, type.args.map { fullWalk(it) }.toList())
+                is Type.Arrow -> {
+                    Type.Arrow(fullWalk(type.argument), fullWalk(type.result))
+                }
+
+                is Type.Data -> {
+                    Type.Data(type.constructor, type.args.map { fullWalk(it) }.toList())
+                }
             }
 
         var unifyOk = true
@@ -126,56 +131,74 @@ internal class TypecheckingContext private constructor(
                         Type.Variable(newVariable - 1)
                     }
                 }
-                is Type.Data -> Type.Data(walked.constructor, walked.args.map(::rename).toList())
-                is Type.Arrow -> Type.Arrow(rename(walked.argument), rename(walked.result))
+
+                is Type.Data -> {
+                    Type.Data(walked.constructor, walked.args.map(::rename).toList())
+                }
+
+                is Type.Arrow -> {
+                    Type.Arrow(rename(walked.argument), rename(walked.result))
+                }
             }
 
         fun rename(pattern: TypedRepresentation.Pattern): TypedRepresentation.Pattern =
             when (pattern) {
-                is TypedRepresentation.Pattern.Data ->
+                is TypedRepresentation.Pattern.Data -> {
                     TypedRepresentation.Pattern.Data(
                         rename(pattern.type) as Type.Data,
                         pattern.constructor,
                         pattern.args.map(::rename).toList(),
                     )
+                }
 
-                is TypedRepresentation.Pattern.Variable ->
+                is TypedRepresentation.Pattern.Variable -> {
                     TypedRepresentation.Pattern.Variable(
                         rename(pattern.type),
                         pattern.name,
                     )
+                }
 
-                is TypedRepresentation.Pattern.Wildcard -> TypedRepresentation.Pattern.Wildcard(rename(pattern.type))
-                is TypedRepresentation.Pattern.NamedData ->
+                is TypedRepresentation.Pattern.Wildcard -> {
+                    TypedRepresentation.Pattern.Wildcard(rename(pattern.type))
+                }
+
+                is TypedRepresentation.Pattern.NamedData -> {
                     TypedRepresentation.Pattern.NamedData(
                         pattern.name,
                         rename(pattern.data) as TypedRepresentation.Pattern.Data,
                     )
+                }
             }
 
         fun rename(term: TypedRepresentation.Expr): TypedRepresentation.Expr =
             when (term) {
-                is TypedRepresentation.Expr.Literal -> term
-                is TypedRepresentation.Expr.If ->
+                is TypedRepresentation.Expr.Literal -> {
+                    term
+                }
+
+                is TypedRepresentation.Expr.If -> {
                     TypedRepresentation.Expr.If(
                         rename(term.condition),
                         rename(term.positive),
                         rename(term.negative),
                     )
+                }
 
-                is TypedRepresentation.Expr.Variable ->
+                is TypedRepresentation.Expr.Variable -> {
                     TypedRepresentation.Expr.Variable(
                         rename(term.type),
                         term.name,
                     )
+                }
 
-                is TypedRepresentation.Expr.Lambda ->
+                is TypedRepresentation.Expr.Lambda -> {
                     TypedRepresentation.Expr.Lambda(
                         rename(term.type) as Type.Arrow,
                         term.branches.map {
                             TypedRepresentation.Expr.Lambda.Branch(rename(it.pattern), rename(it.body))
                         },
                     )
+                }
 
                 is TypedRepresentation.Expr.Let -> {
                     val nv = newVariable
@@ -188,18 +211,20 @@ internal class TypecheckingContext private constructor(
                     )
                 }
 
-                is TypedRepresentation.Expr.Identifier ->
+                is TypedRepresentation.Expr.Identifier -> {
                     TypedRepresentation.Expr.Identifier(
                         rename(term.type),
                         term.name,
                     )
+                }
 
-                is TypedRepresentation.Expr.Application ->
+                is TypedRepresentation.Expr.Application -> {
                     TypedRepresentation.Expr.Application(
                         rename(term.type),
                         rename(term.left),
                         rename(term.right),
                     )
+                }
             }
 
         unify(fullWalk(lambda.type), function.type.type)
@@ -261,10 +286,21 @@ internal class TypecheckingContext private constructor(
                 TypedRepresentation.Expr.Application(resultType, left ?: return null, right)
             }
 
-            is DesugaredRepresentation.Expr.Literal.Num -> TypedRepresentation.Expr.Literal.Num(term.value)
-            is DesugaredRepresentation.Expr.Literal.Char -> TypedRepresentation.Expr.Literal.Char(term.value)
-            is DesugaredRepresentation.Expr.Literal.String -> TypedRepresentation.Expr.Literal.String(term.value)
-            is DesugaredRepresentation.Expr.Literal.TruVal -> TypedRepresentation.Expr.Literal.TruVal(term.value)
+            is DesugaredRepresentation.Expr.Literal.Num -> {
+                TypedRepresentation.Expr.Literal.Num(term.value)
+            }
+
+            is DesugaredRepresentation.Expr.Literal.Char -> {
+                TypedRepresentation.Expr.Literal.Char(term.value)
+            }
+
+            is DesugaredRepresentation.Expr.Literal.String -> {
+                TypedRepresentation.Expr.Literal.String(term.value)
+            }
+
+            is DesugaredRepresentation.Expr.Literal.TruVal -> {
+                TypedRepresentation.Expr.Literal.TruVal(term.value)
+            }
 
             is DesugaredRepresentation.Expr.If -> {
                 val condition = infer(term.condition)
@@ -386,7 +422,9 @@ internal class TypecheckingContext private constructor(
                             )
                     }
 
-                    else -> substitution[walkedLeft.index] = walkedRight
+                    else -> {
+                        substitution[walkedLeft.index] = walkedRight
+                    }
                 }
             }
 
@@ -396,14 +434,17 @@ internal class TypecheckingContext private constructor(
                         substitution[walkedRight.index] = walkedLeft
                     }
 
-                    is Type.Arrow ->
+                    is Type.Arrow -> {
                         unify(walkedLeft.argument, walkedRight.argument) join
                             unify(
                                 walkedLeft.result,
                                 walkedRight.result,
                             )
+                    }
 
-                    else -> null
+                    else -> {
+                        null
+                    }
                 }
             }
 
@@ -424,7 +465,9 @@ internal class TypecheckingContext private constructor(
                         Unit
                     }
 
-                    else -> null
+                    else -> {
+                        null
+                    }
                 }
             }
         }
@@ -441,8 +484,14 @@ internal class TypecheckingContext private constructor(
 
         fun go(type: Type): Type =
             when (val wtype = walk(type)) {
-                is Type.Arrow -> Type.Arrow(go(wtype.argument), go(wtype.result))
-                is Type.Data -> Type.Data(wtype.constructor, wtype.args.map { go(it) })
+                is Type.Arrow -> {
+                    Type.Arrow(go(wtype.argument), go(wtype.result))
+                }
+
+                is Type.Data -> {
+                    Type.Data(wtype.constructor, wtype.args.map { go(it) })
+                }
+
                 is Type.Variable -> {
                     if (!rangeContains(range, wtype.index)) {
                         wtype
@@ -467,10 +516,14 @@ internal class TypecheckingContext private constructor(
                         }
                     }
 
-                    else -> image
+                    else -> {
+                        image
+                    }
                 }
             }
 
-            else -> type
+            else -> {
+                type
+            }
         }
 }
