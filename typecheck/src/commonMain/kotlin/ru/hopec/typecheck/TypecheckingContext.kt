@@ -44,6 +44,7 @@ internal class TypecheckingContext private constructor(
 
     private var substitution: ArrayList<Type> = arrayListOf()
     private var boundVariables: ArrayList<BoundVariable> = arrayListOf()
+    private var isLetBound: ArrayList<Boolean> = arrayListOf()
 
     private fun runModule(module: DesugaredRepresentation.Module): TypedRepresentation.Module =
         TypedRepresentation.Module(runDeclarations(module.public), runDeclarations(module.private))
@@ -60,6 +61,7 @@ internal class TypecheckingContext private constructor(
     private fun runFunction(function: DesugaredRepresentation.Declarations.Function): TypedRepresentation.Declarations.Function? {
         val lambda = infer(function.lambda) ?: return null
         val variableMapping = hashMapOf<Int, Type>()
+        //val letBoundVariableMapping = hashMapOf<Int, Type>()
 
         fun fullWalk(type: Type): Type =
             when (type) {
@@ -76,6 +78,7 @@ internal class TypecheckingContext private constructor(
             }
 
         var unifyOk = true
+        var newVariable = function.type.boundTypeVariables
 
         fun unify(
             actual: Type,
@@ -115,12 +118,16 @@ internal class TypecheckingContext private constructor(
 
         fun rename(type: Type): Type =
             when (val walked = walk(type)) {
-                is Type.Variable ->
-                    if (walked.index < 0) {
-                        walked
+                is Type.Variable -> {
+                    val image = variableMapping[walked.index]
+                    if (image != null) {
+                        image
                     } else {
-                        variableMapping[walked.index]!!
+                        variableMapping[walked.index] = Type.Variable(newVariable)
+                        newVariable += 1
+                        Type.Variable(newVariable - 1)
                     }
+                }
                 is Type.Data -> Type.Data(walked.constructor, walked.args.map(::rename).toList())
                 is Type.Arrow -> Type.Arrow(rename(walked.argument), rename(walked.result))
             }
@@ -172,12 +179,16 @@ internal class TypecheckingContext private constructor(
                         },
                     )
 
-                is TypedRepresentation.Expr.Let ->
+                is TypedRepresentation.Expr.Let -> {
+                    val nv = newVariable
+                    val renamedMatcher = rename(term.matcher)
+                    newVariable = nv
                     TypedRepresentation.Expr.Let(
                         rename(term.pattern),
-                        rename(term.matcher),
+                        renamedMatcher,
                         rename(term.body),
                     )
+                }
 
                 is TypedRepresentation.Expr.Identifier ->
                     TypedRepresentation.Expr.Identifier(
@@ -242,11 +253,9 @@ internal class TypecheckingContext private constructor(
                         infer(term.body)
                     } ?: return null
 
-                var ind = 1
                 for (i in range.first..<range.second) {
                     if (substitution[i] == Type.Variable(i)) {
-                        substitution[i] = Type.Variable(-ind)
-                        ind += 1
+                        isLetBound[i] = true
                     }
                 }
                 TypedRepresentation.Expr.Let(pattern, matcher ?: return null, body ?: return null)
@@ -353,6 +362,7 @@ internal class TypecheckingContext private constructor(
         val typeVariable = shiftValue()
         val type = Type.Variable(typeVariable)
         substitution.add(type)
+        isLetBound.add(false)
         return type
     }
 
