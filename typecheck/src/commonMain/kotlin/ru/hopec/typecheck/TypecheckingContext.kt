@@ -44,7 +44,6 @@ internal class TypecheckingContext private constructor(
 
     private var substitution: ArrayList<Type> = arrayListOf()
     private var boundVariables: ArrayList<BoundVariable> = arrayListOf()
-    private var isLetBound: ArrayList<Boolean> = arrayListOf()
 
     private fun runModule(module: DesugaredRepresentation.Module): TypedRepresentation.Module =
         TypedRepresentation.Module(runDeclarations(module.public), runDeclarations(module.private))
@@ -61,7 +60,6 @@ internal class TypecheckingContext private constructor(
     private fun runFunction(function: DesugaredRepresentation.Declarations.Function): TypedRepresentation.Declarations.Function? {
         val lambda = infer(function.lambda) ?: return null
         val variableMapping = hashMapOf<Int, Type>()
-        //val letBoundVariableMapping = hashMapOf<Int, Type>()
 
         fun fullWalk(type: Type): Type =
             when (type) {
@@ -252,12 +250,6 @@ internal class TypecheckingContext private constructor(
                         unify(matcher?.type, pattern.type) ?: return@withBoundPattern null
                         infer(term.body)
                     } ?: return null
-
-                for (i in range.first..<range.second) {
-                    if (substitution[i] == Type.Variable(i)) {
-                        isLetBound[i] = true
-                    }
-                }
                 TypedRepresentation.Expr.Let(pattern, matcher ?: return null, body ?: return null)
             }
 
@@ -362,7 +354,6 @@ internal class TypecheckingContext private constructor(
         val typeVariable = shiftValue()
         val type = Type.Variable(typeVariable)
         substitution.add(type)
-        isLetBound.add(false)
         return type
     }
 

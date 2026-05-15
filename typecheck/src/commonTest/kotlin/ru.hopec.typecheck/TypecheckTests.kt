@@ -140,7 +140,7 @@ class TypecheckTests {
         val result = annotateGlobal(poly)
         assertNotNull(result)
         assertEquals(
-            typeVar(-1) arrow typeVar(-1),
+            typeVar(1) arrow typeVar(1),
             (
                     result.lambda.branches
                         .first()
