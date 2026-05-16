@@ -2,6 +2,8 @@ package ru.hopec.renamer
 
 import ru.hopec.core.CompilationContext
 import ru.hopec.core.CompilationPass
+import ru.hopec.core.errorStatus
+import ru.hopec.core.topography.Range
 import ru.hopec.parser.TreeSitterRepresentation
 
 object RenamerPass : CompilationPass<TreeSitterRepresentation, RenamedRepresentation> {
@@ -22,6 +24,14 @@ object RenamerPass : CompilationPass<TreeSitterRepresentation, RenamedRepresenta
     }
 
     private fun CompilationContext.add(exception: Exception) {
+        report(errorStatus(exception.message ?: "", exception.range()))
         println("Renaming error: ${exception.message}")
     }
+
+    private fun Exception.range(): Range =
+        if (this is RenamerException) {
+            range
+        } else {
+            Range()
+        }
 }

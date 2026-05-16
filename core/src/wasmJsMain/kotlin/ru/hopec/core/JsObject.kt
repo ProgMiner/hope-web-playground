@@ -21,9 +21,9 @@ fun JsObject.set(
 
 fun JsObject.set(
     key: String,
-    value: Int,
+    value: UInt,
 ) {
-    set(key.toJsString(), value.toJsNumber())
+    set(key.toJsString(), value.toInt().toJsNumber())
 }
 
 fun JsObject.set(
@@ -31,4 +31,11 @@ fun JsObject.set(
     value: JsAny,
 ) {
     set(key.toJsString(), value)
+}
+
+fun JsObject.set(
+    key: String,
+    value: JsAny?,
+) {
+    value?.apply { set(key, this) }
 }

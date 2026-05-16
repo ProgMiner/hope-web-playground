@@ -4,6 +4,7 @@ import ru.hopec.core.tree.GenericTree
 
 class CompilationContext {
     private val trees: MutableList<GenericTree> = mutableListOf()
+    private val status: MultiStatus = MultiStatus(label = "Compilation")
 
     fun rememberTree(tree: GenericTree) {
         trees.add(tree)
@@ -11,7 +12,7 @@ class CompilationContext {
 
     fun trees(): List<GenericTree> = trees
 
-    fun report(status: CompilationStatus): Any = TODO()
+    fun report(status: CompilationStatus): Any = this.status.add(status)
 
-    fun result(): CompilationStatus = TODO()
+    fun result(): CompilationStatus = status
 }

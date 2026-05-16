@@ -1,8 +1,8 @@
 package ru.hopec.renamer
 
 import ru.hopec.core.StatusSeverity
-import ru.hopec.parser.treesitter.TsPoint
 import ru.hopec.parser.treesitter.TsSyntaxNode
+import ru.hopec.parser.treesitter.range
 
 fun <T> parseMultiple(
     node: TsSyntaxNode,
@@ -47,13 +47,13 @@ fun TsSyntaxNode.getChildOrThrow(i: UInt): TsSyntaxNode {
         this.namedChild(i) ?: throw RenamerException(
             StatusSeverity.ERROR,
             "Cannot find child $i of node $this",
-            this.endPosition.toPosition(),
+            this.range(),
         )
     if (child.isError) {
         throw RenamerException(
             StatusSeverity.ERROR,
             "Error in node $this",
-            child.endPosition.toPosition(),
+            child.range(),
         )
     }
     return child
@@ -64,5 +64,3 @@ fun parseMultipleIdent(
     from: UInt = 0u,
     to: UInt? = null,
 ) = parseMultiple(node, { child -> child.text }, from, to)
-
-fun TsPoint.toPosition() = RenamerException.RenamerLocation(this.row.toInt(), this.column.toInt())

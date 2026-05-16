@@ -24,5 +24,9 @@ kotlin {
                 freeCompilerArgs.add("-Xwasm-use-new-exception-proposal")
             }
         }
+
+        commonTest.dependencies {
+            implementation(kotlin("test"))
+        }
     }
 }
