@@ -24,10 +24,14 @@ class ModuleStructureTest {
         assertContains(w, "\$rt.apply")
         assertContains(w, "\$rt.set_contains")
         assertContains(w, "\$rt.set_insert")
+        assertContains(w, "\$rt.mk_closure")
+        assertContains(w, "\$rt.mk_adt")
         assertContains(w, "func \$rt.malloc (param \$bytes i32) (result i32)")
         assertContains(w, "func \$rt.mk_tuple (param \$fst i32) (param \$snd i32) (result i32)")
         assertContains(w, "func \$rt.mk_cons (param \$field i32) (result i32)")
         assertContains(w, "func \$rt.apply (param \$closure i32) (param \$arg i32) (result i32)")
+        assertContains(w, "func \$rt.mk_closure (param \$idx i32) (param \$n_caps i32) (result i32)")
+        assertContains(w, "func \$rt.mk_adt (param \$field_count i32) (param \$tag i32) (result i32)")
     }
 
     @Test

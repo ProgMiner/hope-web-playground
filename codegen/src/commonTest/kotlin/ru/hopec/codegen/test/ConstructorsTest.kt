@@ -17,7 +17,6 @@ class ConstructorsTest {
         val body = Expr.Identifier(Type.Data.list(numType), nilCtor)
         val w = wat(singleFuncProgram(lambda = wildLambda(numType, Type.Data.list(numType), body)))
         assertContains(w, "i32.const 0")
-        assertContains(w, "call \$rt.malloc")
     }
 
     @Test
@@ -25,7 +24,6 @@ class ConstructorsTest {
         val body = Expr.Identifier(truvalType, trueCtor)
         val w = wat(singleFuncProgram(lambda = wildLambda(numType, truvalType, body)))
         assertContains(w, "i32.const 1")
-        assertContains(w, "call \$rt.malloc")
     }
 
     @Test

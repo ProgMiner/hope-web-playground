@@ -30,8 +30,8 @@ class UserDefinedAdtTest {
             )
         val w = wat(program)
         assertTrue(w.contains("(module"))
-        assertContains(w, "call \$rt.malloc")
+        assertContains(w, "call \$rt.mk_closure")
         assertContains(w, "i32.const 0")
-        assertContains(w, "i32.store offset=0")
+        assertContains(w, "\$ctor.top.Color.Red")
     }
 }

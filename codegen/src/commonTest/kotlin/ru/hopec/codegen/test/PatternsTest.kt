@@ -64,8 +64,7 @@ class PatternsTest {
             )
         val w = wat(singleFuncProgram(lambda = lambda))
         assertContains(w, "br_if")
-        assertContains(w, "br_if")
-        assertContains(w, "call \$rt.malloc")
+        assertContains(w, "i32.eqz")
     }
 
     @Test
