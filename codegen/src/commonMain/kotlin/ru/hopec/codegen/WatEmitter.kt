@@ -18,6 +18,13 @@ internal class WatEmitter {
         entries.add(Entry(depth, s))
     }
 
+    fun lineAt(
+        extraDepth: Int,
+        s: String,
+    ) {
+        entries.add(Entry(depth + extraDepth, s))
+    }
+
     fun indent(block: () -> Unit) {
         depth++
         block()

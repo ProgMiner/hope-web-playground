@@ -1,5 +1,6 @@
 package ru.hopec.codegen
 
+import ru.hopec.codegen.runtime.WatRuntime
 import ru.hopec.typecheck.TypedRepresentation
 import ru.hopec.typecheck.TypedRepresentation.Declarations
 import ru.hopec.typecheck.TypedRepresentation.Declarations.Data
@@ -152,155 +153,15 @@ class WatGenerator(
     }
 
     private fun emitRuntime() {
-        emitMalloc()
-        emitMkTuple()
-        emitMkCons()
-        emitApply()
-        emitSetContains()
-        emitSetInsert()
+        for (snippet in WatRuntime.ALL) emitSnippet(snippet)
     }
 
-    private fun emitMalloc() {
-        out.line("(func \$rt.malloc (param \$bytes i32) (result i32)")
-        out.indent {
-            out.line("global.get \$heap_ptr")
-            out.line("global.get \$heap_ptr")
-            out.line("local.get \$bytes")
-            out.line("i32.add")
-            out.line("global.set \$heap_ptr")
+    private fun emitSnippet(snippet: String) {
+        for (rawLine in snippet.lineSequence()) {
+            if (rawLine.isBlank()) continue
+            val leading = rawLine.takeWhile { it == ' ' }.length
+            out.lineAt(leading / 2, rawLine.substring(leading))
         }
-        out.line(")")
-    }
-
-    private fun emitMkTuple() {
-        out.line("(func \$rt.mk_tuple (param \$fst i32) (param \$snd i32) (result i32)")
-        out.indent {
-            out.line("(local \$ptr i32)")
-            out.line("i32.const 8")
-            out.line("call \$rt.malloc")
-            out.line("local.tee \$ptr")
-            out.line("local.get \$fst")
-            out.line("i32.store offset=0")
-            out.line("local.get \$ptr")
-            out.line("local.get \$snd")
-            out.line("i32.store offset=4")
-            out.line("local.get \$ptr")
-        }
-        out.line(")")
-    }
-
-    private fun emitMkCons() {
-        out.line("(func \$rt.mk_cons (param \$field i32) (result i32)")
-        out.indent {
-            out.line("(local \$ptr i32)")
-            out.line("i32.const 4")
-            out.line("call \$rt.malloc")
-            out.line("local.tee \$ptr")
-            out.line("local.get \$field")
-            out.line("i32.store offset=0")
-            out.line("local.get \$ptr")
-        }
-        out.line(")")
-    }
-
-    private fun emitApply() {
-        out.line("(type \$closure_fn (func (param i32 i32) (result i32)))")
-        out.line("(func \$rt.apply (param \$closure i32) (param \$arg i32) (result i32)")
-        out.indent {
-            out.line("local.get \$closure")
-            out.line("local.get \$arg")
-            out.line("local.get \$closure")
-            out.line("i32.load offset=0")
-            out.line("call_indirect (type \$closure_fn)")
-        }
-        out.line(")")
-    }
-
-    /**
-     * `$rt.set_contains(set, value) -> i32`
-     *
-     * Линейный поиск значения [value] в [set]. Возвращает 1, если найдено,
-     * 0 — иначе. Сравнение по [i32.eq]: подходит для распакованных значений
-     * (`Num`, `Char`, `TruVal`, `nil`) и для ссылочного равенства указателей.
-     */
-    private fun emitSetContains() {
-        out.line("(func \$rt.set_contains (param \$set i32) (param \$value i32) (result i32)")
-        out.indent {
-            out.line("(local \$cur i32)")
-            out.line("local.get \$set")
-            out.line("local.set \$cur")
-            out.line("(block \$done (result i32)")
-            out.indent {
-                out.line("(loop \$walk")
-                out.indent {
-                    // Если cur == 0, значение не найдено.
-                    out.line("local.get \$cur")
-                    out.line("i32.eqz")
-                    out.line("(if")
-                    out.indent {
-                        out.line("(then i32.const 0 br \$done)")
-                    }
-                    out.line(")")
-                    // Если *cur == value, нашли.
-                    out.line("local.get \$cur")
-                    out.line("i32.load offset=0")
-                    out.line("local.get \$value")
-                    out.line("i32.eq")
-                    out.line("(if")
-                    out.indent {
-                        out.line("(then i32.const 1 br \$done)")
-                    }
-                    out.line(")")
-                    // cur = cur->next, продолжаем цикл.
-                    out.line("local.get \$cur")
-                    out.line("i32.load offset=4")
-                    out.line("local.set \$cur")
-                    out.line("br \$walk")
-                }
-                out.line(")")
-                out.line("unreachable")
-            }
-            out.line(")")
-        }
-        out.line(")")
-    }
-
-    /**
-     * `$rt.set_insert(set, value) -> set`
-     *
-     * Если [value] уже есть в [set], возвращает исходный [set] без изменений.
-     * Иначе аллоцирует новую ячейку `[value, set]` и возвращает указатель
-     * на неё (prepend). Среднее время: O(n). Дубликаты не создаются.
-     */
-    private fun emitSetInsert() {
-        out.line("(func \$rt.set_insert (param \$set i32) (param \$value i32) (result i32)")
-        out.indent {
-            out.line("(local \$cell i32)")
-            // Если value уже в множестве — возвращаем сам set.
-            out.line("local.get \$set")
-            out.line("local.get \$value")
-            out.line("call \$rt.set_contains")
-            out.line("(if (result i32)")
-            out.indent {
-                out.line("(then local.get \$set)")
-                out.line("(else")
-                out.indent {
-                    // Аллоцируем 8 байт: [value, next=set].
-                    out.line("i32.const 8")
-                    out.line("call \$rt.malloc")
-                    out.line("local.tee \$cell")
-                    out.line("local.get \$value")
-                    out.line("i32.store offset=0")
-                    out.line("local.get \$cell")
-                    out.line("local.get \$set")
-                    out.line("i32.store offset=4")
-                    out.line("local.get \$cell")
-                }
-                out.line(")")
-            }
-            out.line(")")
-        }
-        out.line(")")
     }
 
     // ═══════════════════════════════════════════════════════════════════════

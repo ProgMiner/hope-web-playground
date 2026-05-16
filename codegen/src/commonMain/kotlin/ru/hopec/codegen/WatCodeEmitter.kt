@@ -350,11 +350,10 @@ internal class WatCodeEmitter(
             else -> {
                 val tag = gen.constructorTags[ctor.data to ctor.constructor] ?: 0
                 val tmp = ctx.freshTmp()
-                out.line("i32.const ${4 + args.size * 4}")
-                out.line("call \$rt.malloc")
-                out.line("local.tee $tmp")
+                out.line("i32.const ${args.size}")
                 out.line("i32.const $tag")
-                out.line("i32.store offset=0")
+                out.line("call \$rt.mk_adt")
+                out.line("local.set $tmp")
                 for ((i, argExpr) in args.withIndex()) {
                     out.line("local.get $tmp")
                     genExpr(argExpr, ctx, out)
@@ -413,14 +412,10 @@ internal class WatCodeEmitter(
         val idx = gen.registerInFuncTable(watFuncName)
         val nCaps = captureNames.size
         val tmp = ctx.freshTmp()
-        out.line("i32.const ${8 + nCaps * 4}")
-        out.line("call \$rt.malloc")
-        out.line("local.tee $tmp")
         out.line("i32.const $idx")
-        out.line("i32.store offset=0")
-        out.line("local.get $tmp")
         out.line("i32.const $nCaps")
-        out.line("i32.store offset=4")
+        out.line("call \$rt.mk_closure")
+        out.line("local.set $tmp")
         for ((i, cap) in captureNames.withIndex()) {
             out.line("local.get $tmp")
             out.line("local.get ${ctx.getOrAdd(cap)}")
