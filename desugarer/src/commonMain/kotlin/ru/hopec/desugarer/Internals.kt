@@ -1,8 +1,11 @@
 package ru.hopec.desugarer
 
+import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Function.Name.Core as CoreFunction
 import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Function.Name.Constructor
 import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Data.Name.Core
+import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Data
 
+val plus = CoreFunction("plus")
 val trueConstr =  Constructor(Core.TruVal, "true")
 val falseConstr = Constructor(Core.TruVal, "false")
 val nilConstr =  Constructor(
@@ -17,6 +20,10 @@ val emptySetConstr = Constructor(
     )
 val tupleConstr = Constructor(Core.Tuple, "#")
 
+val internalFunctions = setOf(
+    plus,
+)
+
 val internalConstructors = setOf(
     trueConstr,
     falseConstr,
@@ -28,10 +35,20 @@ val internalConstructors = setOf(
 )
 
 val internalData = mapOf(
-    "list" to Core.List,
-    "set" to Core.Set,
-    "num" to Core.Num,
-    "truval" to Core.TruVal,
-    "chat" to Core.Char,
-    "tuple" to Core.Tuple,
-)
+    "list" to Core.List as Data.Name,
+    "set" to Core.Set as Data.Name,
+    "num" to Core.Num as Data.Name,
+    "truval" to Core.TruVal as Data.Name,
+    "chat" to Core.Char as Data.Name,
+    "tuple" to Core.Tuple as Data.Name,
+).toMutableMap()
+
+fun getInternalConstructors() =
+    internalConstructors.associate {
+        it.constructor to mutableSetOf(it)
+    }.toMutableMap()
+
+fun getInternalFunctions() =
+    internalFunctions.associate {
+        it.name to mutableSetOf(it as DesugaredRepresentation.Declarations.Function.Name)
+    }.toMutableMap()

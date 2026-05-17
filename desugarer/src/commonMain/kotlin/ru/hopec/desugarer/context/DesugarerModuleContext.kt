@@ -4,14 +4,17 @@ import ru.hopec.desugarer.DesugaredRepresentation
 import ru.hopec.desugarer.ResolvedExpr
 import ru.hopec.desugarer.ResolvedPattern
 import ru.hopec.desugarer.getInternalConstructors
+import ru.hopec.desugarer.getInternalFunctions
 import ru.hopec.desugarer.internalData
+import ru.hopec.desugarer.unite
+import ru.hopec.desugarer.uniteSet
 
 data class DesugarerModuleContext(
-    val globalFunctions: MutableMap<String, MutableSet<DesugaredRepresentation.Declarations.Function.Name>> = mutableMapOf(),
-    val globalConstructors: MutableMap<String, MutableSet<DesugaredRepresentation.Declarations.Function.Name.Constructor>> = getInternalConstructors().toMutableMap(),
+    val globalFunctions: MutableMap<String, MutableSet<DesugaredRepresentation.Declarations.Function.Name>> = getInternalFunctions(),
+    val globalConstructors: MutableMap<String, MutableSet<DesugaredRepresentation.Declarations.Function.Name.Constructor>> = getInternalConstructors(),
     val moduleFunctions: MutableMap<String, MutableSet<DesugaredRepresentation.Declarations.Function.Name.User>> = mutableMapOf(),
     val moduleConstructors: MutableMap<String, MutableSet<DesugaredRepresentation.Declarations.Function.Name.Constructor>> = mutableMapOf(),
-    val globalDataTypes: MutableMap<String, DesugaredRepresentation.Declarations.Data.Name> = internalData.toMutableMap(),
+    val globalDataTypes: MutableMap<String, DesugaredRepresentation.Declarations.Data.Name> = internalData,
     val moduleDataTypes: MutableMap<String, DesugaredRepresentation.Declarations.Data.Name.Defined> = mutableMapOf(),
 ) {
     fun extendGlobalFunctions(functions: Map<String, Set<DesugaredRepresentation.Declarations.Function.Name.User>>) {
@@ -92,4 +95,17 @@ data class DesugarerModuleContext(
     fun resolvePattern(name: String) = allConstructors(name)
 
     fun resolveData(name: String) = allDataTypes(name)
+
+    fun toGlobal(): DesugarerModuleContext {
+        val functions = getInternalFunctions()
+        functions.uniteSet(moduleFunctions)
+        val constructors = getInternalConstructors()
+        constructors.uniteSet(moduleConstructors)
+        val dataTypes = (internalData + moduleDataTypes).toMutableMap()
+        return DesugarerModuleContext(
+            globalFunctions = functions,
+            globalConstructors = constructors,
+            globalDataTypes = dataTypes
+        )
+    }
 }
