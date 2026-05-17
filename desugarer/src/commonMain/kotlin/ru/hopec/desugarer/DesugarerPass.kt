@@ -5,6 +5,13 @@ import ru.hopec.core.CompilationPass
 import ru.hopec.renamer.RenamedRepresentation
 
 object DesugarerPass : CompilationPass<RenamedRepresentation, DesugaredRepresentation> {
-    override fun run(from: RenamedRepresentation, context: CompilationContext) =
+    override fun run(
+        from: RenamedRepresentation,
+        context: CompilationContext,
+    ) = try {
         Desugarer().renamedToDesugared(from)
+    } catch (e: IllegalStateException) {
+        println(e.message)
+        null
+    }
 }
