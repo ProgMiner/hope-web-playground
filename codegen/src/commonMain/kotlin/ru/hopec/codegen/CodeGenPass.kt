@@ -8,7 +8,5 @@ class CodeGenPass : CompilationPass<TypedRepresentation, WasmRepresentation> {
     override fun run(
         from: TypedRepresentation,
         context: CompilationContext,
-    ): WasmRepresentation? {
-        TODO("Not yet implemented")
-    }
+    ): WasmRepresentation = WasmRepresentation(WatGenerator(from).generate())
 }
