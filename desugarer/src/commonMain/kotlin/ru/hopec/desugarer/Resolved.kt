@@ -2,11 +2,6 @@ package ru.hopec.desugarer
 
 import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Function.Name.Constructor
 
-fun getInternalConstructors() =
-    internalConstructors.associate {
-        it.constructor to mutableSetOf(it)
-    }
-
 sealed interface ResolvedExpr {
     data class Local(val level: Int) : ResolvedExpr
 

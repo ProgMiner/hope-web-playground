@@ -95,7 +95,7 @@ sealed interface AstNode {
     sealed interface Literal : Expr
 
     data class DecimalLiteral(
-        val value: Int,
+        val value: Long,
     ) : Literal
 
     data class TruvalLiteral(

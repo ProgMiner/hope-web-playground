@@ -13,12 +13,12 @@ import ru.hopec.desugarer.context.DesugarerLocalContext
 import ru.hopec.desugarer.context.DesugarerModuleContext
 
 open class ModuleDesugarer(
-    val globalContext: DesugarerGlobalContext,
-    val moduleContext: DesugarerModuleContext,
-    val localContext: DesugarerLocalContext,
-    val publicConstants: MutableSet<String> = mutableSetOf(),
-    val publicDataTypes: MutableSet<String> = mutableSetOf(),
+    val globalContext: DesugarerGlobalContext = DesugarerGlobalContext(),
+    val moduleContext: DesugarerModuleContext = DesugarerModuleContext(),
+    val localContext: DesugarerLocalContext = DesugarerLocalContext(),
 ) {
+    val publicConstants: MutableSet<String> = mutableSetOf()
+    val publicDataTypes: MutableSet<String> = mutableSetOf()
     private var identCounter = 0
 
     fun resolveModule(module: AstNode.Module): DesugaredRepresentation.Module {
@@ -79,7 +79,7 @@ open class ModuleDesugarer(
         )
     }
 
-    private fun resolveDataDecl(data: AstNode.DataDeclaration, module: String?):
+    protected fun resolveDataDecl(data: AstNode.DataDeclaration, module: String?):
             Pair<Data.Name.Defined, Data> {
         val dataName = Data.Name.Defined(module, data.name)
         extendModuleData(dataName)
@@ -111,11 +111,12 @@ open class ModuleDesugarer(
         return Pair(name, pairToList(type).map{ resolveType(it, boundVars) })
     }
 
-    private fun resolveFunctionDecl(data: AstNode.FunctionDeclaration, module: String?):
+    protected fun resolveFunctionDecl(function: AstNode.FunctionDeclaration, module: String?):
             Pair<Declarations.Function.Name, Declarations.Function> {
-        val functionName = Declarations.Function.Name.User(module, data.name)
-        extendModuleFunction(data.name.generateNewName(), functionName)
-        return functionName to resolveFunction(data)
+        val newName = function.name.generateNewName()
+        val functionName = Declarations.Function.Name.User(module, newName)
+        extendModuleFunction(function.name, functionName)
+        return functionName to resolveFunction(function)
     }
 
     private fun resolveFunction(data: AstNode.FunctionDeclaration): Declarations.Function {
@@ -187,8 +188,7 @@ open class ModuleDesugarer(
             }
 
             is AstNode.DecimalLiteral -> {
-                // нехорошо получилось
-                Expr.Literal.Num(expr.value.toLong())
+                Expr.Literal.Num(expr.value)
             }
             is AstNode.CharLiteral -> {
                 Expr.Literal.Char(expr.char)
