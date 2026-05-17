@@ -5,9 +5,8 @@ import ru.hopec.desugarer.ResolvedPattern
 
 data class DesugarerLocalContext(
     val localScope: MutableMap<String, Int> = mutableMapOf(),
+    var level: Int = 0,
 ) {
-    var level: Int = 0
-
     fun extendLocal(vars: List<String>) =
         vars.forEach {
             localScope[it] = level

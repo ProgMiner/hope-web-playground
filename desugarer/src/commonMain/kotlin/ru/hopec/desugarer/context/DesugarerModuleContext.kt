@@ -11,7 +11,8 @@ import ru.hopec.desugarer.uniteSet
 
 data class DesugarerModuleContext(
     val globalFunctions: MutableMap<String, MutableSet<DesugaredRepresentation.Declarations.Function.Name>> = getInternalFunctions(),
-    val globalConstructors: MutableMap<String, MutableSet<DesugaredRepresentation.Declarations.Function.Name.Constructor>> = getInternalConstructors(),
+    val globalConstructors: MutableMap<String, MutableSet<DesugaredRepresentation.Declarations.Function.Name.Constructor>> =
+        getInternalConstructors(),
     val moduleFunctions: MutableMap<String, MutableSet<DesugaredRepresentation.Declarations.Function.Name.User>> = mutableMapOf(),
     val moduleConstructors: MutableMap<String, MutableSet<DesugaredRepresentation.Declarations.Function.Name.Constructor>> = mutableMapOf(),
     val globalDataTypes: MutableMap<String, DesugaredRepresentation.Declarations.Data.Name> = internalData,
@@ -29,7 +30,10 @@ data class DesugarerModuleContext(
         }
     }
 
-    fun extendModuleFunction(name: String, function: DesugaredRepresentation.Declarations.Function.Name.User) {
+    fun extendModuleFunction(
+        name: String,
+        function: DesugaredRepresentation.Declarations.Function.Name.User,
+    ) {
         if (moduleFunctions.containsKey(name)) {
             moduleFunctions[name]!!.add(function)
         } else {
@@ -49,7 +53,10 @@ data class DesugarerModuleContext(
         }
     }
 
-    fun extendModuleConstructor(name: String, constructor: DesugaredRepresentation.Declarations.Function.Name.Constructor) {
+    fun extendModuleConstructor(
+        name: String,
+        constructor: DesugaredRepresentation.Declarations.Function.Name.Constructor,
+    ) {
         if (moduleConstructors.containsKey(name)) {
             moduleConstructors[name]!!.add(constructor)
         } else {
@@ -57,7 +64,7 @@ data class DesugarerModuleContext(
         }
     }
 
-    fun extendGlobalData(dataTypes:  Map<String, DesugaredRepresentation.Declarations.Data.Name.Defined>) {
+    fun extendGlobalData(dataTypes: Map<String, DesugaredRepresentation.Declarations.Data.Name.Defined>) {
         dataTypes.forEach { (_, dataType) ->
             globalDataTypes[dataType.name] = dataType
         }
@@ -84,7 +91,7 @@ data class DesugarerModuleContext(
             return null
         }
         return ResolvedExpr.GlobalSet(
-            ((module ?: emptySet()) + (global ?: emptySet()) + (constructors ?: emptySet())).toMutableSet()
+            ((module ?: emptySet()) + (global ?: emptySet()) + (constructors ?: emptySet())).toMutableSet(),
         )
     }
 
@@ -105,7 +112,7 @@ data class DesugarerModuleContext(
         return DesugarerModuleContext(
             globalFunctions = functions,
             globalConstructors = constructors,
-            globalDataTypes = dataTypes
+            globalDataTypes = dataTypes,
         )
     }
 }

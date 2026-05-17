@@ -22,33 +22,40 @@ class Desugarer(
         statements.forEach { statement ->
             when (statement) {
                 is AstNode.Module -> {
-                    val module = ModuleDesugarer(
-                        moduleContext =  moduleContext.toGlobal()
-                    ).resolveModule(statement)
+                    val module =
+                        ModuleDesugarer(
+                            moduleContext = moduleContext.toGlobal(),
+                        ).resolveModule(statement)
                     modules[statement.name] = module
                 }
+
                 is AstNode.DataDeclaration -> {
                     val dataType = resolveDataDecl(statement, null)
                     dataTypes[dataType.first] = dataType.second
                 }
+
                 is AstNode.FunctionDeclaration -> {
                     val function = resolveFunctionDecl(statement, null)
                     functions[function.first] = function.second
                 }
+
                 is AstNode.ModuleUseDeclaration -> {
                     statement.modules.forEach { importModule(it) }
                 }
+
                 is AstNode.Error -> {}
+
                 else -> {
                     throw IllegalStateException("Export cannot be in top level")
                 }
             }
         }
 
-        val declarations = Declarations(
-            data = dataTypes,
-            functions = functions,
-        )
+        val declarations =
+            Declarations(
+                data = dataTypes,
+                functions = functions,
+            )
 
         return DesugaredRepresentation(
             modules = modules,
