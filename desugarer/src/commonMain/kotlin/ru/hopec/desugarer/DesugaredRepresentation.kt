@@ -105,7 +105,7 @@ data class DesugaredRepresentation(
             val branches: List<Branch>,
         ) : Expr {
             data class Branch(
-                val pattern: Pattern,
+                val pattern: Pattern?,
                 val body: Expr,
             )
         }
