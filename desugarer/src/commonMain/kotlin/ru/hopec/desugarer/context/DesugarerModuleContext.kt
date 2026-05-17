@@ -6,7 +6,6 @@ import ru.hopec.desugarer.ResolvedPattern
 import ru.hopec.desugarer.getInternalConstructors
 import ru.hopec.desugarer.getInternalFunctions
 import ru.hopec.desugarer.internalData
-import ru.hopec.desugarer.unite
 import ru.hopec.desugarer.uniteSet
 
 data class DesugarerModuleContext(
