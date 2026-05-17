@@ -9,6 +9,7 @@ import ru.hopec.renamer.AstNode.FunctionDeclaration
 import ru.hopec.renamer.Program
 import ru.hopec.renamer.RenamedRepresentation
 import ru.hopec.renamer.RenamerPass
+import kotlin.collections.get
 import kotlin.collections.listOf
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -76,7 +77,7 @@ class RenamerTest {
 
             assertEquals(
                 AstNode.FunctionEquation(
-                    pattern = AstNode.BindingPattern(pattern = AstNode.WildcardPattern, bindName = "x"),
+                    pattern = AstNode.VariablePattern("x"),
                     body =
                         AstNode.ApplicationExpr(
                             function = AstNode.IdentExpr(name = "*"),
@@ -120,8 +121,8 @@ class RenamerTest {
                                         constructor = "::",
                                         arguments =
                                             listOf(
-                                                AstNode.BindingPattern(pattern = AstNode.WildcardPattern, bindName = "a"),
-                                                AstNode.BindingPattern(pattern = AstNode.WildcardPattern, bindName = "l"),
+                                                AstNode.VariablePattern("a"),
+                                                AstNode.VariablePattern("l"),
                                             ),
                                     ),
                                 ),
@@ -130,6 +131,29 @@ class RenamerTest {
                 ),
                 functionDeclaration.equations.first(),
             )
+        }
+
+    @Test
+    fun `test const pattern`() =
+        runTest {
+            val code =
+                """
+                dec f : WrongType
+                --- f(42, 'c') <= a 
+                """.trimIndent()
+            val res = startRenamer(code) ?: error("renamer failed")
+        }
+
+    @Test
+    fun `test empty pattern`() =
+        runTest {
+            val code =
+                """
+                dec f : WrongType
+                --- f <= a 
+                --- f() <= a 
+                """.trimIndent()
+            val res = startRenamer(code) ?: error("renamer failed")
         }
 
     @Test
@@ -170,8 +194,8 @@ class RenamerTest {
                                                     constructor = "::",
                                                     arguments =
                                                         listOf(
-                                                            AstNode.BindingPattern(pattern = AstNode.WildcardPattern, bindName = "x"),
-                                                            AstNode.BindingPattern(pattern = AstNode.WildcardPattern, bindName = "xs"),
+                                                            AstNode.VariablePattern("x"),
+                                                            AstNode.VariablePattern("xs"),
                                                         ),
                                                 ),
                                             body = AstNode.IdentExpr(name = "x"),
@@ -189,8 +213,8 @@ class RenamerTest {
                                                 AstNode.TuplePattern(
                                                     tuple =
                                                         listOf(
-                                                            AstNode.BindingPattern(pattern = AstNode.WildcardPattern, bindName = "a"),
-                                                            AstNode.BindingPattern(pattern = AstNode.WildcardPattern, bindName = "b"),
+                                                            AstNode.VariablePattern("a"),
+                                                            AstNode.VariablePattern("b"),
                                                         ),
                                                 ),
                                             body = AstNode.IdentExpr(name = "a"),
@@ -222,13 +246,13 @@ class RenamerTest {
                     constructor = "::",
                     arguments =
                         listOf(
-                            AstNode.BindingPattern(pattern = AstNode.WildcardPattern, bindName = "x"),
+                            AstNode.VariablePattern("x"),
                             AstNode.ConstructorPattern(
                                 constructor = "::",
                                 arguments =
                                     listOf(
-                                        AstNode.BindingPattern(pattern = AstNode.WildcardPattern, bindName = "y"),
-                                        AstNode.BindingPattern(pattern = AstNode.WildcardPattern, bindName = "nil"),
+                                        AstNode.VariablePattern("y"),
+                                        AstNode.VariablePattern("nil"),
                                     ),
                             ),
                         ),
@@ -280,11 +304,7 @@ class RenamerTest {
                     branches =
                         listOf(
                             AstNode.LambdaBranch(
-                                pattern =
-                                    AstNode.BindingPattern(
-                                        pattern = AstNode.WildcardPattern,
-                                        bindName = "nil",
-                                    ),
+                                pattern = AstNode.VariablePattern("nil"),
                                 expression = AstNode.IdentExpr(name = "error"),
                             ),
                             AstNode.LambdaBranch(
@@ -293,8 +313,8 @@ class RenamerTest {
                                         constructor = "::",
                                         arguments =
                                             listOf(
-                                                AstNode.BindingPattern(pattern = AstNode.WildcardPattern, bindName = "a"),
-                                                AstNode.BindingPattern(pattern = AstNode.WildcardPattern, bindName = "xs"),
+                                                AstNode.VariablePattern("a"),
+                                                AstNode.VariablePattern("xs"),
                                             ),
                                     ),
                                 expression = AstNode.IdentExpr(name = "a"),
@@ -355,10 +375,7 @@ class RenamerTest {
                                     listOf(
                                         AstNode.FunctionEquation(
                                             pattern =
-                                                AstNode.BindingPattern(
-                                                    pattern = AstNode.WildcardPattern,
-                                                    bindName = "x",
-                                                ),
+                                                AstNode.VariablePattern("x"),
                                             body =
                                                 AstNode.ApplicationExpr(
                                                     function = AstNode.IdentExpr(name = "<>"),

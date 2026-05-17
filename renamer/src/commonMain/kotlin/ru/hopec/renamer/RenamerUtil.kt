@@ -66,3 +66,14 @@ fun parseMultipleIdent(
 ) = parseMultiple(node, { child -> child.text }, from, to)
 
 fun TsPoint.toPosition() = RenamerException.RenamerLocation(this.row.toInt(), this.column.toInt())
+
+fun stringToList(str: String): AstNode.ConstructorPattern =
+    str.foldRight(AstNode.ConstructorPattern("nil", emptyList())) { char, acc ->
+        AstNode.ConstructorPattern(
+            "cons",
+            listOf(
+                AstNode.ConstructorPattern(char.toString(), emptyList()),
+                acc,
+            ),
+        )
+    }
