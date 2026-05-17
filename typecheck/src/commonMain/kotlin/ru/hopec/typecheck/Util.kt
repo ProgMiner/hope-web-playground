@@ -22,7 +22,10 @@ internal fun Type.arguments(): Pair<List<Type>, Type> {
                 rest.first.add(argument)
                 rest
             }
-            else -> mutableListOf<Type>() to this
+
+            else -> {
+                mutableListOf<Type>() to this
+            }
         }
 
     val args = go()
