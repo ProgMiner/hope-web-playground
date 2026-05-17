@@ -5,7 +5,6 @@ import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Data
 import ru.hopec.desugarer.context.DesugarerGlobalContext
 import ru.hopec.desugarer.context.DesugarerLocalContext
 import ru.hopec.desugarer.context.DesugarerModuleContext
-import ru.hopec.desugarer.context.ModuleDeclarations
 import ru.hopec.renamer.AstNode
 import ru.hopec.renamer.RenamedRepresentation
 import kotlin.collections.set
