@@ -11,7 +11,11 @@ object DesugarerPass : CompilationPass<RenamedRepresentation, DesugaredRepresent
     ) = try {
         Desugarer().renamedToDesugared(from)
     } catch (e: IllegalStateException) {
-        println(e.message)
+        context.add(e)
         null
+    }
+
+    private fun CompilationContext.add(exception: Exception) {
+        println("Renaming error: ${exception.message}")
     }
 }

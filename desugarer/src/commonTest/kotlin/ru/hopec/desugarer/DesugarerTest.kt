@@ -205,7 +205,10 @@ class DesugarerTest {
                         ),
                     ),
                     DesugaredRepresentation.PolymorphicType(
-                        DesugaredRepresentation.Type.Data(DesugaredRepresentation.Declarations.Data.Name.Core.Num, emptyList()),
+                        DesugaredRepresentation.Type.Data(
+                            DesugaredRepresentation.Declarations.Data.Name.Core.Num,
+                            emptyList(),
+                        ),
                         0,
                     ),
                 ),
@@ -258,5 +261,88 @@ class DesugarerTest {
             assertEquals(1, arg.binder)
             val body = let.body as DesugaredRepresentation.Expr.Variable
             assertEquals(1, body.binder)
+        }
+
+    @Test
+    fun `test module use`() =
+        runTest {
+            val program =
+                RenamedRepresentation(
+                    Program(
+                        listOf(
+                            AstNode.FunctionDeclaration(
+                                "g",
+                                listOf(
+                                    AstNode.FunctionEquation(
+                                        AstNode.VariablePattern("x"),
+                                        AstNode.IdentExpr("x"),
+                                    ),
+                                ),
+                                emptyList(),
+                                numType,
+                            ),
+                            AstNode.Module(
+                                "module1",
+                                listOf(
+                                    AstNode.FunctionDeclaration(
+                                        "g",
+                                        listOf(
+                                            AstNode.FunctionEquation(
+                                                AstNode.VariablePattern("x"),
+                                                AstNode.IdentExpr("x"),
+                                            ),
+                                        ),
+                                        emptyList(),
+                                        numType,
+                                    ),
+                                    AstNode.ConstantExportDeclaration(listOf("g")),
+                                    // FIXME: сейчас порядок export не влияет, экспортируются все вхождения
+                                    AstNode.FunctionDeclaration(
+                                        "g",
+                                        listOf(
+                                            AstNode.FunctionEquation(
+                                                AstNode.VariablePattern("x"),
+                                                AstNode.IdentExpr("x"),
+                                            ),
+                                        ),
+                                        emptyList(),
+                                        numType,
+                                    ),
+                                ),
+                            ),
+                            AstNode.Module(
+                                "module2",
+                                listOf(
+                                    AstNode.FunctionDeclaration(
+                                        "f",
+                                        listOf(
+                                            AstNode.FunctionEquation(
+                                                null,
+                                                AstNode.IdentExpr("g"),
+                                            ),
+                                        ),
+                                        emptyList(),
+                                        numType,
+                                    ),
+                                    AstNode.ModuleUseDeclaration(
+                                        listOf("module1"),
+                                    ),
+                                    AstNode.FunctionDeclaration(
+                                        "f",
+                                        listOf(
+                                            AstNode.FunctionEquation(
+                                                null,
+                                                AstNode.IdentExpr("g"),
+                                            ),
+                                        ),
+                                        emptyList(),
+                                        numType,
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                )
+            val desugared = startDesugarer(program) ?: error("desugarer error")
         }
 }

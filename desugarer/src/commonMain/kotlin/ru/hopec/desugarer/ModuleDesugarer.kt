@@ -10,6 +10,7 @@ import ru.hopec.desugarer.DesugaredRepresentation.Type
 import ru.hopec.desugarer.context.DesugarerGlobalContext
 import ru.hopec.desugarer.context.DesugarerLocalContext
 import ru.hopec.desugarer.context.DesugarerModuleContext
+import ru.hopec.desugarer.context.ModuleDeclarations
 import ru.hopec.renamer.AstNode
 
 open class ModuleDesugarer(
@@ -54,37 +55,39 @@ open class ModuleDesugarer(
             }
         }
 
-        val publicFunctions =
-            publicConstants
-                .flatMap { constant ->
-                    moduleContext.moduleFunctions[constant]?.toList()
-                        ?: throw IllegalStateException("No module function found for $constant")
-                }.toSet()
-        val publicConstructors =
-            publicConstants
-                .flatMap { constant ->
-                    moduleContext.moduleConstructors[constant]?.toList()
-                        ?: throw IllegalStateException("No module constructor found for $constant")
-                }.toSet()
-        val publicConstants = publicFunctions + publicConstructors
-        val publicData =
-            publicDataTypes
-                .map { name ->
-                    moduleContext.moduleDataTypes[name]
-                        ?: throw IllegalStateException("No module data type found for $name")
-                }.toSet()
-        val moduleFunctions = moduleContext.moduleFunctions.flatMap { it.value }.toSet()
-        val moduleConstructors = moduleContext.moduleConstructors.flatMap { it.value }.toSet()
+        val publicFunctionsMap = moduleContext.moduleFunctions.filterKeys { publicConstants.contains(it) }.toMutableMap()
+        val publicConstructorsMap = moduleContext.moduleConstructors.filterKeys { publicConstants.contains(it) }.toMutableMap()
+        val publicDataTypesMap = moduleContext.moduleDataTypes.filterKeys { publicConstants.contains(it) }.toMutableMap()
+        if (globalContext.moduleDeclarations.containsKey(name)) {
+            throw IllegalStateException("Module declarations $name already defined")
+        }
+        globalContext.moduleDeclarations[name] =
+            ModuleDeclarations(
+                publicFunctionsMap,
+                publicConstructorsMap,
+                publicDataTypesMap,
+            )
+
+        val publicConstants = uniteSet(publicFunctionsMap, publicConstructorsMap).values.flatten()
+        val publicDataTypes = publicDataTypesMap.values.toSet()
+        val moduleFunctions =
+            moduleContext.moduleFunctions.values
+                .flatten()
+                .toSet()
+        val moduleConstructors =
+            moduleContext.moduleConstructors.values
+                .flatten()
+                .toSet()
         val privateConstants = ((moduleConstructors + moduleFunctions) - publicConstants.toSet())
         val privateData =
             moduleContext.moduleDataTypes
                 .map { it.value }
                 .toSet()
-                .minus(publicDataTypes.toSet())
+                .minus(publicDataTypes)
 
         return DesugaredRepresentation.Module(
             Declarations(
-                dataTypes.filter { (name, _) -> publicData.contains(name) },
+                dataTypes.filter { (name, _) -> publicDataTypes.contains(name) },
                 functions.filter { (name, _) -> publicConstants.contains(name) },
             ),
             Declarations(
@@ -154,7 +157,7 @@ open class ModuleDesugarer(
             Expr.Lambda(
                 data.equations.map { equation ->
                     newScope().let {
-                        val pattern = resolvePattern(equation.pattern)
+                        val pattern = equation.pattern?.let { resolvePattern(it) }
                         Expr.Lambda.Branch(pattern, resolveExpression(equation.body))
                     }
                 },

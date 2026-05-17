@@ -26,7 +26,7 @@ sealed interface AstNode {
     ) : Statement
 
     data class FunctionEquation(
-        val pattern: Pattern,
+        val pattern: Pattern?,
         val body: Expr,
     )
 

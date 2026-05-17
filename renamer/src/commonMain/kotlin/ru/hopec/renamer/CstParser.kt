@@ -487,15 +487,22 @@ class CstParser(
     private fun parseFunctionPattern(
         node: TsSyntaxNode,
         operators: MutableMap<String, Infix>,
-    ): Pair<String, AstNode.Pattern> {
+    ): Pair<String, AstNode.Pattern?> {
         if (node.namedChildCount == 2u) {
             val functionName = node.getChildOrThrow(0u).text
-            return Pair(functionName, parsePattern(node.getChildOrThrow(1u), operators))
+            var pattern: AstNode.Pattern? = parsePattern(node.getChildOrThrow(1u), operators)
+            if (pattern is AstNode.TuplePattern && pattern.tuple.isEmpty()) {
+                pattern = null
+            }
+            return functionName to pattern
+        } else if (node.namedChildCount == 1u) {
+            val functionName = node.getChildOrThrow(0u).text
+            return functionName to null
         } else {
             val functionName = node.getChildOrThrow(1u).text
             val left = parsePattern(node.getChildOrThrow(0u), operators)
             val right = parsePattern(node.getChildOrThrow(2u), operators)
-            return Pair(functionName, AstNode.TuplePattern(listOf(left, right)))
+            return functionName to AstNode.TuplePattern(listOf(left, right))
         }
     }
 

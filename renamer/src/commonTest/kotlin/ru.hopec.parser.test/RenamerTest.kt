@@ -145,6 +145,18 @@ class RenamerTest {
         }
 
     @Test
+    fun `test empty pattern`() =
+        runTest {
+            val code =
+                """
+                dec f : WrongType
+                --- f <= a 
+                --- f() <= a 
+                """.trimIndent()
+            val res = startRenamer(code) ?: error("renamer failed")
+        }
+
+    @Test
     fun `test binding pattern`() =
         runTest {
             val code =
