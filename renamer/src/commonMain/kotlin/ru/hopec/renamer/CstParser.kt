@@ -510,9 +510,9 @@ class CstParser(
                     infix = operators,
                     parse = { parsePattern(it, operators) },
                     constructOperand = { func, args ->
-                        if (func is AstNode.BindingPattern && func.pattern is AstNode.WildcardPattern) {
+                        if (func is AstNode.VariablePattern) {
                             AstNode.ConstructorPattern(
-                                func.bindName,
+                                func.name,
                                 if (args is AstNode.TuplePattern) args.tuple else listOf(args),
                             )
                         } else {
@@ -551,7 +551,7 @@ class CstParser(
             "list_pattern" -> {
                 val list = parseMultiple(node, { parsePattern(it, operators) })
                 list.foldRight<AstNode.Pattern, AstNode.Pattern>(
-                    AstNode.BindingPattern(AstNode.WildcardPattern, "nil"),
+                    AstNode.VariablePattern("nil"),
                 ) { pattern, acc -> AstNode.ConstructorPattern("::", listOf(pattern, acc)) }
             }
 
