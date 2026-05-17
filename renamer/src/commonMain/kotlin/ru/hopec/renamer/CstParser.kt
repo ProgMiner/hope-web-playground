@@ -481,12 +481,22 @@ class CstParser(
                     constructOperator = { name, args -> AstNode.ConstructorPattern(name, args) },
                 )
 
-            "expression" -> parsePattern(node.getChildOrThrow(0u), operators)
-            "ident" -> AstNode.BindingPattern(AstNode.WildcardPattern, node.text)
+            "ident" -> {
+                if (node.text.startsWith("\'") && node.text.endsWith("\'") && node.text.length == 3)
+                    AstNode.ConstructorPattern(node.text[1].toString(), emptyList())
+                else if (node.text.startsWith("\"") && node.text.endsWith("\""))
+                    stringToList(node.text.substring(1, node.text.length - 1))
+                else if (Regex("-?\\d+").matches(node.text))
+                    AstNode.ConstructorPattern(node.text, emptyList())
+                else if (node.text == "true" || node.text == "false")
+                    AstNode.ConstructorPattern(node.text, emptyList())
+                else
+                    AstNode.VariablePattern(node.text)
+            }
             "binding_pattern" ->
-                AstNode.BindingPattern(
+                    AstNode.BindingPattern(
                     parsePattern(node.getChildOrThrow(1u), operators),
-                    node.getChildOrThrow(0u).text,
+                    node.getChildOrThrow(0u).text
                 )
             "list_pattern" -> {
                 val list = parseMultiple(node, { parsePattern(it, operators) })

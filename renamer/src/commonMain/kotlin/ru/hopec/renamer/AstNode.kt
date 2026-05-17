@@ -121,6 +121,10 @@ sealed interface AstNode {
         val tuple: List<Pattern>,
     ) : Pattern
 
+    data class VariablePattern(
+        val name: String,
+    ) : Pattern
+
     data class BindingPattern(
         val pattern: Pattern,
         val bindName: String,
