@@ -298,16 +298,16 @@ class CstParser(
             "ident" -> {
                 if (node.text.startsWith("\'") && node.text.endsWith("\'") && node.text.length == 3) {
                     AstNode.CharLiteral(node.text[1])
-                } else if (Regex("-?\\d+").matches(node.text)) {
-                    AstNode.DecimalLiteral(node.text.toInt())
-                } else if (node.text == "true" || node.text == "false") {
+                else if (Regex("-?\\d+").matches(node.text))
+                    AstNode.DecimalLiteral(node.text.toLong())
+                else if (node.text == "true" || node.text == "false")
                     AstNode.TruvalLiteral(node.text.toBoolean())
                 } else {
                     AstNode.IdentExpr(node.text)
                 }
             }
 
-            "decimal" -> AstNode.DecimalLiteral(node.text.toInt())
+            "decimal" -> AstNode.DecimalLiteral(node.text.toLong())
             "string" -> AstNode.StringLiteral(node.text.substring(1, node.text.length - 1))
             "char" -> AstNode.CharLiteral(node.text.first())
             "truval" -> AstNode.TruvalLiteral(node.text.toBoolean())
