@@ -2,6 +2,7 @@ package ru.hopec.desugarer
 
 import ru.hopec.desugarer.DesugaredRepresentation.Declarations
 import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Data
+import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Function
 import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Function.Name.Constructor
 import ru.hopec.desugarer.DesugaredRepresentation.Expr
 import ru.hopec.desugarer.DesugaredRepresentation.Pattern
@@ -18,15 +19,16 @@ open class ModuleDesugarer(
     val moduleContext: DesugarerModuleContext = DesugarerModuleContext(),
     val localContext: DesugarerLocalContext = DesugarerLocalContext(),
 ) {
-    val publicConstants: MutableSet<String> = mutableSetOf()
-    val publicDataTypes: MutableSet<String> = mutableSetOf()
+    val publicFunctionsMap: MutableMap<String, MutableSet<Function.Name.User>> = mutableMapOf()
+    val publicConstructorsMap: MutableMap<String, MutableSet<Constructor>> = mutableMapOf()
+    val publicDataTypesMap: MutableMap<String, Data.Name.Defined> = mutableMapOf()
     private var identCounter = 0
 
     fun resolveModule(module: AstNode.Module): DesugaredRepresentation.Module {
         val name = module.name
         val statements = module.statements
         val dataTypes: MutableMap<Data.Name.Defined, Data> = mutableMapOf()
-        val functions: MutableMap<Declarations.Function.Name, Declarations.Function> = mutableMapOf()
+        val functions: MutableMap<Function.Name, Function> = mutableMapOf()
         statements.forEach { statement ->
             when (statement) {
                 is AstNode.Error -> {}
@@ -55,9 +57,6 @@ open class ModuleDesugarer(
             }
         }
 
-        val publicFunctionsMap = moduleContext.moduleFunctions.filterKeys { publicConstants.contains(it) }.toMutableMap()
-        val publicConstructorsMap = moduleContext.moduleConstructors.filterKeys { publicConstants.contains(it) }.toMutableMap()
-        val publicDataTypesMap = moduleContext.moduleDataTypes.filterKeys { publicConstants.contains(it) }.toMutableMap()
         if (globalContext.moduleDeclarations.containsKey(name)) {
             throw IllegalStateException("Module declarations $name already defined")
         }
@@ -346,7 +345,7 @@ open class ModuleDesugarer(
 
     fun extendModuleFunction(
         name: String,
-        function: Declarations.Function.Name.User,
+        function: Function.Name.User,
     ) {
         moduleContext.extendModuleFunction(name, function)
     }
@@ -373,11 +372,18 @@ open class ModuleDesugarer(
     }
 
     fun exportConstant(name: String) {
-        publicConstants.add(name)
+        val constructorSet = moduleContext.moduleConstructors[name] ?: emptySet()
+        val functionsSet = moduleContext.moduleFunctions[name] ?: emptySet()
+        if (constructorSet.isEmpty() && functionsSet.isEmpty()) {
+            throw IllegalArgumentException("No module constant found for $name")
+        }
+        publicConstructorsMap.getOrPut(name) { mutableSetOf() }.addAll(constructorSet)
+        publicFunctionsMap.getOrPut(name) { mutableSetOf() }.addAll(functionsSet)
     }
 
     fun exportDataType(name: String) {
-        publicDataTypes.add(name)
+        publicDataTypesMap[name] = moduleContext.moduleDataTypes[name]
+            ?: throw IllegalStateException("No module data found for $name")
     }
 
     fun resolveExpr(name: String) =

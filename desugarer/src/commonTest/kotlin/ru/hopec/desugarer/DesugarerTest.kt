@@ -296,7 +296,6 @@ class DesugarerTest {
                                         numType,
                                     ),
                                     AstNode.ConstantExportDeclaration(listOf("g")),
-                                    // FIXME: сейчас порядок export не влияет, экспортируются все вхождения
                                     AstNode.FunctionDeclaration(
                                         "g",
                                         listOf(
@@ -344,5 +343,22 @@ class DesugarerTest {
                     ),
                 )
             val desugared = startDesugarer(program) ?: error("desugarer error")
+            val function =
+                desugared.modules["module2"]?.private?.functions[
+                    DesugaredRepresentation.Declarations.Function.Name.User(
+                        "module2",
+                        "f_1",
+                    ),
+                ]
+            val ident =
+                function
+                    ?.lambda
+                    ?.branches
+                    ?.first()
+                    ?.body as DesugaredRepresentation.Expr.Identifier
+            assertEquals(
+                2,
+                ident.name.size,
+            )
         }
 }
