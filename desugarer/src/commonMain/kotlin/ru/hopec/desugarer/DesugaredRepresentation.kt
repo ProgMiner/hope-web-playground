@@ -121,24 +121,6 @@ data class DesugaredRepresentation(
             val matcher: Expr,
             val body: Expr,
         ) : Expr
-
-        sealed interface Literal : Expr {
-            data class TruVal(
-                val value: Boolean,
-            ) : Literal
-
-            data class Num(
-                val value: Long,
-            ) : Literal
-
-            data class Char(
-                val value: kotlin.Char,
-            ) : Literal
-
-            data class String(
-                val value: kotlin.String,
-            ) : Literal
-        }
     }
 
     sealed interface Pattern {
@@ -157,6 +139,26 @@ data class DesugaredRepresentation(
             val name: String,
             val data: Data,
         ) : Pattern
+    }
+
+    sealed interface Literal :
+        Expr,
+        Pattern {
+        data class TruVal(
+            val value: Boolean,
+        ) : Literal
+
+        data class Num(
+            val value: Long,
+        ) : Literal
+
+        data class Char(
+            val value: kotlin.Char,
+        ) : Literal
+
+        data class String(
+            val value: kotlin.String,
+        ) : Literal
     }
 
     data class PolymorphicType(

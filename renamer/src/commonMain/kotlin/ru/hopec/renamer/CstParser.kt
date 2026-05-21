@@ -312,12 +312,11 @@ class CstParser(
                 }
             }
 
-            // FIXME: временное решение, пока в грамматике есть проблемы
             "ident" -> {
                 if (node.text.startsWith("\'") && node.text.endsWith("\'") && node.text.length == 3) {
                     AstNode.CharLiteral(node.text[1])
                 } else if (Regex("-?\\d+").matches(node.text)) {
-                    AstNode.DecimalLiteral(node.text.toLong())
+                    AstNode.DecimalLiteral(node.text.toLongOrNull() ?: throw IllegalStateException("Can't parse decimal literal"))
                 } else if (node.text == "true" || node.text == "false") {
                     AstNode.TruvalLiteral(node.text.toBoolean())
                 } else {
@@ -536,13 +535,13 @@ class CstParser(
 
             "ident" -> {
                 if (node.text.startsWith("\'") && node.text.endsWith("\'") && node.text.length == 3) {
-                    AstNode.ConstructorPattern(node.text[1].toString(), emptyList())
+                    AstNode.CharLiteral(node.text[1])
                 } else if (node.text.startsWith("\"") && node.text.endsWith("\"")) {
-                    stringToList(node.text.substring(1, node.text.length - 1))
+                    AstNode.StringLiteral(node.text.substring(1, node.text.length - 1))
                 } else if (Regex("-?\\d+").matches(node.text)) {
-                    AstNode.ConstructorPattern(node.text, emptyList())
+                    AstNode.DecimalLiteral(node.text.toLongOrNull() ?: throw IllegalStateException("Can't parse decimal literal"))
                 } else if (node.text == "true" || node.text == "false") {
-                    AstNode.ConstructorPattern(node.text, emptyList())
+                    AstNode.TruvalLiteral(node.text.toBoolean())
                 } else {
                     AstNode.VariablePattern(node.text)
                 }

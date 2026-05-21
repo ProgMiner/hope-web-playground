@@ -26,6 +26,9 @@ open class ModuleDesugarer(
 
     fun resolveModule(module: AstNode.Module): DesugaredRepresentation.Module {
         val name = module.name
+        if (globalContext.moduleDeclarations.containsKey(name)) {
+            throw IllegalStateException("Module '$name' already defined")
+        }
         val statements = module.statements
         val dataTypes: MutableMap<Data.Name.Defined, Data> = mutableMapOf()
         val functions: MutableMap<Function.Name, Function> = mutableMapOf()
@@ -57,9 +60,6 @@ open class ModuleDesugarer(
             }
         }
 
-        if (globalContext.moduleDeclarations.containsKey(name)) {
-            throw IllegalStateException("Module declarations $name already defined")
-        }
         globalContext.moduleDeclarations[name] =
             ModuleDeclarations(
                 publicFunctionsMap,
@@ -86,12 +86,12 @@ open class ModuleDesugarer(
 
         return DesugaredRepresentation.Module(
             Declarations(
-                dataTypes.filter { (name, _) -> publicDataTypes.contains(name) },
-                functions.filter { (name, _) -> publicConstants.contains(name) },
+                dataTypes.filter { publicDataTypes.contains(it.key) },
+                functions.filter { publicConstants.contains(it.key) },
             ),
             Declarations(
-                dataTypes.filter { (name, _) -> privateData.contains(name) },
-                functions.filter { (name, _) -> privateConstants.contains(name) },
+                dataTypes.filter { privateData.contains(it.key) },
+                functions.filter { privateConstants.contains(it.key) },
             ),
         )
     }
@@ -102,6 +102,7 @@ open class ModuleDesugarer(
     ): Pair<Data.Name.Defined, Data> {
         val dataName = Data.Name.Defined(module, data.name)
         extendModuleData(dataName)
+
         return dataName to
             Data(
                 data.dataConstructors
@@ -143,14 +144,14 @@ open class ModuleDesugarer(
     protected fun resolveFunctionDecl(
         function: AstNode.FunctionDeclaration,
         module: String?,
-    ): Pair<Declarations.Function.Name, Declarations.Function> {
+    ): Pair<Function.Name, Function> {
         val newName = function.name.generateNewName()
-        val functionName = Declarations.Function.Name.User(module, newName)
+        val functionName = Function.Name.User(module, newName)
         extendModuleFunction(function.name, functionName)
         return functionName to resolveFunction(function)
     }
 
-    private fun resolveFunction(data: AstNode.FunctionDeclaration): Declarations.Function {
+    private fun resolveFunction(data: AstNode.FunctionDeclaration): Function {
         val type = PolymorphicType(resolveType(data.typeExpr, data.boundVars), data.boundVars.size)
         val lambda =
             Expr.Lambda(
@@ -161,14 +162,14 @@ open class ModuleDesugarer(
                     }
                 },
             )
-        return Declarations.Function(lambda, type)
+        return Function(lambda, type)
     }
 
     private fun resolveExpression(expr: AstNode.Expr): Expr {
         fun listToExpr(
             list: List<AstNode.Expr>,
-            nil: Declarations.Function.Name,
-            cons: Declarations.Function.Name,
+            nil: Function.Name,
+            cons: Function.Name,
         ): Expr =
             if (list.isNotEmpty()) {
                 Expr.Application(
@@ -227,19 +228,19 @@ open class ModuleDesugarer(
             }
 
             is AstNode.DecimalLiteral -> {
-                Expr.Literal.Num(expr.value)
+                DesugaredRepresentation.Literal.Num(expr.value)
             }
 
             is AstNode.CharLiteral -> {
-                Expr.Literal.Char(expr.char)
+                DesugaredRepresentation.Literal.Char(expr.char)
             }
 
             is AstNode.StringLiteral -> {
-                Expr.Literal.String(expr.string)
+                DesugaredRepresentation.Literal.String(expr.string)
             }
 
             is AstNode.TruvalLiteral -> {
-                Expr.Literal.TruVal(expr.bool)
+                DesugaredRepresentation.Literal.TruVal(expr.bool)
             }
 
             is AstNode.SetExpr -> {
@@ -301,6 +302,22 @@ open class ModuleDesugarer(
                 Pattern.Wildcard
             }
 
+            is AstNode.CharLiteral -> {
+                DesugaredRepresentation.Literal.Char(pattern.char)
+            }
+
+            is AstNode.DecimalLiteral -> {
+                DesugaredRepresentation.Literal.Num(pattern.value)
+            }
+
+            is AstNode.TruvalLiteral -> {
+                DesugaredRepresentation.Literal.TruVal(pattern.bool)
+            }
+
+            is AstNode.StringLiteral -> {
+                DesugaredRepresentation.Literal.String(pattern.string)
+            }
+
             is AstNode.ConstructorPattern -> {
                 Pattern.Data(
                     resolvePattern(pattern.constructor).idents,
@@ -358,6 +375,9 @@ open class ModuleDesugarer(
     }
 
     fun extendModuleData(name: Data.Name.Defined) {
+        if (moduleContext.moduleDataTypes.containsKey(name.name)) {
+            throw IllegalStateException("Data declaration $name already defined")
+        }
         moduleContext.extendModuleData(name)
     }
 

@@ -92,7 +92,9 @@ sealed interface AstNode {
         val expression: Expr,
     )
 
-    sealed interface Literal : Expr
+    sealed interface Literal :
+        Expr,
+        Pattern
 
     data class DecimalLiteral(
         val value: Long,

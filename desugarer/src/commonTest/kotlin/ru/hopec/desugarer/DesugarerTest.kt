@@ -263,6 +263,19 @@ class DesugarerTest {
             assertEquals(1, body.binder)
         }
 
+    private val id =
+        AstNode.FunctionDeclaration(
+            "id",
+            listOf(
+                AstNode.FunctionEquation(
+                    AstNode.VariablePattern("x"),
+                    AstNode.IdentExpr("x"),
+                ),
+            ),
+            emptyList(),
+            numType,
+        )
+
     @Test
     fun `test module use`() =
         runTest {
@@ -270,43 +283,13 @@ class DesugarerTest {
                 RenamedRepresentation(
                     Program(
                         listOf(
-                            AstNode.FunctionDeclaration(
-                                "g",
-                                listOf(
-                                    AstNode.FunctionEquation(
-                                        AstNode.VariablePattern("x"),
-                                        AstNode.IdentExpr("x"),
-                                    ),
-                                ),
-                                emptyList(),
-                                numType,
-                            ),
+                            id,
                             AstNode.Module(
                                 "module1",
                                 listOf(
-                                    AstNode.FunctionDeclaration(
-                                        "g",
-                                        listOf(
-                                            AstNode.FunctionEquation(
-                                                AstNode.VariablePattern("x"),
-                                                AstNode.IdentExpr("x"),
-                                            ),
-                                        ),
-                                        emptyList(),
-                                        numType,
-                                    ),
-                                    AstNode.ConstantExportDeclaration(listOf("g")),
-                                    AstNode.FunctionDeclaration(
-                                        "g",
-                                        listOf(
-                                            AstNode.FunctionEquation(
-                                                AstNode.VariablePattern("x"),
-                                                AstNode.IdentExpr("x"),
-                                            ),
-                                        ),
-                                        emptyList(),
-                                        numType,
-                                    ),
+                                    id,
+                                    AstNode.ConstantExportDeclaration(listOf("id")),
+                                    id,
                                 ),
                             ),
                             AstNode.Module(
@@ -317,7 +300,7 @@ class DesugarerTest {
                                         listOf(
                                             AstNode.FunctionEquation(
                                                 null,
-                                                AstNode.IdentExpr("g"),
+                                                AstNode.IdentExpr("id"),
                                             ),
                                         ),
                                         emptyList(),
@@ -331,7 +314,7 @@ class DesugarerTest {
                                         listOf(
                                             AstNode.FunctionEquation(
                                                 null,
-                                                AstNode.IdentExpr("g"),
+                                                AstNode.IdentExpr("id"),
                                             ),
                                         ),
                                         emptyList(),
