@@ -26,6 +26,10 @@ kotlin {
             implementation(project(":typecheck"))
         }
 
+        commonTest.dependencies {
+            implementation(kotlin("test"))
+        }
+
         wasmJsMain.configure {
             compilerOptions {
                 freeCompilerArgs.add("-Xwasm-use-new-exception-proposal")

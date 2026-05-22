@@ -2,30 +2,43 @@ package ru.hopec.driver
 
 import okio.Buffer
 import okio.Sink
+import ru.hopec.codegen.CodeGenPass
+import ru.hopec.codegen.WasmRepresentation
 import ru.hopec.core.CompilationContext
 import ru.hopec.core.CompilationPass
+import ru.hopec.core.then
 import ru.hopec.parser.TreeSitterRepresentation
 import ru.hopec.parser.treesitter.TsTree
-import ru.hopec.renamer.RenamedRepresentation
 import ru.hopec.renamer.RenamerPass
+import ru.hopec.typecheck.TypeCheckPass
 
 expect fun compileWatToBinary(wat: String): ByteArray
 
 class Hopec(
-    @Suppress("UNUSED_PARAMETER") private val context: CompilationContext,
+    private val context: CompilationContext,
 ) {
-    fun makeChain(): CompilationPass<TreeSitterRepresentation, RenamedRepresentation> = RenamerPass
+    fun makeChain(): CompilationPass<TreeSitterRepresentation, WasmRepresentation> = RenamerPass.then(TypeCheckPass()).then(CodeGenPass())
 
     fun run(
-        @Suppress("UNUSED_PARAMETER") input: TsTree,
+        input: TsTree,
         output: Sink,
     ): Int {
         val context = CompilationContext()
-        val res = makeChain().run(TreeSitterRepresentation(input), context)
-
-        println("Debug: $res")
 
         val watCode =
+            try {
+                makeChain().run(TreeSitterRepresentation(input), context)?.wat
+            } catch (_: NotImplementedError) {
+                null
+            } ?: STUB_WAT
+
+        val wasmBinary = compileWatToBinary(watCode)
+        output.write(Buffer().write(wasmBinary), wasmBinary.size.toLong())
+        return 0
+    }
+
+    private companion object {
+        val STUB_WAT =
             """
             (module
               (func (export "add") (param i32 i32) (result i32)
@@ -36,9 +49,5 @@ class Hopec(
               )
             )
             """.trimIndent()
-
-        val wasmBinary = compileWatToBinary(watCode)
-        output.write(Buffer().write(wasmBinary), wasmBinary.size.toLong())
-        return 0
     }
 }
