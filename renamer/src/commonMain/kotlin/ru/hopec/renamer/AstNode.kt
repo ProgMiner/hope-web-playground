@@ -26,7 +26,7 @@ sealed interface AstNode {
     ) : Statement
 
     data class FunctionEquation(
-        val pattern: Pattern,
+        val pattern: Pattern?,
         val body: Expr,
     )
 
@@ -92,10 +92,12 @@ sealed interface AstNode {
         val expression: Expr,
     )
 
-    sealed interface Literal : Expr
+    sealed interface Literal :
+        Expr,
+        Pattern
 
     data class DecimalLiteral(
-        val value: Int,
+        val value: Long,
     ) : Literal
 
     data class TruvalLiteral(
@@ -119,6 +121,10 @@ sealed interface AstNode {
 
     data class TuplePattern(
         val tuple: List<Pattern>,
+    ) : Pattern
+
+    data class VariablePattern(
+        val name: String,
     ) : Pattern
 
     data class BindingPattern(
