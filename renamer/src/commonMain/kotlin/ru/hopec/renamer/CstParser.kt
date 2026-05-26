@@ -1,9 +1,8 @@
 package ru.hopec.renamer
 
-import ru.hopec.core.StatusSeverity
 import ru.hopec.parser.TreeSitterRepresentation
 import ru.hopec.parser.treesitter.TsSyntaxNode
-import kotlin.collections.listOf
+import ru.hopec.parser.treesitter.range
 
 class CstParser(
     private val from: TreeSitterRepresentation,
@@ -105,7 +104,11 @@ class CstParser(
                 val name = node.getChildOrThrow(0u).text
                 val params = parseMultiple(node, { it.text }, 1u, node.namedChildCount - 1u)
                 val typeNode =
-                    parseTypeDeclaration(node.getChildOrThrow(node.namedChildCount - 1u), parserState.operators, params.toMutableSet())
+                    parseTypeDeclaration(
+                        node.getChildOrThrow(node.namedChildCount - 1u),
+                        parserState.operators,
+                        params.toMutableSet(),
+                    )
                 AstNode.DataDeclaration(name, params, typeNode)
             }
 
@@ -135,9 +138,8 @@ class CstParser(
                 names.forEach {
                     parserState.operators.putAll(
                         moduleOperators[it] ?: throw RenamerException(
-                            StatusSeverity.ERROR,
                             "Module \"$it\" does not exist",
-                            node.endPosition.toPosition(),
+                            node.range(),
                         ),
                     )
                 }
@@ -161,9 +163,8 @@ class CstParser(
                 val equationList =
                     parserState.equations.findLast { (name, _) -> name == functionName }
                         ?: throw RenamerException(
-                            StatusSeverity.ERROR,
                             "Equations without declaration",
-                            node.endPosition.toPosition(),
+                            node.range(),
                         )
                 equationList.second.add(equation)
             }
@@ -180,7 +181,7 @@ class CstParser(
             "line_comment" -> {}
 
             else -> {
-                throw IllegalStateException("Unknown statement: ${node.type} in node $node")
+                throw RenamerException("Unknown statement: ${node.type} in node $node", node.range(), fatal = true)
             }
         }
     }
@@ -218,9 +219,8 @@ class CstParser(
                         node.namedChildren.indexOfFirst { operators.contains(it.text) }.toUInt()
                     val operator =
                         node.namedChild(operatorIndex) ?: throw RenamerException(
-                            StatusSeverity.ERROR,
                             "Unknown operator",
-                            node.endPosition.toPosition(),
+                            node.range(),
                         )
 
                     val left = parseFunctionalType(node, typeVars, 0u, operatorIndex)
@@ -247,8 +247,14 @@ class CstParser(
                 val type2 = parseType(node.getChildOrThrow(1u), typeVars)
                 when (node.children[1].text) {
                     "->" -> AstNode.FunctionalType(type1, type2)
+
                     "#" -> AstNode.ProductType(type1, type2)
-                    else -> throw IllegalStateException("Unknown ADT: ${node.children[1].text}")
+
+                    else -> throw RenamerException(
+                        "Unknown ADT: ${node.children[1].text}",
+                        node.children[1].range(),
+                        fatal = true,
+                    )
                 }
             }
 
@@ -261,8 +267,10 @@ class CstParser(
             }
 
             else -> {
-                throw IllegalStateException(
+                throw RenamerException(
                     "Unknown type: ${node.type} in node $node",
+                    node.range(),
+                    fatal = true,
                 )
             }
         }
@@ -316,7 +324,13 @@ class CstParser(
                 if (node.text.startsWith("\'") && node.text.endsWith("\'") && node.text.length == 3) {
                     AstNode.CharLiteral(node.text[1])
                 } else if (Regex("-?\\d+").matches(node.text)) {
-                    AstNode.DecimalLiteral(node.text.toLongOrNull() ?: throw IllegalStateException("Can't parse decimal literal"))
+                    AstNode.DecimalLiteral(
+                        node.text.toLongOrNull() ?: throw RenamerException(
+                            "Can't parse decimal literal",
+                            node.range(),
+                            fatal = true,
+                        ),
+                    )
                 } else if (node.text == "true" || node.text == "false") {
                     AstNode.TruvalLiteral(node.text.toBoolean())
                 } else {
@@ -390,7 +404,7 @@ class CstParser(
             }
 
             else -> {
-                throw IllegalStateException("Unknown expression: ${node.type} in node $node")
+                throw RenamerException("Unknown expression: ${node.type} in node $node", node.range(), fatal = true)
             }
         }
 
@@ -418,13 +432,13 @@ class CstParser(
                     ),
                 )
             } else {
-                throw IllegalStateException("Can apply only tuple or 1 argument")
+                throw RenamerException("Can apply only tuple or 1 argument", node.range(), fatal = true)
             }
             tokenStack.clear()
         }
 
         if (expressions.size != node.namedChildCount.toInt()) {
-            throw IllegalStateException("Not all nodes were parsed")
+            throw RenamerException("Not all nodes were parsed", node.range(), fatal = true)
         }
 
         for (ind in 0u until node.namedChildCount) {
@@ -432,9 +446,8 @@ class CstParser(
             if (infix.contains(child.text)) {
                 if (tokenStack.isEmpty()) {
                     throw RenamerException(
-                        StatusSeverity.ERROR,
                         "Not fully applied operator ${child.text}",
-                        node.endPosition.toPosition(),
+                        node.range(),
                     )
                 }
                 popToken()
@@ -523,9 +536,8 @@ class CstParser(
                             )
                         } else {
                             throw RenamerException(
-                                StatusSeverity.ERROR,
                                 "Types do not have lambdas",
-                                node.endPosition.toPosition(),
+                                node.range(),
                             )
                         }
                     },
@@ -539,7 +551,13 @@ class CstParser(
                 } else if (node.text.startsWith("\"") && node.text.endsWith("\"")) {
                     AstNode.StringLiteral(node.text.substring(1, node.text.length - 1))
                 } else if (Regex("-?\\d+").matches(node.text)) {
-                    AstNode.DecimalLiteral(node.text.toLongOrNull() ?: throw IllegalStateException("Can't parse decimal literal"))
+                    AstNode.DecimalLiteral(
+                        node.text.toLongOrNull() ?: throw RenamerException(
+                            "Can't parse decimal literal",
+                            node.range(),
+                            fatal = true,
+                        ),
+                    )
                 } else if (node.text == "true" || node.text == "false") {
                     AstNode.TruvalLiteral(node.text.toBoolean())
                 } else {
@@ -570,15 +588,14 @@ class CstParser(
             }
 
             else -> {
-                throw IllegalStateException("Unknown pattern: ${node.type} in node $node")
+                throw RenamerException("Unknown pattern: ${node.type} in node $node", node.range(), fatal = true)
             }
         }
 
     class TypeDeclarationException(
         node: TsSyntaxNode,
     ) : RenamerException(
-            StatusSeverity.ERROR,
             "No data constructor",
-            node.endPosition.toPosition(),
+            node.range(),
         )
 }
