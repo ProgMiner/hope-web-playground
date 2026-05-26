@@ -20,14 +20,14 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            implementation("com.squareup.okio:okio:3.16.2")
             implementation(project(":core"))
-            implementation(project(":parser"))
-            implementation(project(":typecheck"))
+            implementation(project(":renamer"))
         }
 
         commonTest.dependencies {
             implementation(kotlin("test"))
+            implementation("com.goncalossilva:resources:0.15.0")
+            implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.0")
         }
 
         wasmJsMain.configure {

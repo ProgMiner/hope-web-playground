@@ -58,7 +58,7 @@ jobs:
       - name: "hope-web: upload pages"
         uses: actions/upload-pages-artifact@v3
         with:
-          path: 'build/'
+          path: 'hope-web/build/'
 
   deploy:
     needs: build_site

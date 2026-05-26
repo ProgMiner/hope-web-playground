@@ -320,12 +320,11 @@ class CstParser(
                 }
             }
 
-            // FIXME: временное решение, пока в грамматике есть проблемы
             "ident" -> {
                 if (node.text.startsWith("\'") && node.text.endsWith("\'") && node.text.length == 3) {
                     AstNode.CharLiteral(node.text[1])
                 } else if (Regex("-?\\d+").matches(node.text)) {
-                    AstNode.DecimalLiteral(node.text.toInt())
+                    AstNode.DecimalLiteral(node.text.toLongOrNull() ?: throw RenamerException("Can't parse decimal literal", node.range(), fatal = true))
                 } else if (node.text == "true" || node.text == "false") {
                     AstNode.TruvalLiteral(node.text.toBoolean())
                 } else {
@@ -334,7 +333,7 @@ class CstParser(
             }
 
             "decimal" -> {
-                AstNode.DecimalLiteral(node.text.toInt())
+                AstNode.DecimalLiteral(node.text.toLong())
             }
 
             "string" -> {
@@ -494,15 +493,22 @@ class CstParser(
     private fun parseFunctionPattern(
         node: TsSyntaxNode,
         operators: MutableMap<String, Infix>,
-    ): Pair<String, AstNode.Pattern> {
+    ): Pair<String, AstNode.Pattern?> {
         if (node.namedChildCount == 2u) {
             val functionName = node.getChildOrThrow(0u).text
-            return Pair(functionName, parsePattern(node.getChildOrThrow(1u), operators))
+            var pattern: AstNode.Pattern? = parsePattern(node.getChildOrThrow(1u), operators)
+            if (pattern is AstNode.TuplePattern && pattern.tuple.isEmpty()) {
+                pattern = null
+            }
+            return functionName to pattern
+        } else if (node.namedChildCount == 1u) {
+            val functionName = node.getChildOrThrow(0u).text
+            return functionName to null
         } else {
             val functionName = node.getChildOrThrow(1u).text
             val left = parsePattern(node.getChildOrThrow(0u), operators)
             val right = parsePattern(node.getChildOrThrow(2u), operators)
-            return Pair(functionName, AstNode.TuplePattern(listOf(left, right)))
+            return functionName to AstNode.TuplePattern(listOf(left, right))
         }
     }
 
@@ -517,9 +523,9 @@ class CstParser(
                     infix = operators,
                     parse = { parsePattern(it, operators) },
                     constructOperand = { func, args ->
-                        if (func is AstNode.BindingPattern && func.pattern is AstNode.WildcardPattern) {
+                        if (func is AstNode.VariablePattern) {
                             AstNode.ConstructorPattern(
-                                func.bindName,
+                                func.name,
                                 if (args is AstNode.TuplePattern) args.tuple else listOf(args),
                             )
                         } else {
@@ -533,12 +539,18 @@ class CstParser(
                 )
             }
 
-            "expression" -> {
-                parsePattern(node.getChildOrThrow(0u), operators)
-            }
-
             "ident" -> {
-                AstNode.BindingPattern(AstNode.WildcardPattern, node.text)
+                if (node.text.startsWith("\'") && node.text.endsWith("\'") && node.text.length == 3) {
+                    AstNode.CharLiteral(node.text[1])
+                } else if (node.text.startsWith("\"") && node.text.endsWith("\"")) {
+                    AstNode.StringLiteral(node.text.substring(1, node.text.length - 1))
+                } else if (Regex("-?\\d+").matches(node.text)) {
+                    AstNode.DecimalLiteral(node.text.toLongOrNull() ?: throw IllegalStateException("Can't parse decimal literal"))
+                } else if (node.text == "true" || node.text == "false") {
+                    AstNode.TruvalLiteral(node.text.toBoolean())
+                } else {
+                    AstNode.VariablePattern(node.text)
+                }
             }
 
             "binding_pattern" -> {
@@ -551,7 +563,7 @@ class CstParser(
             "list_pattern" -> {
                 val list = parseMultiple(node, { parsePattern(it, operators) })
                 list.foldRight<AstNode.Pattern, AstNode.Pattern>(
-                    AstNode.BindingPattern(AstNode.WildcardPattern, "nil"),
+                    AstNode.VariablePattern("nil"),
                 ) { pattern, acc -> AstNode.ConstructorPattern("::", listOf(pattern, acc)) }
             }
 
