@@ -324,7 +324,13 @@ class CstParser(
                 if (node.text.startsWith("\'") && node.text.endsWith("\'") && node.text.length == 3) {
                     AstNode.CharLiteral(node.text[1])
                 } else if (Regex("-?\\d+").matches(node.text)) {
-                    AstNode.DecimalLiteral(node.text.toLongOrNull() ?: throw RenamerException("Can't parse decimal literal", node.range(), fatal = true))
+                    AstNode.DecimalLiteral(
+                        node.text.toLongOrNull() ?: throw RenamerException(
+                            "Can't parse decimal literal",
+                            node.range(),
+                            fatal = true,
+                        ),
+                    )
                 } else if (node.text == "true" || node.text == "false") {
                     AstNode.TruvalLiteral(node.text.toBoolean())
                 } else {
@@ -545,7 +551,13 @@ class CstParser(
                 } else if (node.text.startsWith("\"") && node.text.endsWith("\"")) {
                     AstNode.StringLiteral(node.text.substring(1, node.text.length - 1))
                 } else if (Regex("-?\\d+").matches(node.text)) {
-                    AstNode.DecimalLiteral(node.text.toLongOrNull() ?: throw IllegalStateException("Can't parse decimal literal"))
+                    AstNode.DecimalLiteral(
+                        node.text.toLongOrNull() ?: throw RenamerException(
+                            "Can't parse decimal literal",
+                            node.range(),
+                            fatal = true,
+                        ),
+                    )
                 } else if (node.text == "true" || node.text == "false") {
                     AstNode.TruvalLiteral(node.text.toBoolean())
                 } else {
