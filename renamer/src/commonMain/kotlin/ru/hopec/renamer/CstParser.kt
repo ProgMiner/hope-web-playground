@@ -1,6 +1,5 @@
 package ru.hopec.renamer
 
-import ru.hopec.core.StatusSeverity
 import ru.hopec.parser.TreeSitterRepresentation
 import ru.hopec.parser.treesitter.TsSyntaxNode
 import ru.hopec.parser.treesitter.range
@@ -139,7 +138,6 @@ class CstParser(
                 names.forEach {
                     parserState.operators.putAll(
                         moduleOperators[it] ?: throw RenamerException(
-                            StatusSeverity.ERROR,
                             "Module \"$it\" does not exist",
                             node.range(),
                         ),
@@ -165,7 +163,6 @@ class CstParser(
                 val equationList =
                     parserState.equations.findLast { (name, _) -> name == functionName }
                         ?: throw RenamerException(
-                            StatusSeverity.ERROR,
                             "Equations without declaration",
                             node.range(),
                         )
@@ -184,7 +181,7 @@ class CstParser(
             "line_comment" -> {}
 
             else -> {
-                throw IllegalStateException("Unknown statement: ${node.type} in node $node")
+                throw RenamerException("Unknown statement: ${node.type} in node $node", node.range(), fatal = true)
             }
         }
     }
@@ -222,7 +219,6 @@ class CstParser(
                         node.namedChildren.indexOfFirst { operators.contains(it.text) }.toUInt()
                     val operator =
                         node.namedChild(operatorIndex) ?: throw RenamerException(
-                            StatusSeverity.ERROR,
                             "Unknown operator",
                             node.range(),
                         )
@@ -251,8 +247,14 @@ class CstParser(
                 val type2 = parseType(node.getChildOrThrow(1u), typeVars)
                 when (node.children[1].text) {
                     "->" -> AstNode.FunctionalType(type1, type2)
+
                     "#" -> AstNode.ProductType(type1, type2)
-                    else -> throw IllegalStateException("Unknown ADT: ${node.children[1].text}")
+
+                    else -> throw RenamerException(
+                        "Unknown ADT: ${node.children[1].text}",
+                        node.children[1].range(),
+                        fatal = true,
+                    )
                 }
             }
 
@@ -265,8 +267,10 @@ class CstParser(
             }
 
             else -> {
-                throw IllegalStateException(
+                throw RenamerException(
                     "Unknown type: ${node.type} in node $node",
+                    node.range(),
+                    fatal = true,
                 )
             }
         }
@@ -395,7 +399,7 @@ class CstParser(
             }
 
             else -> {
-                throw IllegalStateException("Unknown expression: ${node.type} in node $node")
+                throw RenamerException("Unknown expression: ${node.type} in node $node", node.range(), fatal = true)
             }
         }
 
@@ -423,13 +427,13 @@ class CstParser(
                     ),
                 )
             } else {
-                throw IllegalStateException("Can apply only tuple or 1 argument")
+                throw RenamerException("Can apply only tuple or 1 argument", node.range(), fatal = true)
             }
             tokenStack.clear()
         }
 
         if (expressions.size != node.namedChildCount.toInt()) {
-            throw IllegalStateException("Not all nodes were parsed")
+            throw RenamerException("Not all nodes were parsed", node.range(), fatal = true)
         }
 
         for (ind in 0u until node.namedChildCount) {
@@ -437,7 +441,6 @@ class CstParser(
             if (infix.contains(child.text)) {
                 if (tokenStack.isEmpty()) {
                     throw RenamerException(
-                        StatusSeverity.ERROR,
                         "Not fully applied operator ${child.text}",
                         node.range(),
                     )
@@ -521,7 +524,6 @@ class CstParser(
                             )
                         } else {
                             throw RenamerException(
-                                StatusSeverity.ERROR,
                                 "Types do not have lambdas",
                                 node.range(),
                             )
@@ -562,14 +564,13 @@ class CstParser(
             }
 
             else -> {
-                throw IllegalStateException("Unknown pattern: ${node.type} in node $node")
+                throw RenamerException("Unknown pattern: ${node.type} in node $node", node.range(), fatal = true)
             }
         }
 
     class TypeDeclarationException(
         node: TsSyntaxNode,
     ) : RenamerException(
-            StatusSeverity.ERROR,
             "No data constructor",
             node.range(),
         )

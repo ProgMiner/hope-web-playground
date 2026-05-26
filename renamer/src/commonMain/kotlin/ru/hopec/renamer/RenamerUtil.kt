@@ -1,6 +1,5 @@
 package ru.hopec.renamer
 
-import ru.hopec.core.StatusSeverity
 import ru.hopec.parser.treesitter.TsSyntaxNode
 import ru.hopec.parser.treesitter.range
 
@@ -45,13 +44,11 @@ fun <T> parseMultipleOrNull(
 fun TsSyntaxNode.getChildOrThrow(i: UInt): TsSyntaxNode {
     val child =
         this.namedChild(i) ?: throw RenamerException(
-            StatusSeverity.ERROR,
             "Cannot find child $i of node $this",
             this.range(),
         )
     if (child.isError) {
         throw RenamerException(
-            StatusSeverity.ERROR,
             "Error in node $this",
             child.range(),
         )
