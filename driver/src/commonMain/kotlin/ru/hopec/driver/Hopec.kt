@@ -33,6 +33,7 @@ class Hopec(
             } catch (_: NotImplementedError) {
                 null
             } ?: STUB_WAT
+        println(watCode);
 
         val wasmBinary = compileWatToBinary(watCode)
         output.write(Buffer().write(wasmBinary), wasmBinary.size.toLong())

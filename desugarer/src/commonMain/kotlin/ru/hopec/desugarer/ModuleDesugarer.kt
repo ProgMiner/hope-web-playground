@@ -145,7 +145,12 @@ open class ModuleDesugarer(
         function: AstNode.FunctionDeclaration,
         module: String?,
     ): Pair<Function.Name, Function> {
-        val newName = function.name.generateNewName()
+        val newName =
+            if (module == null && function.name == "main") {
+                function.name
+            } else {
+                function.name.generateNewName()
+            }
         val functionName = Function.Name.User(module, newName)
         extendModuleFunction(function.name, functionName)
         return functionName to resolveFunction(function)

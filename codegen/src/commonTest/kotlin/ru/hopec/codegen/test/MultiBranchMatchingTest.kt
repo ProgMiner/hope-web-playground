@@ -14,7 +14,7 @@ class MultiBranchMatchingTest {
     private val falseCtor = FunName.Constructor(Data.Name.Core.TruVal, "false")
 
     @Test
-    fun `multiple branches emit multiple skip blocks`() {
+    fun `two boolean branches generate two skip blocks with checks`() {
         val lambda =
             Expr.Lambda(
                 Type.Arrow(truvalType, numType),
@@ -30,11 +30,28 @@ class MultiBranchMatchingTest {
                 ),
             )
         val w = wat(singleFuncProgram(lambda = lambda))
-        val skipCount = w.split("\$skip").size - 1
-        assertTrue(skipCount >= 2, "Expected at least 2 skip labels, got $skipCount")
-        assertContains(w, "i32.const 1")
-        assertContains(w, "i32.const 0")
-        assertContains(w, "\$match_end")
-        assertContains(w, "br \$match_end")
+
+        val expected =
+            """
+            (func ${'$'}fn.top.f (param ${'$'}arg i32) (result i32)
+              (block ${'$'}match_end0 (result i32)
+                (block ${'$'}skip1
+                  (br_if ${'$'}skip1
+                    (i32.ne
+                      (local.get ${'$'}arg)
+                      (i32.const 1)))
+                  (br ${'$'}match_end0
+                    (i32.const 1)))
+                (block ${'$'}skip2
+                  (br_if ${'$'}skip2
+                    (i32.ne
+                      (local.get ${'$'}arg)
+                      (i32.const 0)))
+                  (br ${'$'}match_end0
+                    (i32.const 0)))
+                (unreachable)))
+            """.trimIndent()
+
+        assertEquals(normalize(expected), normalize(region(w, "(func \$fn.top.f")))
     }
 }

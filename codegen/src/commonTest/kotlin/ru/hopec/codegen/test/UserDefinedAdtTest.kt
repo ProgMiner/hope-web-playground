@@ -13,7 +13,7 @@ import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Function.Name as 
 
 class UserDefinedAdtTest {
     @Test
-    fun `user ADT constructor assigns tags 0 and 1`() {
+    fun `nullary ADT constructor reference folds into closure allocation`() {
         val dataName = Data.Name.Defined(null, "Color")
         val redCtor = FunName.Constructor(dataName, "Red")
         val blueCtor = FunName.Constructor(dataName, "Blue")
@@ -30,9 +30,27 @@ class UserDefinedAdtTest {
                 ),
             )
         val w = wat(program)
-        assertTrue(w.contains("(module"))
-        assertContains(w, "call \$rt.mk_closure")
-        assertContains(w, "i32.const 0")
-        assertContains(w, "\$ctor.top.Color.Red")
+
+        assertEquals(
+            normalize(
+                """
+                (func ${'$'}fn.top.f (param ${'$'}arg i32) (result i32)
+                  (block ${'$'}match_end0 (result i32)
+                    (block ${'$'}skip1
+                      (br ${'$'}match_end0
+                        (call ${'$'}rt.mk_closure
+                          (i32.const 0)
+                          (i32.const 0))))
+                    (unreachable)))
+                """.trimIndent(),
+            ),
+            normalize(region(w, "(func \$fn.top.f")),
+        )
+
+        // Конструктор регистрируется в таблице функций для косвенного вызова.
+        assertEquals(
+            normalize("(elem (i32.const 0) \$ctor.top.Color.Red)"),
+            normalize(region(w, "(elem")),
+        )
     }
 }

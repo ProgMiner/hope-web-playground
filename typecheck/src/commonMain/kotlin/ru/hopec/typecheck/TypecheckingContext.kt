@@ -232,7 +232,15 @@ internal class TypecheckingContext private constructor(
                 }
             }
 
-        unify(fullWalk(lambda.type), function.type.type)
+        val declaredType = function.type.type
+        val inferredType = fullWalk(lambda.type)
+        val typeToUnify =
+            if (declaredType !is Type.Arrow && inferredType is Type.Arrow) {
+                inferredType.result
+            } else {
+                inferredType
+            }
+        unify(typeToUnify, declaredType)
         if (!unifyOk) return null
 
         return TypedRepresentation.Declarations.Function(

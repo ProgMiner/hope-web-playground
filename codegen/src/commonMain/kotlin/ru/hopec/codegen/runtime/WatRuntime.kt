@@ -20,12 +20,11 @@ internal object WatRuntime {
     val MALLOC: String =
         """
         (func ${'$'}rt.malloc (param ${'$'}bytes i32) (result i32)
-          global.get ${'$'}heap_ptr
-          global.get ${'$'}heap_ptr
-          local.get ${'$'}bytes
-          i32.add
-          global.set ${'$'}heap_ptr
-        )
+          (global.get ${'$'}heap_ptr)
+          (global.set ${'$'}heap_ptr
+            (i32.add
+              (global.get ${'$'}heap_ptr)
+              (local.get ${'$'}bytes))))
         """.trimIndent()
 
     /** `${'$'}rt.mk_tuple(fst, snd) → ptr` — аллоцирует `[fst, snd]`. */
@@ -33,16 +32,16 @@ internal object WatRuntime {
         """
         (func ${'$'}rt.mk_tuple (param ${'$'}fst i32) (param ${'$'}snd i32) (result i32)
           (local ${'$'}ptr i32)
-          i32.const 8
-          call ${'$'}rt.malloc
-          local.tee ${'$'}ptr
-          local.get ${'$'}fst
-          i32.store offset=0
-          local.get ${'$'}ptr
-          local.get ${'$'}snd
-          i32.store offset=4
-          local.get ${'$'}ptr
-        )
+          (local.set ${'$'}ptr
+            (call ${'$'}rt.malloc
+              (i32.const 8)))
+          (i32.store offset=0
+            (local.get ${'$'}ptr)
+            (local.get ${'$'}fst))
+          (i32.store offset=4
+            (local.get ${'$'}ptr)
+            (local.get ${'$'}snd))
+          (local.get ${'$'}ptr))
         """.trimIndent()
 
     /** `${'$'}rt.mk_cons(field) → ptr` — аллоцирует одноячеечный `[field]`. */
@@ -50,13 +49,13 @@ internal object WatRuntime {
         """
         (func ${'$'}rt.mk_cons (param ${'$'}field i32) (result i32)
           (local ${'$'}ptr i32)
-          i32.const 4
-          call ${'$'}rt.malloc
-          local.tee ${'$'}ptr
-          local.get ${'$'}field
-          i32.store offset=0
-          local.get ${'$'}ptr
-        )
+          (local.set ${'$'}ptr
+            (call ${'$'}rt.malloc
+              (i32.const 4)))
+          (i32.store offset=0
+            (local.get ${'$'}ptr)
+            (local.get ${'$'}field))
+          (local.get ${'$'}ptr))
         """.trimIndent()
 
     /**
@@ -66,12 +65,11 @@ internal object WatRuntime {
     val APPLY: String =
         """
         (func ${'$'}rt.apply (param ${'$'}closure i32) (param ${'$'}arg i32) (result i32)
-          local.get ${'$'}closure
-          local.get ${'$'}arg
-          local.get ${'$'}closure
-          i32.load offset=0
-          call_indirect (type ${'$'}closure_fn)
-        )
+          (call_indirect (type ${'$'}closure_fn)
+            (local.get ${'$'}closure)
+            (local.get ${'$'}arg)
+            (i32.load offset=0
+              (local.get ${'$'}closure))))
         """.trimIndent()
 
     /**
@@ -82,30 +80,29 @@ internal object WatRuntime {
         """
         (func ${'$'}rt.set_contains (param ${'$'}set i32) (param ${'$'}value i32) (result i32)
           (local ${'$'}cur i32)
-          local.get ${'$'}set
-          local.set ${'$'}cur
+          (local.set ${'$'}cur
+            (local.get ${'$'}set))
           (block ${'$'}done (result i32)
             (loop ${'$'}walk
-              local.get ${'$'}cur
-              i32.eqz
               (if
-                (then i32.const 0 br ${'$'}done)
-              )
-              local.get ${'$'}cur
-              i32.load offset=0
-              local.get ${'$'}value
-              i32.eq
+                (i32.eqz
+                  (local.get ${'$'}cur))
+                (then
+                  (br ${'$'}done
+                    (i32.const 0))))
               (if
-                (then i32.const 1 br ${'$'}done)
-              )
-              local.get ${'$'}cur
-              i32.load offset=4
-              local.set ${'$'}cur
-              br ${'$'}walk
-            )
-            unreachable
-          )
-        )
+                (i32.eq
+                  (i32.load offset=0
+                    (local.get ${'$'}cur))
+                  (local.get ${'$'}value))
+                (then
+                  (br ${'$'}done
+                    (i32.const 1))))
+              (local.set ${'$'}cur
+                (i32.load offset=4
+                  (local.get ${'$'}cur)))
+              (br ${'$'}walk))
+            (unreachable)))
         """.trimIndent()
 
     /**
@@ -116,24 +113,23 @@ internal object WatRuntime {
         """
         (func ${'$'}rt.set_insert (param ${'$'}set i32) (param ${'$'}value i32) (result i32)
           (local ${'$'}cell i32)
-          local.get ${'$'}set
-          local.get ${'$'}value
-          call ${'$'}rt.set_contains
           (if (result i32)
-            (then local.get ${'$'}set)
+            (call ${'$'}rt.set_contains
+              (local.get ${'$'}set)
+              (local.get ${'$'}value))
+            (then
+              (local.get ${'$'}set))
             (else
-              i32.const 8
-              call ${'$'}rt.malloc
-              local.tee ${'$'}cell
-              local.get ${'$'}value
-              i32.store offset=0
-              local.get ${'$'}cell
-              local.get ${'$'}set
-              i32.store offset=4
-              local.get ${'$'}cell
-            )
-          )
-        )
+              (local.set ${'$'}cell
+                (call ${'$'}rt.malloc
+                  (i32.const 8)))
+              (i32.store offset=0
+                (local.get ${'$'}cell)
+                (local.get ${'$'}value))
+              (i32.store offset=4
+                (local.get ${'$'}cell)
+                (local.get ${'$'}set))
+              (local.get ${'$'}cell))))
         """.trimIndent()
 
     /**
@@ -148,20 +144,20 @@ internal object WatRuntime {
         """
         (func ${'$'}rt.mk_closure (param ${'$'}idx i32) (param ${'$'}n_caps i32) (result i32)
           (local ${'$'}ptr i32)
-          local.get ${'$'}n_caps
-          i32.const 4
-          i32.mul
-          i32.const 8
-          i32.add
-          call ${'$'}rt.malloc
-          local.tee ${'$'}ptr
-          local.get ${'$'}idx
-          i32.store offset=0
-          local.get ${'$'}ptr
-          local.get ${'$'}n_caps
-          i32.store offset=4
-          local.get ${'$'}ptr
-        )
+          (local.set ${'$'}ptr
+            (call ${'$'}rt.malloc
+              (i32.add
+                (i32.mul
+                  (local.get ${'$'}n_caps)
+                  (i32.const 4))
+                (i32.const 8))))
+          (i32.store offset=0
+            (local.get ${'$'}ptr)
+            (local.get ${'$'}idx))
+          (i32.store offset=4
+            (local.get ${'$'}ptr)
+            (local.get ${'$'}n_caps))
+          (local.get ${'$'}ptr))
         """.trimIndent()
 
     /**
@@ -175,17 +171,17 @@ internal object WatRuntime {
         """
         (func ${'$'}rt.mk_adt (param ${'$'}field_count i32) (param ${'$'}tag i32) (result i32)
           (local ${'$'}ptr i32)
-          local.get ${'$'}field_count
-          i32.const 4
-          i32.mul
-          i32.const 4
-          i32.add
-          call ${'$'}rt.malloc
-          local.tee ${'$'}ptr
-          local.get ${'$'}tag
-          i32.store offset=0
-          local.get ${'$'}ptr
-        )
+          (local.set ${'$'}ptr
+            (call ${'$'}rt.malloc
+              (i32.add
+                (i32.mul
+                  (local.get ${'$'}field_count)
+                  (i32.const 4))
+                (i32.const 4))))
+          (i32.store offset=0
+            (local.get ${'$'}ptr)
+            (local.get ${'$'}tag))
+          (local.get ${'$'}ptr))
         """.trimIndent()
 
     /**

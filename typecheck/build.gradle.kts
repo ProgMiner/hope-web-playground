@@ -24,6 +24,7 @@ kotlin {
             implementation(project(":renamer"))
             implementation(project(":desugarer"))
             implementation(project(":parser"))
+            implementation(project(":desugarer"))
         }
 
         wasmJsMain.configure {

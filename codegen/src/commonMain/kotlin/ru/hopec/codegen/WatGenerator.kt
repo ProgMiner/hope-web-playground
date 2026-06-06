@@ -33,8 +33,8 @@ import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Function.Name as 
 class WatGenerator(
     private val program: TypedRepresentation,
 ) {
-    // ── Эмиттер вывода ──────────────────────────────────────────────────────
-    private val out = WatEmitter()
+    // ── Дочерние узлы модуля в порядке эмиссии ───────────────────────────────
+    private val moduleChildren = mutableListOf<SExpr>()
 
     // ── Счётчики ────────────────────────────────────────────────────────────
     private var labelCounter = 0
@@ -112,16 +112,17 @@ class WatGenerator(
 
     fun generate(): String {
         assignConstructorTags()
-        out.line("(module")
-        out.indent {
-            emitMemoryAndGlobals()
-            emitRuntime()
-            emitAllFunctions()
-            emitFunctionTable()
-            emitExports()
-        }
-        out.line(")")
-        return out.toString()
+        emitMemoryAndGlobals()
+        val tableInsertIndex = moduleChildren.size
+        emitRuntime()
+        emitAllFunctions()
+        emitFunctionElem()
+        emitExports()
+        moduleChildren.add(
+            tableInsertIndex,
+            SExpr.Raw("(table (export \"table\") ${funcTable.size} funcref)"),
+        )
+        return SExpr.Inst("module", moduleChildren.toList()).format()
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -148,20 +149,12 @@ class WatGenerator(
     // ═══════════════════════════════════════════════════════════════════════
 
     private fun emitMemoryAndGlobals() {
-        out.line("(memory (export \"memory\") 1)")
-        out.line("(global \$heap_ptr (mut i32) (i32.const 4096))")
+        moduleChildren.add(SExpr.Raw("(memory (export \"memory\") 1)"))
+        moduleChildren.add(SExpr.Raw("(global \$heap_ptr (mut i32) (i32.const 4096))"))
     }
 
     private fun emitRuntime() {
-        for (snippet in WatRuntime.ALL) emitSnippet(snippet)
-    }
-
-    private fun emitSnippet(snippet: String) {
-        for (rawLine in snippet.lineSequence()) {
-            if (rawLine.isBlank()) continue
-            val leading = rawLine.takeWhile { it == ' ' }.length
-            out.lineAt(leading / 2, rawLine.substring(leading))
-        }
+        for (snippet in WatRuntime.ALL) moduleChildren.add(SExpr.Raw(snippet))
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -193,17 +186,15 @@ class WatGenerator(
         val ctx = WatFunctionContext(::esc)
         collectLambdaVars(lambda, ctx)
 
-        // Сначала собираем тело во вспомогательный эмиттер, чтобы знать набор
-        // временных переменных до момента вывода объявлений локалов.
-        val body = WatEmitter()
-        code.emitBranchMatch(lambda.branches, "\$arg", ctx, body)
+        // Сначала собираем тело, чтобы знать набор временных переменных
+        // до момента вывода объявлений локалов.
+        val body = code.emitBranchMatch(lambda.branches, "\$arg", ctx)
 
-        out.line("(func $watName (param \$arg i32) (result i32)")
-        out.indent {
-            for (local in ctx.allLocals()) out.line("(local $local i32)")
-            out.append(body)
-        }
-        out.line(")")
+        val children = mutableListOf<SExpr>()
+        for (local in ctx.allLocals()) children.add(atom("local $local i32"))
+        children.add(body)
+
+        moduleChildren.add(SExpr.Inst("func $watName (param \$arg i32) (result i32)", children))
     }
 
     /**
@@ -217,20 +208,21 @@ class WatGenerator(
         collectLambdaVars(lifted.lambda, ctx)
         for (cap in lifted.captures) ctx.getOrAdd(cap)
 
-        val body = WatEmitter()
+        val stmts = mutableListOf<SExpr>()
         for ((i, cap) in lifted.captures.withIndex()) {
-            body.line("local.get \$closure_ptr")
-            body.line("i32.load offset=${8 + i * 4}")
-            body.line("local.set ${ctx.getOrAdd(cap)}")
+            stmts.add(
+                localSet(ctx.getOrAdd(cap), i32Load(8 + i * 4, localGet("\$closure_ptr"))),
+            )
         }
-        code.emitBranchMatch(lifted.lambda.branches, "\$arg", ctx, body)
+        val match = code.emitBranchMatch(lifted.lambda.branches, "\$arg", ctx)
 
-        out.line("(func ${lifted.watName} (param \$closure_ptr i32) (param \$arg i32) (result i32)")
-        out.indent {
-            for (local in ctx.allLocals()) out.line("(local $local i32)")
-            out.append(body)
-        }
-        out.line(")")
+        val children = mutableListOf<SExpr>()
+        for (local in ctx.allLocals()) children.add(atom("local $local i32"))
+        children.add(if (stmts.isEmpty()) match else resultBlock(stmts, match))
+
+        moduleChildren.add(
+            SExpr.Inst("func ${lifted.watName} (param \$closure_ptr i32) (param \$arg i32) (result i32)", children),
+        )
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -314,13 +306,13 @@ class WatGenerator(
     private fun emitExports() {
         for ((name, _) in program.topLevel.functions) {
             if (name is FuncName.User) {
-                out.line("(export \"${name.name}\" (func ${watId(name)}))")
+                moduleChildren.add(SExpr.Raw("(export \"${name.name}\" (func ${watId(name)}))"))
             }
         }
         for ((moduleName, module) in program.modules) {
             for ((name, _) in module.public.functions) {
                 if (name is FuncName.User) {
-                    out.line("(export \"$moduleName.${name.name}\" (func ${watId(name)}))")
+                    moduleChildren.add(SExpr.Raw("(export \"$moduleName.${name.name}\" (func ${watId(name)}))"))
                 }
             }
         }
@@ -330,9 +322,9 @@ class WatGenerator(
     // Таблица функций
     // ═══════════════════════════════════════════════════════════════════════
 
-    private fun emitFunctionTable() {
-        if (funcTable.isEmpty()) return
-        out.line("(table (export \"table\") ${funcTable.size} funcref)")
-        out.line("(elem (i32.const 0) ${funcTable.joinToString(" ")})")
+    private fun emitFunctionElem() {
+        if (funcTable.isNotEmpty()) {
+            moduleChildren.add(SExpr.Raw("(elem (i32.const 0) ${funcTable.joinToString(" ")})"))
+        }
     }
 }

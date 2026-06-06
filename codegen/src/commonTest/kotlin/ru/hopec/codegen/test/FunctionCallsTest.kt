@@ -36,12 +36,39 @@ class FunctionCallsTest {
                 ),
             )
         val w = wat(program)
-        assertContains(w, "call \$fn.top.helper")
-        assertContains(w, "i32.const 5")
+
+        assertEquals(
+            normalize(
+                """
+                (func ${'$'}fn.top.main (param ${'$'}arg i32) (result i32)
+                  (block ${'$'}match_end0 (result i32)
+                    (block ${'$'}skip1
+                      (br ${'$'}match_end0
+                        (call ${'$'}fn.top.helper
+                          (i32.const 5))))
+                    (unreachable)))
+                """.trimIndent(),
+            ),
+            normalize(region(w, "(func \$fn.top.main")),
+        )
+
+        assertEquals(
+            normalize(
+                """
+                (func ${'$'}fn.top.helper (param ${'$'}arg i32) (result i32)
+                  (block ${'$'}match_end2 (result i32)
+                    (block ${'$'}skip3
+                      (br ${'$'}match_end2
+                        (i32.const 0)))
+                    (unreachable)))
+                """.trimIndent(),
+            ),
+            normalize(region(w, "(func \$fn.top.helper")),
+        )
     }
 
     @Test
-    fun `plus application emits i32 add`() {
+    fun `plus application folds into i32 add of tuple fields`() {
         val tupleExpr =
             Expr.Application(
                 Type.Data.tuple(numType, numType),
@@ -59,11 +86,27 @@ class FunctionCallsTest {
                 tupleExpr,
             )
         val w = wat(singleFuncProgram(lambda = wildLambda(numType, numType, addExpr)))
-        assertContains(w, "i32.add")
-        assertContains(w, "call \$rt.mk_tuple")
-        assertContains(w, "i32.const 3")
-        assertContains(w, "i32.const 4")
-        assertContains(w, "i32.load offset=0")
-        assertContains(w, "i32.load offset=4")
+
+        assertEquals(
+            normalize(
+                """
+                (func ${'$'}fn.top.f (param ${'$'}arg i32) (result i32)
+                  (local ${'$'}t_0 i32)
+                  (block ${'$'}match_end0 (result i32)
+                    (block ${'$'}skip1
+                      (br ${'$'}match_end0
+                        (i32.add
+                          (i32.load offset=0
+                            (local.tee ${'$'}t_0
+                              (call ${'$'}rt.mk_tuple
+                                (i32.const 3)
+                                (i32.const 4))))
+                          (i32.load offset=4
+                            (local.get ${'$'}t_0)))))
+                    (unreachable)))
+                """.trimIndent(),
+            ),
+            normalize(region(w, "(func \$fn.top.f")),
+        )
     }
 }

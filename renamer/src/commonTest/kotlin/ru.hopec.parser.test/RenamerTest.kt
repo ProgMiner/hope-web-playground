@@ -61,7 +61,7 @@ class RenamerTest {
             """
             dec * : WrongType
             infix * : 6
-            
+
             dec f : WrongType
             --- f(x) <= x * f 12
             """.trimIndent()
@@ -99,7 +99,7 @@ class RenamerTest {
         val code =
             """
             dec f : WrongType
-            --- f(g(a :: l)) <= a 
+            --- f(g(a :: l)) <= a
             """.trimIndent()
         val res = startRenamer(code) ?: error("renamer failed")
         return res.program
@@ -139,7 +139,7 @@ class RenamerTest {
             val code =
                 """
                 dec f : WrongType
-                --- f(42, 'c') <= a 
+                --- f(42, 'c') <= a
                 """.trimIndent()
             val res = startRenamer(code) ?: error("renamer failed")
         }
@@ -150,8 +150,8 @@ class RenamerTest {
             val code =
                 """
                 dec f : WrongType
-                --- f <= a 
-                --- f() <= a 
+                --- f <= a
+                --- f() <= a
                 """.trimIndent()
             val res = startRenamer(code) ?: error("renamer failed")
         }
@@ -174,7 +174,7 @@ class RenamerTest {
                 """
                 dec f : WrongType1
                 --- f(x :: xs) <= x
-                
+
                 dec f : WrongType2
                 --- f(a, b) <= a
                 """.trimIndent()
@@ -354,7 +354,7 @@ class RenamerTest {
                     --- a <> b <= a :: b
                     pubconst <>
                 end
-                
+
                 module test2
                     uses test
                     dec f : WrongType

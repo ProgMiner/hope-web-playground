@@ -4,9 +4,11 @@
 	import type { Tree } from 'web-tree-sitter';
 
 	let compiler = new Compiler();
-	let { tree, terminal }: { tree: Tree | undefined; terminal: Terminal } = $props();
+	let { freshTree, terminal }: { freshTree: () => Tree | undefined; terminal: Terminal } =
+		$props();
 
 	async function run(): Promise<void> {
+		const tree = freshTree();
 		if (!tree) {
 			terminal.write('No syntax tree to compile\n');
 			return;

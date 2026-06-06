@@ -51,3 +51,38 @@ fun varLambda(
 )
 
 fun wat(program: TypedRepresentation) = WatGenerator(program).generate()
+
+fun region(
+    wat: String,
+    head: String,
+): String {
+    val marker = wat.indexOf(head)
+    require(marker >= 0) { "Не найден участок, начинающийся с: $head\nWAT:\n$wat" }
+    val lineStart = wat.lastIndexOf('\n', marker) + 1
+
+    var depth = 0
+    var end = -1
+    var i = lineStart
+    while (i < wat.length) {
+        when (wat[i]) {
+            '(' -> depth++
+            ')' -> {
+                depth--
+                if (depth == 0) {
+                    end = i + 1
+                    break
+                }
+            }
+        }
+        i++
+    }
+    require(end >= 0) { "Несбалансированные скобки в участке: $head" }
+    return wat.substring(lineStart, end).trimIndent()
+}
+
+fun normalize(s: String): String =
+    s.trim()
+        .lineSequence()
+        .map { it.trimEnd() }
+        .filter { it.isNotBlank() }
+        .joinToString("\n")
