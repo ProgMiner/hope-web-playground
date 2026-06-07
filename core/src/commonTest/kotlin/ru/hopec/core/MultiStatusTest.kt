@@ -22,7 +22,7 @@ class MultiStatusTest {
 
     @Test
     fun `empty status message`() {
-        assertEquals("nothing: everything is OK", MultiStatus(label = "nothing").message)
+        assertEquals("nothing: OK", MultiStatus(label = "nothing").message)
     }
 
     @Test

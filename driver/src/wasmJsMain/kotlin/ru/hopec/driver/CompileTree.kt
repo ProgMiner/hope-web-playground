@@ -1,13 +1,13 @@
+@file:OptIn(ExperimentalJsExport::class)
+
 package ru.hopec.driver
 
 import okio.Buffer
 import ru.hopec.core.CompilationContext
 import ru.hopec.core.JsObject
-import ru.hopec.core.genericTreeType
+import ru.hopec.core.StatusSeverity
 import ru.hopec.core.set
 import ru.hopec.core.toJsObject
-import ru.hopec.core.topography.Range
-import ru.hopec.core.tree.GenericNode
 import ru.hopec.core.tree.GenericTree
 import ru.hopec.core.tree.intoNode
 import ru.hopec.parser.treesitter.JsTree
@@ -16,12 +16,11 @@ import kotlin.wasm.unsafe.Pointer
 import kotlin.wasm.unsafe.UnsafeWasmMemoryApi
 import kotlin.wasm.unsafe.withScopedMemoryAllocator
 
-@OptIn(ExperimentalWasmJsInterop::class, ExperimentalJsExport::class, UnsafeWasmMemoryApi::class)
+@OptIn(ExperimentalWasmJsInterop::class, UnsafeWasmMemoryApi::class)
 @JsExport
 fun compile(input: Tree): JsObject {
     val buffer = Buffer()
     val context = CompilationContext()
-    context.rememberTree(generateGenericTree())
     Hopec(context).run(JsTree(input), buffer)
     val result = buffer.readByteArray()
     withScopedMemoryAllocator {
@@ -46,18 +45,15 @@ data class CompilationResult(
 }
 
 private fun trees(context: CompilationContext): List<GenericTree> {
-    val trees = ArrayList(context.trees())
-    trees.add(GenericTree(statusTreeType(), context.result().intoNode()))
-    return trees
+    context.rememberTree(GenericTree(statusTreeType(), context.result().intoNode()))
+    return context.trees()
 }
 
-@OptIn(ExperimentalJsExport::class)
 @JsExport
 fun statusTreeType(): String = "STATUS"
 
-@OptIn(ExperimentalWasmJsInterop::class)
-private fun generateGenericTree(): GenericTree =
-    GenericTree(
-        genericTreeType(),
-        GenericNode(Range(), "hello", listOf()),
-    )
+@JsExport
+fun warningPrefix(): String = StatusSeverity.WARNING.prefix()
+
+@JsExport
+fun errorPrefix(): String = StatusSeverity.ERROR.prefix()

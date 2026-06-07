@@ -23,8 +23,6 @@ class Hopec(
         input: TsTree,
         output: Sink,
     ): Int {
-        val context = CompilationContext()
-
         val watCode =
             try {
                 makeChain().run(TreeSitterRepresentation(input), context)?.wat

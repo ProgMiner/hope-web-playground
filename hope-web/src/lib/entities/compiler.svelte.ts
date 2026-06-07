@@ -1,34 +1,76 @@
 import type { Tree } from 'web-tree-sitter';
-import * as hopec from 'hopec-driver';
-import type { GenericTree } from './generic_tree';
+import { allLeaves, zeroPoint, type GenericNode, type Point, type Resource } from './generic_tree';
+import { Hopec, type CompilationResult } from './hopec';
 
-interface CompilationResult {
-	size: number;
-	representations: GenericTree[];
+export type StatusSeverity = 'info' | 'warning' | 'error';
+
+export interface CompilationStatus {
+	severity: StatusSeverity;
+	from: Point;
+	to: Point;
+	resource: Resource | undefined;
+	message: string;
 }
 
 export class Compiler {
-	private readonly run: (input: Tree) => CompilationResult | undefined;
-	private readonly memory: WebAssembly.Memory;
+	private readonly hopec: Hopec;
+	readonly rebuild: (input: Tree) => void;
+	private result: CompilationResult | undefined;
 
 	constructor() {
-		this.run = hopec.compile as (input: Tree) => CompilationResult | undefined;
-		this.memory = hopec.memory as WebAssembly.Memory;
-		this.memory.grow(1);
+		this.hopec = new Hopec();
+		this.rebuild = debounced((input) => this.compile(input));
+		this.result = $state();
 	}
 
-	async compile(input: Tree): Promise<WebAssembly.Instance | undefined> {
-		const result = this.run(input);
-		if (!result) {
+	private compile(input: Tree) {
+		this.result = this.hopec.compile(input);
+	}
+
+	async instantiate(): Promise<WebAssembly.Instance | undefined> {
+		if (!this.result) {
 			return undefined;
 		}
-
-		console.log(result.representations);
-		return this.instantiateModule(result.size);
+		return await this.hopec.instantiateModule(this.result.size);
 	}
 
-	private async instantiateModule(size: number): Promise<WebAssembly.Instance> {
-		const compiled = await WebAssembly.instantiate(this.memory.buffer.slice(0, size));
-		return compiled.instance;
+	currentProblems(): CompilationStatus[] {
+		const tree = this.result?.representations.find(
+			(tree) => tree.type === this.hopec.statusTreeType()
+		);
+		if (!tree) {
+			return [];
+		}
+		return allLeaves(tree).map((problem) => this.status(problem));
 	}
+
+	private status(problem: GenericNode): CompilationStatus {
+		const from = problem.range.from ?? zeroPoint();
+		const to = problem.range.to ?? zeroPoint();
+		return {
+			severity: this.severity(problem),
+			from,
+			to,
+			resource: problem.range.resource,
+			message: problem.text
+		};
+	}
+
+	private severity(problem: GenericNode): StatusSeverity {
+		if (problem.text.startsWith(this.hopec.errorPrefix())) {
+			return 'error';
+		}
+		if (problem.text.startsWith(this.hopec.warningPrefix())) {
+			return 'warning';
+		}
+		return 'info';
+	}
+}
+
+function debounced(callback: (input: Tree) => void) {
+	let timeout: number;
+	return (input: Tree) => {
+		window.clearTimeout(timeout);
+		timeout = window.setTimeout(() => callback(input), 300);
+	};
 }

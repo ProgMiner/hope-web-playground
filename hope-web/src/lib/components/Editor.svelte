@@ -21,10 +21,12 @@
 		type RenderedResourceRow
 	} from '$lib/entities/fs/rendered_resource.svelte';
 	import FileTree from './fs/FileTree.svelte';
+	import { Compiler } from '$lib/entities/compiler.svelte';
 
 	let { editor = $bindable() }: { editor: MonacoEditor | undefined } = $props();
 	let value: string = $state('');
 	let view: HTMLDivElement | undefined = $state();
+	let compiler = new Compiler();
 	let highlight: Highlighting | undefined = $state();
 	let sitter = new TreeSitter();
 	let terminal = new Terminal();
@@ -59,7 +61,15 @@
 
 	function updateTree(t: Tree) {
 		rendered = new RenderedTree(t).build();
+		compiler.rebuild(t);
 	}
+
+	$effect(() => {
+		editor?.updateMarkers(
+			compiler.currentProblems()
+			// .filter((problem) => problem.resource?.path === opened?.currentPath())
+		);
+	});
 
 	function open(file: ImaginaryFile) {
 		opened?.encode(editor?.currentContents() ?? '');
@@ -76,7 +86,7 @@
 <div class="flex h-screen flex-col">
 	<div class="flex flex-row">
 		<Appearance />
-		<Run tree={sitter.currentTree()} {terminal} />
+		<Run tree={sitter.currentTree()} {terminal} {compiler} />
 	</div>
 	<div class="flex flex-1 flex-row overflow-auto">
 		<FileTree rows={files} {open} rebuild={rebuildFileTree} />
