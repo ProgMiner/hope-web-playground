@@ -1,6 +1,6 @@
 package ru.hopec.codegen.test
 
-import ru.hopec.typecheck.TypedRepresentation.Declarations.Function
+import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Function.Name as FunName
 import ru.hopec.typecheck.TypedRepresentation.Expr
 import kotlin.test.Test
 import kotlin.test.assertContains
@@ -11,7 +11,7 @@ class FunctionNamingTest {
         val w =
             wat(
                 singleFuncProgram(
-                    name = Function.Name.User("MyModule", "myFunc"),
+                    name = FunName.User("MyModule", "myFunc"),
                     lambda = wildLambda(numType, numType, Expr.Literal.Num(0)),
                 ),
             )
@@ -31,7 +31,7 @@ class FunctionNamingTest {
         val w =
             wat(
                 singleFuncProgram(
-                    name = Function.Name.User(null, "add+"),
+                    name = FunName.User(null, "add+"),
                     lambda = wildLambda(numType, numType, Expr.Literal.Num(0)),
                 ),
             )

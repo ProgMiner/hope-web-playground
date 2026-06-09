@@ -3,11 +3,11 @@ package ru.hopec.codegen
 import ru.hopec.codegen.runtime.WatRuntime
 import ru.hopec.typecheck.TypedRepresentation
 import ru.hopec.typecheck.TypedRepresentation.Declarations
-import ru.hopec.typecheck.TypedRepresentation.Declarations.Data
+import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Data
 import ru.hopec.typecheck.TypedRepresentation.Expr
 import ru.hopec.typecheck.TypedRepresentation.Pattern
-import ru.hopec.typecheck.TypedRepresentation.Declarations.Data.Name as DataName
-import ru.hopec.typecheck.TypedRepresentation.Declarations.Function.Name as FuncName
+import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Data.Name as DataName
+import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Function.Name as FuncName
 
 /**
  * Переводит [TypedRepresentation] в WebAssembly Text Format (WAT).
@@ -260,6 +260,7 @@ class WatGenerator(
             }
             is Pattern.Data -> p.args.forEach { collectPatVars(it, ctx) }
             is Pattern.Wildcard -> {}
+            else -> TODO("add support for literal patterns")
         }
     }
 

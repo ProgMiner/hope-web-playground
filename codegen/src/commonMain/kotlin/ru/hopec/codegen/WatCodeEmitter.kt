@@ -2,9 +2,9 @@ package ru.hopec.codegen
 
 import ru.hopec.typecheck.TypedRepresentation.Expr
 import ru.hopec.typecheck.TypedRepresentation.Pattern
-import ru.hopec.typecheck.TypedRepresentation.Type
-import ru.hopec.typecheck.TypedRepresentation.Declarations.Data.Name as DataName
-import ru.hopec.typecheck.TypedRepresentation.Declarations.Function.Name as FuncName
+import ru.hopec.desugarer.DesugaredRepresentation.Type
+import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Data.Name as DataName
+import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Function.Name as FuncName
 
 /**
  * Генерирует WAT-инструкции для выражений и веток сопоставления с паттернами.
@@ -82,6 +82,7 @@ internal class WatCodeEmitter(
                 emitPatternCheck(pattern.data, argLocal, failLabel, ctx, out)
             }
             is Pattern.Data -> emitDataCheck(pattern, argLocal, failLabel, ctx, out)
+            else -> TODO("Add support for literal patterns")
         }
     }
 
@@ -439,6 +440,7 @@ internal class WatCodeEmitter(
                 }
                 is Pattern.Data -> p.args.forEach(::pat)
                 is Pattern.Wildcard -> {}
+                else -> TODO("add support for literal patterns")
             }
         }
 

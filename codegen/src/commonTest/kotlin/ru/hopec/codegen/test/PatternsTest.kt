@@ -1,20 +1,21 @@
 package ru.hopec.codegen.test
 
-import ru.hopec.typecheck.TypedRepresentation.Declarations.Data
+import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Function.Name as FunName
+import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Data
 import ru.hopec.typecheck.TypedRepresentation.Declarations.Function
 import ru.hopec.typecheck.TypedRepresentation.Expr
 import ru.hopec.typecheck.TypedRepresentation.Pattern
-import ru.hopec.typecheck.TypedRepresentation.Type
+import ru.hopec.desugarer.DesugaredRepresentation.Type
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertFalse
 
 class PatternsTest {
-    private val trueCtor = Function.Name.Constructor(Data.Name.Core.TruVal, "true")
-    private val falseCtor = Function.Name.Constructor(Data.Name.Core.TruVal, "false")
-    private val nilCtor = Function.Name.Constructor(Data.Name.Core.List, "nil")
-    private val consCtor = Function.Name.Constructor(Data.Name.Core.List, "cons")
-    private val tupleCtor = Function.Name.Constructor(Data.Name.Core.Tuple, "#")
+    private val trueCtor = FunName.Constructor(Data.Name.Core.TruVal, "true")
+    private val falseCtor = FunName.Constructor(Data.Name.Core.TruVal, "false")
+    private val nilCtor = FunName.Constructor(Data.Name.Core.List, "nil")
+    private val consCtor = FunName.Constructor(Data.Name.Core.List, "cons")
+    private val tupleCtor = FunName.Constructor(Data.Name.Core.Tuple, "#")
 
     @Test
     fun `wildcard pattern emits no br_if`() {
