@@ -2,11 +2,11 @@ package ru.hopec.typecheck
 
 import ru.hopec.core.CompilationContext
 import ru.hopec.core.CompilationPass
-import ru.hopec.renamer.RenamedRepresentation
+import ru.hopec.desugarer.DesugaredRepresentation
 
-class TypeCheckPass : CompilationPass<RenamedRepresentation, TypedRepresentation> {
+class TypeCheckPass : CompilationPass<DesugaredRepresentation, TypedRepresentation> {
     override fun run(
-        from: RenamedRepresentation,
+        from: DesugaredRepresentation,
         context: CompilationContext,
-    ): TypedRepresentation? = annotate(DesugaredRepresentation.fromRenamed(from))
+    ): TypedRepresentation? = annotate(from)
 }

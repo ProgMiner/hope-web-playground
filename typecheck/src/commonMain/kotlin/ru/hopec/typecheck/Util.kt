@@ -1,6 +1,6 @@
 package ru.hopec.typecheck
 
-import ru.hopec.typecheck.TypedRepresentation.Type
+import ru.hopec.desugarer.DesugaredRepresentation.Type
 
 internal infix fun Unit?.join(other: Unit?) =
     if (this == null) {

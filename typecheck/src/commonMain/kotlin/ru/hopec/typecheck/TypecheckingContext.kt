@@ -1,7 +1,8 @@
 package ru.hopec.typecheck
 
 import ru.hopec.typecheck.TypedRepresentation
-import ru.hopec.typecheck.TypedRepresentation.Type
+import ru.hopec.desugarer.DesugaredRepresentation
+import ru.hopec.desugarer.DesugaredRepresentation.Type
 import kotlin.math.max
 import kotlin.math.min
 
@@ -168,6 +169,8 @@ internal class TypecheckingContext private constructor(
                         rename(pattern.data) as TypedRepresentation.Pattern.Data,
                     )
                 }
+
+                else -> pattern
             }
 
         fun rename(term: TypedRepresentation.Expr): TypedRepresentation.Expr =
@@ -239,10 +242,14 @@ internal class TypecheckingContext private constructor(
     private fun infer(term: DesugaredRepresentation.Expr): TypedRepresentation.Expr? {
         return when (term) {
             is DesugaredRepresentation.Expr.Identifier -> {
-                val type = signature.functions[term.name] ?: return null
+                if (term.name.size != 1) {
+                    return null
+                }
+                val name = term.name.first()
+                val type = signature.functions[name] ?: return null
                 val shift = shiftValue()
                 bindTypes(type.boundTypeVariables)
-                TypedRepresentation.Expr.Identifier(type.type.shift(shift), term.name)
+                TypedRepresentation.Expr.Identifier(type.type.shift(shift), name)
             }
 
             is DesugaredRepresentation.Expr.Variable -> {
@@ -257,7 +264,7 @@ internal class TypecheckingContext private constructor(
                     term.branches
                         .map { branch ->
                             val (pattern, body) =
-                                withBoundPattern(branch.pattern, nullRage) {
+                                withBoundPattern(branch.pattern ?: return@map null, nullRage) {
                                     infer(branch.body)
                                 } ?: return null
                             unify(result, Type.Arrow(pattern.type, body?.type ?: return null)) ?: return@map null
@@ -279,26 +286,27 @@ internal class TypecheckingContext private constructor(
             }
 
             is DesugaredRepresentation.Expr.Application -> {
-                val left = infer(term.left)
-                val right = infer(term.right) ?: return null
-                val resultType = bindType()
-                unify(left?.type, Type.Arrow(right.type, resultType)) ?: return null
-                TypedRepresentation.Expr.Application(resultType, left ?: return null, right)
+                term.args.fold(infer(term.function)) { fn, arg ->
+                    val right = infer(arg) ?: return@fold null
+                    val resultType = bindType()
+                    unify(fn?.type, Type.Arrow(right.type, resultType)) ?: return@fold null
+                    TypedRepresentation.Expr.Application(resultType, fn ?: return@fold null, right)
+                }
             }
 
-            is DesugaredRepresentation.Expr.Literal.Num -> {
+            is DesugaredRepresentation.Literal.Num -> {
                 TypedRepresentation.Expr.Literal.Num(term.value)
             }
 
-            is DesugaredRepresentation.Expr.Literal.Char -> {
+            is DesugaredRepresentation.Literal.Char -> {
                 TypedRepresentation.Expr.Literal.Char(term.value)
             }
 
-            is DesugaredRepresentation.Expr.Literal.String -> {
+            is DesugaredRepresentation.Literal.String -> {
                 TypedRepresentation.Expr.Literal.String(term.value)
             }
 
-            is DesugaredRepresentation.Expr.Literal.TruVal -> {
+            is DesugaredRepresentation.Literal.TruVal -> {
                 TypedRepresentation.Expr.Literal.TruVal(term.value)
             }
 
@@ -348,14 +356,19 @@ internal class TypecheckingContext private constructor(
     ): TypedRepresentation.Pattern? {
         return when (pattern) {
             is DesugaredRepresentation.Pattern.Data -> {
-                val func = signature.functions[pattern.constructor] ?: return null
+                if (pattern.constructor.size != 1) {
+                    return null
+                }
+                val constructor = pattern.constructor.first()
+                val func = signature.functions[constructor] ?: return null
                 val (args, type) = func.type.constructorArguments() ?: return null
                 if (pattern.args.size != args.size) return null
                 val shift = shiftValue()
                 val boundArgTypes = bindTypes(func.boundTypeVariables)
+
                 val patternArgs =
                     pattern.args
-                        .zip(args.map { it.shift(shift) })
+                        .zip(args.map { arg -> arg.shift(shift) })
                         .map { (pat, arg) ->
                             val pattern = bindPattern(pat, letRange) ?: return@map null
                             unify(pattern.type, arg) ?: return@map null
@@ -363,7 +376,7 @@ internal class TypecheckingContext private constructor(
                         }.sequence() ?: return null
                 TypedRepresentation.Pattern.Data(
                     Type.Data(type.constructor, boundArgTypes),
-                    pattern.constructor,
+                    constructor,
                     patternArgs,
                 )
             }
@@ -380,6 +393,22 @@ internal class TypecheckingContext private constructor(
 
             is DesugaredRepresentation.Pattern.Wildcard -> {
                 TypedRepresentation.Pattern.Wildcard(bindType())
+            }
+
+            is DesugaredRepresentation.Literal.Num -> {
+                TypedRepresentation.Expr.Literal.Num(pattern.value)
+            }
+
+            is DesugaredRepresentation.Literal.Char -> {
+                TypedRepresentation.Expr.Literal.Char(pattern.value)
+            }
+
+            is DesugaredRepresentation.Literal.TruVal -> {
+                TypedRepresentation.Expr.Literal.TruVal(pattern.value)
+            }
+
+            is DesugaredRepresentation.Literal.String -> {
+                TypedRepresentation.Expr.Literal.String(pattern.value)
             }
         }
     }
