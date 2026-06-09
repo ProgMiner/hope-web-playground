@@ -1,9 +1,9 @@
 package ru.hopec.codegen.test
 
-import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Function.Name as FunName
 import ru.hopec.typecheck.TypedRepresentation.Expr
 import kotlin.test.Test
 import kotlin.test.assertContains
+import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Function.Name as FunName
 
 class FunctionNamingTest {
     @Test

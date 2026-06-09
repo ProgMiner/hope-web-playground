@@ -1,8 +1,8 @@
 package ru.hopec.codegen.test
 
 import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Function
-import ru.hopec.typecheck.TypedRepresentation.Expr
 import ru.hopec.desugarer.DesugaredRepresentation.Type
+import ru.hopec.typecheck.TypedRepresentation.Expr
 import kotlin.test.Test
 import kotlin.test.assertContains
 

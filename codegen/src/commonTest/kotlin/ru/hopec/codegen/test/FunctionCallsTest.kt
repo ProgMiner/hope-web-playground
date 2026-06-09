@@ -1,13 +1,13 @@
 package ru.hopec.codegen.test
 
+import ru.hopec.desugarer.DesugaredRepresentation.Type
 import ru.hopec.typecheck.TypedRepresentation
 import ru.hopec.typecheck.TypedRepresentation.Declarations
-import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Function.Name as FunName
 import ru.hopec.typecheck.TypedRepresentation.Declarations.Function
 import ru.hopec.typecheck.TypedRepresentation.Expr
-import ru.hopec.desugarer.DesugaredRepresentation.Type
 import kotlin.test.Test
 import kotlin.test.assertContains
+import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Function.Name as FunName
 
 class FunctionCallsTest {
     private val plusCore = FunName.Core("+")

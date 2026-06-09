@@ -2,8 +2,8 @@ package ru.hopec.typecheck
 
 import ru.hopec.core.Representation
 import ru.hopec.desugarer.DesugaredRepresentation
-import ru.hopec.desugarer.DesugaredRepresentation.Type
 import ru.hopec.desugarer.DesugaredRepresentation.PolymorphicType
+import ru.hopec.desugarer.DesugaredRepresentation.Type
 
 /**
  * Type-annotated representation of compilation unit
@@ -100,7 +100,9 @@ data class TypedRepresentation(
             override val type = body.type
         }
 
-        sealed interface Literal : Expr, Pattern {
+        sealed interface Literal :
+            Expr,
+            Pattern {
             data class TruVal(
                 val value: Boolean,
             ) : Literal {

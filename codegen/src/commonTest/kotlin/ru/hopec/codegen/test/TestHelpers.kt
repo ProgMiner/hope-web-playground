@@ -1,12 +1,12 @@
 package ru.hopec.codegen.test
 
 import ru.hopec.codegen.WatGenerator
+import ru.hopec.desugarer.DesugaredRepresentation.Type
 import ru.hopec.typecheck.TypedRepresentation
 import ru.hopec.typecheck.TypedRepresentation.Declarations
 import ru.hopec.typecheck.TypedRepresentation.Declarations.Function
 import ru.hopec.typecheck.TypedRepresentation.Expr
 import ru.hopec.typecheck.TypedRepresentation.Pattern
-import ru.hopec.desugarer.DesugaredRepresentation.Type
 import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Function.Name as FunName
 
 val numType = Type.Data.num

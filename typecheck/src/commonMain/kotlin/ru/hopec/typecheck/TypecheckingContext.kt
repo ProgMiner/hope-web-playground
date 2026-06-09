@@ -1,8 +1,8 @@
 package ru.hopec.typecheck
 
-import ru.hopec.typecheck.TypedRepresentation
 import ru.hopec.desugarer.DesugaredRepresentation
 import ru.hopec.desugarer.DesugaredRepresentation.Type
+import ru.hopec.typecheck.TypedRepresentation
 import kotlin.math.max
 import kotlin.math.min
 
@@ -170,7 +170,9 @@ internal class TypecheckingContext private constructor(
                     )
                 }
 
-                else -> pattern
+                else -> {
+                    pattern
+                }
             }
 
         fun rename(term: TypedRepresentation.Expr): TypedRepresentation.Expr =

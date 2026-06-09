@@ -1,14 +1,14 @@
 package ru.hopec.codegen.test
 
-import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Function.Name as FunName
 import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Data
+import ru.hopec.desugarer.DesugaredRepresentation.Type
 import ru.hopec.typecheck.TypedRepresentation.Declarations.Function
 import ru.hopec.typecheck.TypedRepresentation.Expr
 import ru.hopec.typecheck.TypedRepresentation.Pattern
-import ru.hopec.desugarer.DesugaredRepresentation.Type
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertFalse
+import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Function.Name as FunName
 
 class PatternsTest {
     private val trueCtor = FunName.Constructor(Data.Name.Core.TruVal, "true")

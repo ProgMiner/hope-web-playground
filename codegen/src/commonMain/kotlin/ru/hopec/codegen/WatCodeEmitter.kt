@@ -1,8 +1,8 @@
 package ru.hopec.codegen
 
+import ru.hopec.desugarer.DesugaredRepresentation.Type
 import ru.hopec.typecheck.TypedRepresentation.Expr
 import ru.hopec.typecheck.TypedRepresentation.Pattern
-import ru.hopec.desugarer.DesugaredRepresentation.Type
 import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Data.Name as DataName
 import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Function.Name as FuncName
 
@@ -72,17 +72,25 @@ internal class WatCodeEmitter(
     ) {
         when (pattern) {
             is Pattern.Wildcard -> { /* всегда совпадает */ }
+
             is Pattern.Variable -> {
                 out.line("local.get $argLocal")
                 out.line("local.set ${ctx.getOrAdd(pattern.name)}")
             }
+
             is Pattern.NamedData -> {
                 out.line("local.get $argLocal")
                 out.line("local.set ${ctx.getOrAdd(pattern.name)}")
                 emitPatternCheck(pattern.data, argLocal, failLabel, ctx, out)
             }
-            is Pattern.Data -> emitDataCheck(pattern, argLocal, failLabel, ctx, out)
-            else -> TODO("Add support for literal patterns")
+
+            is Pattern.Data -> {
+                emitDataCheck(pattern, argLocal, failLabel, ctx, out)
+            }
+
+            else -> {
+                TODO("Add support for literal patterns")
+            }
         }
     }
 
@@ -235,7 +243,7 @@ internal class WatCodeEmitter(
         out: WatEmitter,
     ) {
         when (val name = expr.name) {
-            is FuncName.Core ->
+            is FuncName.Core -> {
                 when (name.name) {
                     "nil" -> out.line("i32.const 0")
                     "true" -> out.line("i32.const 1")
@@ -243,7 +251,9 @@ internal class WatCodeEmitter(
                     "emptySet" -> out.line("i32.const 0")
                     else -> genClosureRef(gen.watId(name), emptyList(), ctx, out)
                 }
-            is FuncName.Constructor ->
+            }
+
+            is FuncName.Constructor -> {
                 when {
                     name.data == DataName.Core.TruVal && name.constructor == "true" -> out.line("i32.const 1")
                     name.data == DataName.Core.TruVal && name.constructor == "false" -> out.line("i32.const 0")
@@ -251,7 +261,11 @@ internal class WatCodeEmitter(
                     name.data == DataName.Core.Set && name.constructor == "emptySet" -> out.line("i32.const 0")
                     else -> genClosureRef(gen.watId(name), emptyList(), ctx, out)
                 }
-            is FuncName.User -> genClosureRef(gen.watId(name), emptyList(), ctx, out)
+            }
+
+            is FuncName.User -> {
+                genClosureRef(gen.watId(name), emptyList(), ctx, out)
+            }
         }
     }
 
@@ -325,11 +339,13 @@ internal class WatCodeEmitter(
         out: WatEmitter,
     ) {
         when {
-            ctor.data == DataName.Core.TruVal ->
+            ctor.data == DataName.Core.TruVal -> {
                 out.line("i32.const ${if (ctor.constructor == "true") 1 else 0}")
+            }
 
-            ctor.data == DataName.Core.List && ctor.constructor == "nil" ->
+            ctor.data == DataName.Core.List && ctor.constructor == "nil" -> {
                 out.line("i32.const 0")
+            }
 
             ctor.data == DataName.Core.List && ctor.constructor == "cons" && args.size == 1 -> {
                 genExpr(args[0], ctx, out)
@@ -345,8 +361,9 @@ internal class WatCodeEmitter(
             // Пустое множество — нулевой указатель.
             // TODO: Добавление элементов делается через рантайм-помощник `$rt.set_insert` (вызывается
             // из пользовательских функций, когда они появятся в Signature.core).
-            ctor.data == DataName.Core.Set && ctor.constructor == "emptySet" ->
+            ctor.data == DataName.Core.Set && ctor.constructor == "emptySet" -> {
                 out.line("i32.const 0")
+            }
 
             else -> {
                 val tag = gen.constructorTags[ctor.data to ctor.constructor] ?: 0
@@ -433,29 +450,44 @@ internal class WatCodeEmitter(
 
         fun pat(p: Pattern) {
             when (p) {
-                is Pattern.Variable -> bound.add(p.name)
+                is Pattern.Variable -> {
+                    bound.add(p.name)
+                }
+
                 is Pattern.NamedData -> {
                     bound.add(p.name)
                     pat(p.data)
                 }
-                is Pattern.Data -> p.args.forEach(::pat)
+
+                is Pattern.Data -> {
+                    p.args.forEach(::pat)
+                }
+
                 is Pattern.Wildcard -> {}
-                else -> TODO("add support for literal patterns")
+
+                else -> {
+                    TODO("add support for literal patterns")
+                }
             }
         }
 
         fun expr(e: Expr) {
             when (e) {
-                is Expr.Variable -> if (e.name !in bound) free.add(e.name)
+                is Expr.Variable -> {
+                    if (e.name !in bound) free.add(e.name)
+                }
+
                 is Expr.Application -> {
                     expr(e.left)
                     expr(e.right)
                 }
+
                 is Expr.If -> {
                     expr(e.condition)
                     expr(e.positive)
                     expr(e.negative)
                 }
+
                 is Expr.Let -> {
                     expr(e.matcher)
                     val saved = bound.toMutableSet()
@@ -464,6 +496,7 @@ internal class WatCodeEmitter(
                     bound.clear()
                     bound.addAll(saved)
                 }
+
                 is Expr.Lambda -> {
                     for (b in e.branches) {
                         val saved = bound.toMutableSet()
@@ -473,6 +506,7 @@ internal class WatCodeEmitter(
                         bound.addAll(saved)
                     }
                 }
+
                 else -> {}
             }
         }
