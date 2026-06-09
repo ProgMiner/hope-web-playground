@@ -1,8 +1,7 @@
 package ru.hopec.typecheck
 
 import ru.hopec.typecheck.TypedRepresentation
-import ru.hopec.desugarer.DesugaredRepresentation
-import ru.hopec.desugarer.DesugaredRepresentation.Type
+import ru.hopec.typecheck.TypedRepresentation.Type
 import kotlin.math.max
 import kotlin.math.min
 
@@ -35,12 +34,12 @@ internal class TypecheckingContext private constructor(
         fun runDeclarations(
             signature: Signature,
             declarations: DesugaredRepresentation.Declarations,
-        ): DesugaredRepresentation.Declarations = TypecheckingContext(signature).runDeclarations(declarations)
+        ): TypedRepresentation.Declarations = TypecheckingContext(signature).runDeclarations(declarations)
 
         fun runFunction(
             signature: Signature,
             function: DesugaredRepresentation.Declarations.Function,
-        ): DesugaredRepresentation.Declarations.Function? = TypecheckingContext(signature).runFunction(function)
+        ): TypedRepresentation.Declarations.Function? = TypecheckingContext(signature).runFunction(function)
     }
 
     private var substitution: ArrayList<Type> = arrayListOf()
@@ -49,8 +48,8 @@ internal class TypecheckingContext private constructor(
     private fun runModule(module: DesugaredRepresentation.Module): TypedRepresentation.Module =
         TypedRepresentation.Module(runDeclarations(module.public), runDeclarations(module.private))
 
-    private fun runDeclarations(declarations: DesugaredRepresentation.Declarations): DesugaredRepresentation.Declarations =
-        DesugaredRepresentation.Declarations(
+    private fun runDeclarations(declarations: DesugaredRepresentation.Declarations): TypedRepresentation.Declarations =
+        TypedRepresentation.Declarations(
             declarations.data,
             declarations.functions
                 .toList()
@@ -58,7 +57,7 @@ internal class TypecheckingContext private constructor(
                 .toMap(),
         )
 
-    private fun runFunction(function: DesugaredRepresentation.Declarations.Function): DesugaredRepresentation.Declarations.Function? {
+    private fun runFunction(function: DesugaredRepresentation.Declarations.Function): TypedRepresentation.Declarations.Function? {
         val lambda = infer(function.lambda) ?: return null
         val variableMapping = hashMapOf<Int, Type>()
 
@@ -231,7 +230,7 @@ internal class TypecheckingContext private constructor(
         unify(fullWalk(lambda.type), function.type.type)
         if (!unifyOk) return null
 
-        return DesugaredRepresentation.Declarations.Function(
+        return TypedRepresentation.Declarations.Function(
             rename(lambda) as TypedRepresentation.Expr.Lambda,
             function.type.boundTypeVariables,
         )
