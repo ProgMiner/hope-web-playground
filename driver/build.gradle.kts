@@ -26,6 +26,7 @@ kotlin {
             implementation(project(":core"))
             implementation(project(":parser"))
             implementation(project(":renamer"))
+            implementation(project(":desugarer"))
             implementation(project(":typecheck"))
         }
 
