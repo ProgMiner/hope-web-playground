@@ -68,13 +68,16 @@ private fun dsBranches(vararg branches: Pair<DesugaredRepresentation.Pattern, De
         DesugaredRepresentation.Expr.Lambda.Branch(it.first, it.second)
     }
 
+private fun dsApp(fn: DesugaredRepresentation.Expr, vararg args: DesugaredRepresentation.Expr) =
+    DesugaredRepresentation.Expr.Application(fn, args.toList())
+
 private infix fun DesugaredRepresentation.Expr.dsAp(right: DesugaredRepresentation.Expr) =
     DesugaredRepresentation.Expr.Application(this, listOf(right))
 
 private fun dsTuple(
     left: DesugaredRepresentation.Expr,
     right: DesugaredRepresentation.Expr,
-) = (DesugaredRepresentation.Expr.Identifier(setOf(makeTuple)) dsAp left) dsAp right
+) = dsApp(DesugaredRepresentation.Expr.Identifier(setOf(makeTuple)), left, right)
 
 private fun dsTuplePat(
     left: DesugaredRepresentation.Pattern,
@@ -141,6 +144,40 @@ class TypecheckTests {
                         .body as TypedRepresentation.Expr.Let
                     ).matcher.type,
         )
+    }
+
+    @Test
+    fun multipleArgumentsApplication() {
+        val poly =
+            Declarations.Function(
+                DesugaredRepresentation.Expr.Lambda(
+                    dsBranches(
+                        dsWild to dsApp(
+                            DesugaredRepresentation.Expr.Lambda(
+                                dsBranches(
+                                    dsPatVar("x") to DesugaredRepresentation.Expr.Lambda(
+                                        dsBranches(
+                                            dsPatVar("y") to DesugaredRepresentation.Expr.Lambda(
+                                                dsBranches(
+                                                    dsPatVar("z") to dsApp(dsVar("x", 2), dsVar("y", 1), dsVar("z", 0))
+                                                )
+                                            )
+                                        )
+                                    )
+                                )
+                            ),
+                            DesugaredRepresentation.Expr.Lambda(
+                                dsBranches(dsPatVar("x") to dsVar("x", 0)),
+                            ),
+                            DesugaredRepresentation.Expr.Identifier(setOf(cons)),
+                            dsTuple(dsTrue, DesugaredRepresentation.Expr.Identifier(setOf(nil))),
+                        )
+                    )
+                ),
+                polymorphic(typeVar(0) arrow Type.Data.list(Type.Data.truval))
+            )
+        val result = annotateGlobal(poly)
+        assertNotNull(result)
     }
 
     @Test
