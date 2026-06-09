@@ -2,7 +2,6 @@ package ru.hopec.codegen.test
 
 import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Data
 import ru.hopec.desugarer.DesugaredRepresentation.Type
-import ru.hopec.typecheck.TypedRepresentation.Declarations.Function
 import ru.hopec.typecheck.TypedRepresentation.Expr
 import ru.hopec.typecheck.TypedRepresentation.Pattern
 import kotlin.test.Test
