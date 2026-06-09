@@ -1,6 +1,8 @@
 package ru.hopec.typecheck
 
 import ru.hopec.core.Representation
+import ru.hopec.desugarer.DesugaredRepresentation.Type
+import ru.hopec.desugarer.DesugaredRepresentation.Declarations
 
 /**
  * Type-annotated representation of compilation unit
@@ -17,88 +19,6 @@ data class TypedRepresentation(
         val public: Declarations,
         val private: Declarations,
     )
-
-    /**
-     * Declarations of data and functions
-     *
-     * @param data Map from data names to their representations
-     *
-     * @param functions Map from function names to their representations.
-     * Data constructors are also represented here as functions
-     */
-    data class Declarations(
-        val data: Map<Data.Name.Defined, Data>,
-        val functions: Map<Declarations.Function.Name, Function>,
-    ) {
-        /**
-         * Declared data representation
-         *
-         * @param constructors Map from constructors names to list of their arguments
-         */
-        data class Data(
-            val constructors: Map<String, List<Type>>,
-            val boundTypeVariables: Int,
-        ) {
-            /** Resolved data name*/
-            sealed interface Name {
-                /** Core-defined types*/
-                sealed interface Core : Name {
-                    data object Char : Core
-
-                    data object TruVal : Core
-
-                    data object Num : Core
-
-                    data object List : Core
-
-                    data object Set : Core
-
-                    data object Tuple : Core
-                }
-
-                /** User-defined types*/
-                data class Defined(
-                    val module: String?,
-                    val name: String,
-                ) : Name
-            }
-        }
-
-        /**
-         * Function representation
-         *
-         * For convenience, represented as lambda expression
-         */
-        data class Function(
-            val lambda: Expr.Lambda,
-            private val boundTypeVariables: Int,
-        ) {
-            sealed interface Name {
-                /**
-                 * Core-defined functions like nil, cons, operators etc...
-                 *
-                 * Represented as string, because there are too much of them
-                 */
-                data class Core(
-                    val name: String,
-                ) : Name
-
-                /** User defined functions (with **`dec`** keyword) */
-                data class User(
-                    val module: String?,
-                    val name: String,
-                ) : Name
-
-                /** Core and user defined data constructors*/
-                data class Constructor(
-                    val data: Data.Name,
-                    val constructor: String,
-                ) : Name
-            }
-
-            val type = PolymorphicType(lambda.type, boundTypeVariables)
-        }
-    }
 
     sealed interface Expr {
         /** Type of subexpression in the context of the whole expression */
@@ -205,44 +125,6 @@ data class TypedRepresentation(
             val data: Data,
         ) : Pattern {
             override val type = data.type
-        }
-    }
-
-    data class PolymorphicType(
-        val type: Type,
-        val boundTypeVariables: Int,
-    )
-
-    sealed interface Type {
-        /** Type variable, represented as De Brujin index */
-        data class Variable(
-            val index: Int,
-        ) : Type
-
-        data class Arrow(
-            val argument: Type,
-            val result: Type,
-        ) : Type
-
-        data class Data(
-            val constructor: Declarations.Data.Name,
-            val args: List<Type>,
-        ) : Type {
-            companion object {
-                val char = Data(Declarations.Data.Name.Core.Char, arrayListOf())
-                val truval = Data(Declarations.Data.Name.Core.TruVal, arrayListOf())
-                val num = Data(Declarations.Data.Name.Core.Num, arrayListOf())
-                val string = Data(Declarations.Data.Name.Core.List, arrayListOf(char))
-
-                fun list(arg: Type) = Data(Declarations.Data.Name.Core.List, arrayListOf(arg))
-
-                fun set(arg: Type) = Data(Declarations.Data.Name.Core.Set, arrayListOf(arg))
-
-                fun tuple(
-                    left: Type,
-                    right: Type,
-                ) = Data(Declarations.Data.Name.Core.Tuple, arrayListOf(left, right))
-            }
         }
     }
 }
