@@ -180,8 +180,13 @@ open class ModuleDesugarer(
                 Expr.Application(
                     Expr.Identifier(setOf(cons)),
                     listOf(
-                        newScope().resolveExpression(list.first()),
-                        listToExpr(list.drop(1), nil, cons),
+                        Expr.Application(
+                            Expr.Identifier(setOf(tupleConstr)),
+                            listOf(
+                                newScope().resolveExpression(list.first()),
+                                listToExpr(list.drop(1), nil, cons),
+                            ),
+                        ),
                     ),
                 )
             } else {
@@ -261,9 +266,20 @@ open class ModuleDesugarer(
             }
 
             is AstNode.ApplicationExpr -> {
+                val args = expr.arguments.map { newScope().resolveExpression(it) }
+                val packed =
+                    if (args.size > 1) {
+                        listOf(
+                            args.reduceRight { left, right ->
+                                Expr.Application(Expr.Identifier(setOf(tupleConstr)), listOf(left, right))
+                            },
+                        )
+                    } else {
+                        args
+                    }
                 Expr.Application(
                     newScope().resolveExpression(expr.function),
-                    expr.arguments.map { newScope().resolveExpression(it) },
+                    packed,
                 )
             }
 
@@ -324,9 +340,20 @@ open class ModuleDesugarer(
             }
 
             is AstNode.ConstructorPattern -> {
+                val args = pattern.arguments.map { resolvePattern(it) }
+                val packed =
+                    if (args.size > 1) {
+                        listOf(
+                            args.reduceRight { left, right ->
+                                Pattern.Data(setOf(tupleConstr), listOf(left, right)) as Pattern
+                            },
+                        )
+                    } else {
+                        args
+                    }
                 Pattern.Data(
                     resolvePattern(pattern.constructor).idents,
-                    args = pattern.arguments.map { resolvePattern(it) },
+                    args = packed,
                 )
             }
         }
@@ -423,4 +450,4 @@ open class ModuleDesugarer(
     private fun String.generateNewName() = (this + "_" + identCounter.toString()).also { identCounter++ }
 }
 
-private fun ModuleDesugarer.newScope() = ModuleDesugarer(this.globalContext, this.moduleContext, this.localContext.copy())
+private fun ModuleDesugarer.newScope() = ModuleDesugarer(this.globalContext, this.moduleContext, this.localContext.fork())

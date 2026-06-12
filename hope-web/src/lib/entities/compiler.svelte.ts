@@ -19,7 +19,7 @@ export class Compiler {
 
 	async compile(input: Tree): Promise<WebAssembly.Instance | undefined> {
 		const result = this.run(input);
-		if (!result) {
+		if (!result || result.size === 0) {
 			return undefined;
 		}
 

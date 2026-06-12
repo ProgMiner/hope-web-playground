@@ -353,7 +353,7 @@ class TypecheckTests {
             DesugaredRepresentation.Declarations.Function(
                 DesugaredRepresentation.Expr.Lambda(
                     dsBranches(
-                        dsWild to DesugaredRepresentation.Expr.Literal.Num(5),
+                        dsWild to DesugaredRepresentation.Literal.Num(5),
                     ),
                 ),
                 polymorphic(Type.Data.num),

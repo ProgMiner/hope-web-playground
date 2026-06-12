@@ -5,8 +5,7 @@ import ru.hopec.desugarer.DesugaredRepresentation.Type
 import ru.hopec.typecheck.TypedRepresentation.Expr
 import ru.hopec.typecheck.TypedRepresentation.Pattern
 import kotlin.test.Test
-import kotlin.test.assertContains
-import kotlin.test.assertTrue
+import kotlin.test.assertEquals
 import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Function.Name as FunName
 
 class MultiBranchMatchingTest {

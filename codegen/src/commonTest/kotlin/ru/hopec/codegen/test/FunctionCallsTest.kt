@@ -6,7 +6,7 @@ import ru.hopec.typecheck.TypedRepresentation.Declarations
 import ru.hopec.typecheck.TypedRepresentation.Declarations.Function
 import ru.hopec.typecheck.TypedRepresentation.Expr
 import kotlin.test.Test
-import kotlin.test.assertContains
+import kotlin.test.assertEquals
 import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Function.Name as FunName
 
 class FunctionCallsTest {

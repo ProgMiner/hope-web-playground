@@ -10,11 +10,15 @@ private typealias LetRange = Pair<Int, Int>
 
 private val nullRage = 0 to 0
 
-internal fun annotate(repr: DesugaredRepresentation): TypedRepresentation {
+internal fun annotate(repr: DesugaredRepresentation): TypedRepresentation? {
     val signature = Signature.core.extendAll(repr.modules.map { it.value })
     val modules =
-        repr.modules.map { it.key to TypecheckingContext.runModule(signature.extendLocal(it.value), it.value) }.toMap()
-    val topLevel = TypecheckingContext.runDeclarations(signature.extend(repr.topLevel), repr.topLevel)
+        repr.modules
+            .map { (name, module) ->
+                name to (TypecheckingContext.runModule(signature.extendLocal(module), module) ?: return null)
+            }.toMap()
+    val topLevel =
+        TypecheckingContext.runDeclarations(signature.extend(repr.topLevel), repr.topLevel) ?: return null
     return TypedRepresentation(modules, topLevel)
 }
 
@@ -30,12 +34,12 @@ internal class TypecheckingContext private constructor(
         fun runModule(
             signature: Signature,
             module: DesugaredRepresentation.Module,
-        ): TypedRepresentation.Module = TypecheckingContext(signature).runModule(module)
+        ): TypedRepresentation.Module? = TypecheckingContext(signature).runModule(module)
 
         fun runDeclarations(
             signature: Signature,
             declarations: DesugaredRepresentation.Declarations,
-        ): TypedRepresentation.Declarations = TypecheckingContext(signature).runDeclarations(declarations)
+        ): TypedRepresentation.Declarations? = TypecheckingContext(signature).runDeclarations(declarations)
 
         fun runFunction(
             signature: Signature,
@@ -46,17 +50,22 @@ internal class TypecheckingContext private constructor(
     private var substitution: ArrayList<Type> = arrayListOf()
     private var boundVariables: ArrayList<BoundVariable> = arrayListOf()
 
-    private fun runModule(module: DesugaredRepresentation.Module): TypedRepresentation.Module =
-        TypedRepresentation.Module(runDeclarations(module.public), runDeclarations(module.private))
+    private fun runModule(module: DesugaredRepresentation.Module): TypedRepresentation.Module? {
+        val public = runDeclarations(module.public) ?: return null
+        val private = runDeclarations(module.private) ?: return null
+        return TypedRepresentation.Module(public, private)
+    }
 
-    private fun runDeclarations(declarations: DesugaredRepresentation.Declarations): TypedRepresentation.Declarations =
-        TypedRepresentation.Declarations(
-            declarations.data,
+    // Ошибка типизации любой функции — ошибка всего набора деклараций:
+    // молча выбрасывать функции нельзя, иначе codegen получит неполную программу.
+    private fun runDeclarations(declarations: DesugaredRepresentation.Declarations): TypedRepresentation.Declarations? {
+        val functions =
             declarations.functions
                 .toList()
-                .flatMap { (k, v) -> runFunction(v).nullAsList().map { k to it } }
-                .toMap(),
-        )
+                .map { (k, v) -> k to (runFunction(v) ?: return null) }
+                .toMap()
+        return TypedRepresentation.Declarations(declarations.data, functions)
+    }
 
     private fun runFunction(function: DesugaredRepresentation.Declarations.Function): TypedRepresentation.Declarations.Function? {
         val lambda = infer(function.lambda) ?: return null
@@ -252,10 +261,11 @@ internal class TypecheckingContext private constructor(
     private fun infer(term: DesugaredRepresentation.Expr): TypedRepresentation.Expr? {
         return when (term) {
             is DesugaredRepresentation.Expr.Identifier -> {
-                if (term.name.size != 1) {
+                val candidates = term.name.filter { it in signature.functions }
+                if (candidates.size != 1) {
                     return null
                 }
-                val name = term.name.first()
+                val name = candidates.single()
                 val type = signature.functions[name] ?: return null
                 val shift = shiftValue()
                 bindTypes(type.boundTypeVariables)
@@ -273,8 +283,9 @@ internal class TypecheckingContext private constructor(
                 val branches =
                     term.branches
                         .map { branch ->
+                            val branchPattern = branch.pattern ?: DesugaredRepresentation.Pattern.Wildcard
                             val (pattern, body) =
-                                withBoundPattern(branch.pattern ?: return@map null, nullRage) {
+                                withBoundPattern(branchPattern, nullRage) {
                                     infer(branch.body)
                                 } ?: return null
                             unify(result, Type.Arrow(pattern.type, body?.type ?: return null)) ?: return@map null
@@ -366,10 +377,11 @@ internal class TypecheckingContext private constructor(
     ): TypedRepresentation.Pattern? {
         return when (pattern) {
             is DesugaredRepresentation.Pattern.Data -> {
-                if (pattern.constructor.size != 1) {
+                val candidates = pattern.constructor.filter { it in signature.functions }
+                if (candidates.size != 1) {
                     return null
                 }
-                val constructor = pattern.constructor.first()
+                val constructor = candidates.single()
                 val func = signature.functions[constructor] ?: return null
                 val (args, type) = func.type.constructorArguments() ?: return null
                 if (pattern.args.size != args.size) return null
@@ -444,6 +456,16 @@ internal class TypecheckingContext private constructor(
 
     private fun shiftValue() = substitution.size
 
+    private fun occurs(
+        index: Int,
+        type: Type,
+    ): Boolean =
+        when (val walked = walk(type)) {
+            is Type.Variable -> walked.index == index
+            is Type.Arrow -> occurs(index, walked.argument) || occurs(index, walked.result)
+            is Type.Data -> walked.args.any { occurs(index, it) }
+        }
+
     private fun unify(
         left: Type?,
         right: Type?,
@@ -462,6 +484,9 @@ internal class TypecheckingContext private constructor(
                     }
 
                     else -> {
+                        // Без occurs check связывание v := t(v) даёт бесконечный тип
+                        // и зацикливание при полном обходе подстановки.
+                        if (occurs(walkedLeft.index, walkedRight)) return null
                         substitution[walkedLeft.index] = walkedRight
                     }
                 }
@@ -470,6 +495,7 @@ internal class TypecheckingContext private constructor(
             is Type.Arrow -> {
                 when (walkedRight) {
                     is Type.Variable -> {
+                        if (occurs(walkedRight.index, walkedLeft)) return null
                         substitution[walkedRight.index] = walkedLeft
                     }
 
@@ -490,6 +516,7 @@ internal class TypecheckingContext private constructor(
             is Type.Data -> {
                 when (walkedRight) {
                     is Type.Variable -> {
+                        if (occurs(walkedRight.index, walkedLeft)) return null
                         substitution[walkedRight.index] = walkedLeft
                     }
 

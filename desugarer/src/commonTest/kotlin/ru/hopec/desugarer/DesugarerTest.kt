@@ -287,9 +287,9 @@ class DesugarerTest {
             val let = branch.body as DesugaredRepresentation.Expr.Let
             val matcher = let.matcher as DesugaredRepresentation.Expr.Application
             val arg = matcher.args.first() as DesugaredRepresentation.Expr.Variable
-            assertEquals(1, arg.binder)
+            assertEquals(0, arg.binder)
             val body = let.body as DesugaredRepresentation.Expr.Variable
-            assertEquals(1, body.binder)
+            assertEquals(0, body.binder)
         }
 
     private val id =

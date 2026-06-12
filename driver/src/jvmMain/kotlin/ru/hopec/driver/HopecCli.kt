@@ -19,9 +19,13 @@ class HopecCompile : CliktCommand() {
     override fun run() {
         val tree = runBlocking { parseHope(input.readText()) }
         val buffer = Buffer()
-        Hopec(CompilationContext()).run(tree, buffer)
+        val status = Hopec(CompilationContext()).run(tree, buffer)
+        if (status != 0) {
+            echo("compilation failed", err = true)
+            return
+        }
         val entrance = Instance.builder(Parser.parse(buffer.readByteArray())).build().export("main")
-        echo(entrance.apply()[0])
+        echo(entrance.apply(0)[0])
     }
 }
 

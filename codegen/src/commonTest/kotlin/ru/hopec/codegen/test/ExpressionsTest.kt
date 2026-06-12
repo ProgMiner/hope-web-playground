@@ -55,9 +55,12 @@ class ExpressionsTest {
                     (block (result i32)
                       (local.set ${'$'}t_0
                         (i32.const 10))
-                      (block ${'$'}let_fail2
-                        (local.set ${'$'}v_y_0
-                          (local.get ${'$'}t_0)))
+                      (block ${'$'}let_ok3
+                        (block ${'$'}let_fail2
+                          (local.set ${'$'}v_y_0
+                            (local.get ${'$'}t_0))
+                          (br ${'$'}let_ok3))
+                        (unreachable))
                       (local.get ${'$'}v_y_0))))
                 (unreachable)))
             """.trimIndent()

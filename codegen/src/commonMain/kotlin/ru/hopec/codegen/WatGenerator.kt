@@ -5,7 +5,6 @@ import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Data
 import ru.hopec.typecheck.TypedRepresentation
 import ru.hopec.typecheck.TypedRepresentation.Declarations
 import ru.hopec.typecheck.TypedRepresentation.Expr
-import ru.hopec.typecheck.TypedRepresentation.Pattern
 import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Data.Name as DataName
 import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Function.Name as FuncName
 
@@ -28,6 +27,11 @@ import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Function.Name as 
  * | пользовательский ADT ctor | указатель на кучу → `[tag: i32, field₀: i32, …]`      |
  * | замыкание `a → b`         | указатель на кучу → `[func_idx: i32, n_caps: i32, …]` |
  *
+ * Все функции в таблице (для `call_indirect`) имеют единую сигнатуру
+ * `(closure_ptr: i32, arg: i32) → i32`. Функции верхнего уровня, core-операции
+ * и конструкторы, используемые как значения, попадают в таблицу через
+ * synthesized-обёртки ([wrapperFor]).
+ *
  * Генерация кода выражений и сопоставления с паттернами вынесена в [WatCodeEmitter].
  */
 class WatGenerator(
@@ -40,12 +44,17 @@ class WatGenerator(
     private var labelCounter = 0
     private var liftedCounter = 0
 
-    // ── Теги конструкторов: (DataName × ctorName) → тег в рамках типа ───────
+    // ── Теги и арность конструкторов: (DataName × ctorName) → … ─────────────
     internal val constructorTags = mutableMapOf<Pair<DataName, String>, Int>()
+    internal val constructorArity = mutableMapOf<Pair<DataName, String>, Int>()
 
     // ── Таблица функций для косвенных вызовов (замыкания) ────────────────────
     private val funcTable = mutableListOf<String>()
     private val funcTableIdx = mutableMapOf<String, Int>()
+
+    // ── Обёртки для функций-значений: имя → WAT-имя обёртки ─────────────────
+    private val wrapperIds = mutableMapOf<FuncName, String>()
+    private val pendingWrappers = ArrayDeque<Pair<FuncName, String>>()
 
     // ── Лямбды, поднятые в область модуля ────────────────────────────────────
     internal data class LiftedLambda(
@@ -77,6 +86,17 @@ class WatGenerator(
             funcTable.size - 1
         }
 
+    /**
+     * WAT-имя обёртки с сигнатурой `$closure_fn` для функции [name].
+     * Обёртка эмитится отложенно в [emitAllFunctions].
+     */
+    internal fun wrapperFor(name: FuncName): String =
+        wrapperIds.getOrPut(name) {
+            val id = "\$wrap.${watId(name).removePrefix("\$")}"
+            pendingWrappers.addLast(name to id)
+            id
+        }
+
     internal fun watId(name: FuncName): String =
         when (name) {
             is FuncName.Core -> "\$core.${esc(name.name)}"
@@ -91,6 +111,9 @@ class WatGenerator(
             .replace("*", "_mul")
             .replace("/", "_div")
             .replace("#", "hash")
+            .replace("<", "_lt")
+            .replace(">", "_gt")
+            .replace("=", "_eq")
             .replace(".", "_dot")
             .replace(" ", "_")
             .filter { it.isLetterOrDigit() || it == '_' }
@@ -135,7 +158,10 @@ class WatGenerator(
             data: Data,
         ) {
             var tag = 0
-            for ((ctor, _) in data.constructors) constructorTags[name to ctor] = tag++
+            for ((ctor, args) in data.constructors) {
+                constructorTags[name to ctor] = tag++
+                constructorArity[name to ctor] = args.size
+            }
         }
         for ((name, data) in program.topLevel.data) process(name, data)
         for ((_, module) in program.modules) {
@@ -167,10 +193,17 @@ class WatGenerator(
             emitDeclFunctions(module.public)
             emitDeclFunctions(module.private)
         }
-        // Список поднятых лямбд может расти в процессе эмиссии (лямбды внутри лямбд).
-        var i = 0
-        while (i < liftedLambdas.size) {
-            emitLiftedLambda(liftedLambdas[i++])
+        // Очереди могут расти в процессе эмиссии: лямбды внутри лямбд,
+        // обёртки, на которые ссылаются тела лямбд, и т.д.
+        var lifted = 0
+        while (lifted < liftedLambdas.size || pendingWrappers.isNotEmpty()) {
+            while (lifted < liftedLambdas.size) {
+                emitLiftedLambda(liftedLambdas[lifted++])
+            }
+            while (pendingWrappers.isNotEmpty()) {
+                val (name, watName) = pendingWrappers.removeFirst()
+                emitWrapper(name, watName)
+            }
         }
     }
 
@@ -184,10 +217,9 @@ class WatGenerator(
         lambda: Expr.Lambda,
     ) {
         val ctx = WatFunctionContext(::esc)
-        collectLambdaVars(lambda, ctx)
 
-        // Сначала собираем тело, чтобы знать набор временных переменных
-        // до момента вывода объявлений локалов.
+        // Сначала собираем тело, чтобы знать набор локалов
+        // до момента вывода объявлений в заголовке.
         val body = code.emitBranchMatch(lambda.branches, "\$arg", ctx)
 
         val children = mutableListOf<SExpr>()
@@ -205,13 +237,11 @@ class WatGenerator(
      */
     private fun emitLiftedLambda(lifted: LiftedLambda) {
         val ctx = WatFunctionContext(::esc)
-        collectLambdaVars(lifted.lambda, ctx)
-        for (cap in lifted.captures) ctx.getOrAdd(cap)
 
         val stmts = mutableListOf<SExpr>()
         for ((i, cap) in lifted.captures.withIndex()) {
             stmts.add(
-                localSet(ctx.getOrAdd(cap), i32Load(8 + i * 4, localGet("\$closure_ptr"))),
+                localSet(ctx.bind(cap), i32Load(8 + i * 4, localGet("\$closure_ptr"))),
             )
         }
         val match = code.emitBranchMatch(lifted.lambda.branches, "\$arg", ctx)
@@ -225,79 +255,108 @@ class WatGenerator(
         )
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Предварительный обход: собираем имена пользовательских переменных
-    // из паттернов и let-выражений
-    // ═══════════════════════════════════════════════════════════════════════
-
-    private fun collectLambdaVars(
-        lambda: Expr.Lambda,
-        ctx: WatFunctionContext,
+    /**
+     * Обёртка с сигнатурой `$closure_fn` для функции/конструктора [name],
+     * чтобы значение можно было вызвать через `$rt.apply`.
+     */
+    private fun emitWrapper(
+        name: FuncName,
+        watName: String,
     ) {
-        for (b in lambda.branches) {
-            collectPatVars(b.pattern, ctx)
-            collectExprVars(b.body, ctx)
-        }
+        val body: List<SExpr> =
+            when (name) {
+                is FuncName.User ->
+                    listOf(call(watId(name), listOf(localGet("\$arg"))))
+
+                is FuncName.Core -> {
+                    val op = WatCodeEmitter.CORE_BIN_OPS[name.name]
+                    if (op != null) {
+                        // Аргумент — кортеж (a, b) в куче.
+                        listOf(
+                            inst(
+                                op,
+                                i32Load(0, localGet("\$arg")),
+                                i32Load(4, localGet("\$arg")),
+                            ),
+                        )
+                    } else {
+                        listOf(unreachable())
+                    }
+                }
+
+                is FuncName.Constructor -> wrapperBodyForConstructor(name, watName)
+            }
+
+        moduleChildren.add(
+            SExpr.Inst(
+                "func $watName (param \$closure_ptr i32) (param \$arg i32) (result i32)",
+                body,
+            ),
+        )
     }
 
-    private fun collectPatVars(
-        p: Pattern,
-        ctx: WatFunctionContext,
-    ) {
-        when (p) {
-            is Pattern.Variable -> {
-                ctx.getOrAdd(p.name)
-            }
+    private fun wrapperBodyForConstructor(
+        name: FuncName.Constructor,
+        watName: String,
+    ): List<SExpr> =
+        when {
+            name.data == DataName.Core.List && name.constructor == "cons" ->
+                listOf(call("\$rt.mk_cons", listOf(localGet("\$arg"))))
 
-            is Pattern.NamedData -> {
-                ctx.getOrAdd(p.name)
-                collectPatVars(p.data, ctx)
-            }
+            name.data == DataName.Core.Set && name.constructor == "setCons" ->
+                listOf(
+                    call(
+                        "\$rt.set_insert",
+                        listOf(
+                            i32Load(4, localGet("\$arg")),
+                            i32Load(0, localGet("\$arg")),
+                        ),
+                    ),
+                )
 
-            is Pattern.Data -> {
-                p.args.forEach { collectPatVars(it, ctx) }
+            name.data == DataName.Core.Tuple -> {
+                // Каррированный `#`: первая ступень возвращает замыкание,
+                // захватившее fst; вторая строит кортеж.
+                val stage2 = "$watName.1"
+                val stage2Idx = registerInFuncTable(stage2)
+                moduleChildren.add(
+                    SExpr.Inst(
+                        "func $stage2 (param \$closure_ptr i32) (param \$arg i32) (result i32)",
+                        listOf(
+                            call(
+                                "\$rt.mk_tuple",
+                                listOf(
+                                    i32Load(8, localGet("\$closure_ptr")),
+                                    localGet("\$arg"),
+                                ),
+                            ),
+                        ),
+                    ),
+                )
+                listOf(
+                    atom("local \$ptr i32"),
+                    localSet(
+                        "\$ptr",
+                        call("\$rt.mk_closure", listOf(i32Const(stage2Idx), i32Const(1))),
+                    ),
+                    i32Store(8, localGet("\$ptr"), localGet("\$arg")),
+                    localGet("\$ptr"),
+                )
             }
-
-            is Pattern.Wildcard -> {}
 
             else -> {
-                TODO("add support for literal patterns")
+                val tag = constructorTags[name.data to name.constructor] ?: 0
+                listOf(
+                    atom("local \$ptr i32"),
+                    localSet(
+                        "\$ptr",
+                        call("\$rt.mk_adt", listOf(i32Const(1), i32Const(tag))),
+                    ),
+                    i32Store(4, localGet("\$ptr"), localGet("\$arg")),
+                    localGet("\$ptr"),
+                )
             }
         }
-    }
-
-    private fun collectExprVars(
-        e: Expr,
-        ctx: WatFunctionContext,
-    ) {
-        when (e) {
-            is Expr.Let -> {
-                collectPatVars(e.pattern, ctx)
-                collectExprVars(e.matcher, ctx)
-                collectExprVars(e.body, ctx)
-            }
-
-            is Expr.Lambda -> {
-                e.branches.forEach {
-                    collectPatVars(it.pattern, ctx)
-                    collectExprVars(it.body, ctx)
-                }
-            }
-
-            is Expr.Application -> {
-                collectExprVars(e.left, ctx)
-                collectExprVars(e.right, ctx)
-            }
-
-            is Expr.If -> {
-                collectExprVars(e.condition, ctx)
-                collectExprVars(e.positive, ctx)
-                collectExprVars(e.negative, ctx)
-            }
-
-            else -> {}
-        }
-    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Экспорты

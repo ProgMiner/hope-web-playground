@@ -7,8 +7,10 @@ import kotlin.test.assertEquals
 
 class HopecCliTest {
     @Test
-    fun `simple file compiled`() {
-        assertEquals("5\n", compile().stdout)
+    fun `unsupported program reports compilation failure`() {
+        // hello.hope использует `write`, которого нет в core —
+        // компиляция должна честно завершиться ошибкой, а не заглушкой.
+        assertEquals("compilation failed\n", compile().stderr)
     }
 
     private fun compile(file: String = helloFile()) = HopecCompile().test(file)

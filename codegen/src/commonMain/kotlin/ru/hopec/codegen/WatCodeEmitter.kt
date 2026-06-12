@@ -22,6 +22,22 @@ import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Function.Name as 
 internal class WatCodeEmitter(
     private val gen: WatGenerator,
 ) {
+    internal companion object {
+        val CORE_BIN_OPS: Map<String, String> =
+            mapOf(
+                "+" to "i32.add",
+                "-" to "i32.sub",
+                "*" to "i32.mul",
+                "div" to "i32.div_s",
+                "mod" to "i32.rem_s",
+                "<" to "i32.lt_s",
+                "<=" to "i32.le_s",
+                ">" to "i32.gt_s",
+                ">=" to "i32.ge_s",
+                "=" to "i32.eq",
+            )
+    }
+
     // ═══════════════════════════════════════════════════════════════════════
     // Ветвление / сопоставление с паттернами
     // ═══════════════════════════════════════════════════════════════════════
@@ -38,7 +54,8 @@ internal class WatCodeEmitter(
      *
      * Каждая ветка обёрнута в `(block $skip …)`: неуспешная проверка паттерна
      * делает `br_if $skip`, пропуская тело. Успешная проверка выполняет тело
-     * и `br $match_end` со значением-результатом.
+     * и `br $match_end` со значением-результатом. Каждая ветка — отдельная
+     * лексическая область: затенённые имена получают собственные локалы.
      */
     fun emitBranchMatch(
         branches: List<Expr.Lambda.Branch>,
@@ -51,8 +68,10 @@ internal class WatCodeEmitter(
         val blocks = mutableListOf<SExpr>()
         for (branch in branches) {
             val skip = gen.freshLabel("skip")
+            ctx.pushScope()
             val stmts = emitPatternCheck(branch.pattern, argLocal, skip, ctx)
             val body = genExpr(branch.body, ctx)
+            ctx.popScope()
             blocks.add(block(skip, null, stmts + brValue(matchEnd, body)))
         }
         blocks.add(unreachable())
@@ -76,27 +95,55 @@ internal class WatCodeEmitter(
         ctx: WatFunctionContext,
     ): List<SExpr> =
         when (pattern) {
-            is Pattern.Wildcard -> { /* всегда совпадает */ }
+            is Pattern.Wildcard -> emptyList() // всегда совпадает
 
-            is Pattern.Variable -> {
-                out.line("local.get $argLocal")
-                out.line("local.set ${ctx.getOrAdd(pattern.name)}")
-            }
+            is Pattern.Variable ->
+                listOf(localSet(ctx.bind(pattern.name), localGet(argLocal)))
 
-            is Pattern.NamedData -> {
-                out.line("local.get $argLocal")
-                out.line("local.set ${ctx.getOrAdd(pattern.name)}")
-                emitPatternCheck(pattern.data, argLocal, failLabel, ctx, out)
-            }
+            is Pattern.NamedData ->
+                listOf(localSet(ctx.bind(pattern.name), localGet(argLocal))) +
+                    emitPatternCheck(pattern.data, argLocal, failLabel, ctx)
 
             is Pattern.Data -> {
-                emitDataCheck(pattern, argLocal, failLabel, ctx, out)
+                emitDataCheck(pattern, argLocal, failLabel, ctx)
             }
 
-            else -> {
-                TODO("Add support for literal patterns")
-            }
+            is Expr.Literal.Num ->
+                listOf(brIf(failLabel, i32Ne(localGet(argLocal), i32Const(pattern.value.toInt()))))
+
+            is Expr.Literal.Char ->
+                listOf(brIf(failLabel, i32Ne(localGet(argLocal), i32Const(pattern.value.code))))
+
+            is Expr.Literal.TruVal ->
+                listOf(brIf(failLabel, i32Ne(localGet(argLocal), i32Const(if (pattern.value) 1 else 0))))
+
+            is Expr.Literal.String ->
+                emitStringPatternCheck(pattern.value, argLocal, failLabel, ctx)
         }
+
+    /**
+     * Проверка строкового литерала: обходим cons-список посимвольно.
+     * Каждая ячейка — `cons(ptr)`, где `ptr` указывает на кортеж `(char, tail)`.
+     */
+    private fun emitStringPatternCheck(
+        value: String,
+        argLocal: String,
+        failLabel: String,
+        ctx: WatFunctionContext,
+    ): List<SExpr> {
+        val cell = ctx.freshTmp()
+        val tup = ctx.freshTmp()
+        val stmts = mutableListOf<SExpr>()
+        stmts.add(localSet(cell, localGet(argLocal)))
+        for (c in value) {
+            stmts.add(brIf(failLabel, i32Eqz(localGet(cell))))
+            stmts.add(localSet(tup, i32Load(0, localGet(cell))))
+            stmts.add(brIf(failLabel, i32Ne(i32Load(0, localGet(tup)), i32Const(c.code))))
+            stmts.add(localSet(cell, i32Load(4, localGet(tup))))
+        }
+        stmts.add(brIf(failLabel, localGet(cell)))
+        return stmts
+    }
 
     private fun emitDataCheck(
         pattern: Pattern.Data,
@@ -128,6 +175,18 @@ internal class WatCodeEmitter(
                     val tmp = ctx.freshTmp()
                     stmts.add(localSet(tmp, i32Load(0, localGet(argLocal))))
                     stmts.addAll(emitPatternCheck(pattern.args[0], tmp, failLabel, ctx))
+                }
+                stmts
+            }
+
+            // ── setCons: ячейка [value, next] ───────────────────────────────
+            ctor.data == DataName.Core.Set && ctor.constructor == "setCons" -> {
+                val stmts = mutableListOf<SExpr>()
+                stmts.add(brIf(failLabel, i32Eqz(localGet(argLocal))))
+                if (pattern.args.isNotEmpty()) {
+                    // Аргумент паттерна — кортеж (value, rest); представление
+                    // ячейки сета совпадает с кортежем [value, next].
+                    stmts.addAll(emitPatternCheck(pattern.args[0], argLocal, failLabel, ctx))
                 }
                 stmts
             }
@@ -177,7 +236,11 @@ internal class WatCodeEmitter(
             is Expr.Literal.TruVal -> i32Const(if (expr.value) 1 else 0)
             is Expr.Literal.Char -> i32Const(expr.value.code)
             is Expr.Literal.String -> genString(expr.value, ctx)
-            is Expr.Variable -> localGet(ctx.getOrAdd(expr.name))
+            is Expr.Variable ->
+                localGet(
+                    ctx.lookup(expr.name)
+                        ?: error("Unbound variable '${expr.name}' — нарушен инвариант typecheck"),
+                )
             is Expr.Identifier -> genIdentifier(expr, ctx)
             is Expr.Application -> genApplication(expr, ctx)
             is Expr.If -> genIf(expr, ctx)
@@ -206,17 +269,27 @@ internal class WatCodeEmitter(
     ): SExpr {
         val tmp = ctx.freshTmp()
         val matcher = genExpr(expr.matcher, ctx)
-        // В корректно типизированных программах let-паттерн всегда совпадает.
-        // Тем не менее, эмиттируем структуру блока — недостижимая ветка br
-        // остаётся валидным WAT.
+        // Несовпадение let-паттерна — ошибка времени выполнения: после блока
+        // проверок при провале выполняется `unreachable` (trap), а не тихое
+        // продолжение с нулевыми локалами.
         val letFail = gen.freshLabel("let_fail")
+        val letOk = gen.freshLabel("let_ok")
+        ctx.pushScope()
         val patternStmts = emitPatternCheck(expr.pattern, tmp, letFail, ctx)
         val body = genExpr(expr.body, ctx)
+        ctx.popScope()
         return resultBlock(
             stmts =
                 listOf(
                     localSet(tmp, matcher),
-                    block(letFail, null, patternStmts),
+                    block(
+                        letOk,
+                        null,
+                        listOf(
+                            block(letFail, null, patternStmts + br(letOk)),
+                            unreachable(),
+                        ),
+                    ),
                 ),
             value = body,
         )
@@ -235,7 +308,7 @@ internal class WatCodeEmitter(
                     "true" -> i32Const(1)
                     "false" -> i32Const(0)
                     "emptySet" -> i32Const(0)
-                    else -> genClosureRef(gen.watId(name), emptyList(), ctx)
+                    else -> genClosureRef(gen.wrapperFor(name), emptyList(), ctx)
                 }
             }
 
@@ -245,12 +318,20 @@ internal class WatCodeEmitter(
                     name.data == DataName.Core.TruVal && name.constructor == "false" -> i32Const(0)
                     name.data == DataName.Core.List && name.constructor == "nil" -> i32Const(0)
                     name.data == DataName.Core.Set && name.constructor == "emptySet" -> i32Const(0)
-                    else -> genClosureRef(gen.watId(name), emptyList(), ctx)
+
+                    // Нульарный пользовательский конструктор — это значение
+                    // ADT (tag без полей), а не замыкание.
+                    expr.type !is Type.Arrow -> {
+                        val tag = gen.constructorTags[name.data to name.constructor] ?: 0
+                        call("\$rt.mk_adt", listOf(i32Const(0), i32Const(tag)))
+                    }
+
+                    else -> genClosureRef(gen.wrapperFor(name), emptyList(), ctx)
                 }
             }
 
             is FuncName.User -> {
-                genClosureRef(gen.watId(name), emptyList(), ctx, out)
+                genClosureRef(gen.wrapperFor(name), emptyList(), ctx)
             }
         }
 
@@ -266,23 +347,25 @@ internal class WatCodeEmitter(
             return genConstructorCall(ctor, ctorArgs, ctx)
         }
 
+        val leftName = (expr.left as? Expr.Identifier)?.name
+        val coreBinOp = (leftName as? FuncName.Core)?.let { CORE_BIN_OPS[it.name] }
+
         return when {
-            // Core `+`: аргумент — объект Tuple(Num, Num) в куче.
-            expr.left is Expr.Identifier &&
-                (expr.left as Expr.Identifier).name == FuncName.Core("+") -> {
+            // Core-операция: аргумент — объект Tuple в куче.
+            coreBinOp != null -> {
                 val tmp = ctx.freshTmp()
                 val arg = genExpr(expr.right, ctx)
-                i32Add(
+                inst(
+                    coreBinOp,
                     i32Load(0, localTee(tmp, arg)),
                     i32Load(4, localGet(tmp)),
                 )
             }
 
             // Прямой вызов пользовательской функции.
-            expr.left is Expr.Identifier &&
-                (expr.left as Expr.Identifier).name is FuncName.User -> {
+            leftName is FuncName.User -> {
                 val arg = genExpr(expr.right, ctx)
-                call(gen.watId((expr.left as Expr.Identifier).name), listOf(arg))
+                call(gen.watId(leftName), listOf(arg))
             }
 
             // Общий случай: вычисляем левую часть до указателя на замыкание
@@ -321,11 +404,11 @@ internal class WatCodeEmitter(
     ): SExpr =
         when {
             ctor.data == DataName.Core.TruVal -> {
-                out.line("i32.const ${if (ctor.constructor == "true") 1 else 0}")
+                i32Const(if (ctor.constructor == "true") 1 else 0)
             }
 
             ctor.data == DataName.Core.List && ctor.constructor == "nil" -> {
-                out.line("i32.const 0")
+                i32Const(0)
             }
 
             ctor.data == DataName.Core.List && ctor.constructor == "cons" && args.size == 1 ->
@@ -335,26 +418,44 @@ internal class WatCodeEmitter(
                 call("\$rt.mk_tuple", listOf(genExpr(args[0], ctx), genExpr(args[1], ctx)))
 
             // Пустое множество — нулевой указатель.
-            // TODO: Добавление элементов делается через рантайм-помощник `$rt.set_insert` (вызывается
-            // из пользовательских функций, когда они появятся в Signature.core).
             ctor.data == DataName.Core.Set && ctor.constructor == "emptySet" -> {
-                out.line("i32.const 0")
+                i32Const(0)
+            }
+
+            // setCons(tuple(value, set)) → $rt.set_insert(set, value).
+            ctor.data == DataName.Core.Set && ctor.constructor == "setCons" && args.size == 1 -> {
+                val tup = ctx.freshTmp()
+                resultBlock(
+                    stmts = listOf(localSet(tup, genExpr(args[0], ctx))),
+                    value =
+                        call(
+                            "\$rt.set_insert",
+                            listOf(
+                                i32Load(4, localGet(tup)),
+                                i32Load(0, localGet(tup)),
+                            ),
+                        ),
+                )
             }
 
             else -> {
                 val tag = gen.constructorTags[ctor.data to ctor.constructor] ?: 0
-                val tmp = ctx.freshTmp()
-                val stmts = mutableListOf<SExpr>()
-                stmts.add(
-                    localSet(
-                        tmp,
-                        call("\$rt.mk_adt", listOf(i32Const(args.size), i32Const(tag))),
-                    ),
-                )
-                for ((i, argExpr) in args.withIndex()) {
-                    stmts.add(i32Store(4 + i * 4, localGet(tmp), genExpr(argExpr, ctx)))
+                if (args.isEmpty()) {
+                    call("\$rt.mk_adt", listOf(i32Const(0), i32Const(tag)))
+                } else {
+                    val tmp = ctx.freshTmp()
+                    val stmts = mutableListOf<SExpr>()
+                    stmts.add(
+                        localSet(
+                            tmp,
+                            call("\$rt.mk_adt", listOf(i32Const(args.size), i32Const(tag))),
+                        ),
+                    )
+                    for ((i, argExpr) in args.withIndex()) {
+                        stmts.add(i32Store(4 + i * 4, localGet(tmp), genExpr(argExpr, ctx)))
+                    }
+                    resultBlock(stmts, localGet(tmp))
                 }
-                resultBlock(stmts, localGet(tmp))
             }
         }
 
@@ -413,7 +514,10 @@ internal class WatCodeEmitter(
         val stmts = mutableListOf<SExpr>()
         stmts.add(localSet(tmp, mk))
         for ((i, cap) in captureNames.withIndex()) {
-            stmts.add(i32Store(8 + i * 4, localGet(tmp), localGet(ctx.getOrAdd(cap))))
+            val local =
+                ctx.lookup(cap)
+                    ?: error("Unbound capture '$cap' — нарушен инвариант typecheck")
+            stmts.add(i32Store(8 + i * 4, localGet(tmp), localGet(local)))
         }
         return resultBlock(stmts, localGet(tmp))
     }
@@ -441,9 +545,8 @@ internal class WatCodeEmitter(
 
                 is Pattern.Wildcard -> {}
 
-                else -> {
-                    TODO("add support for literal patterns")
-                }
+                // Литеральные паттерны не связывают переменных.
+                else -> {}
             }
         }
 

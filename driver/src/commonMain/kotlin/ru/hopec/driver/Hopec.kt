@@ -32,25 +32,10 @@ class Hopec(
                 makeChain().run(TreeSitterRepresentation(input), context)?.wat
             } catch (_: NotImplementedError) {
                 null
-            } ?: STUB_WAT
-        println(watCode);
+            } ?: return 1
 
         val wasmBinary = compileWatToBinary(watCode)
         output.write(Buffer().write(wasmBinary), wasmBinary.size.toLong())
         return 0
-    }
-
-    private companion object {
-        val STUB_WAT =
-            """
-            (module
-              (func (export "add") (param i32 i32) (result i32)
-                (i32.add (local.get 0) (local.get 1))
-              )
-              (func (export "main") (result i32)
-                (call 0 (i32.const 2) (i32.const 3))
-              )
-            )
-            """.trimIndent()
     }
 }
