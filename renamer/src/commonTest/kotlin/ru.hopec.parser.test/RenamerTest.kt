@@ -122,10 +122,8 @@ class RenamerTest {
             """
             dec f : WrongType
             --- f(g(a :: l)) <= a
-            """.trimIndent()
-        val res = startRenamer(code) ?: error("renamer failed")
-        return res.program
-    }
+            """.trimIndent(),
+        ).program
 
     @Test
     fun `test complex pattern`() =
@@ -162,8 +160,8 @@ class RenamerTest {
                 """
                 dec f : WrongType
                 --- f(42, 'c') <= a
-                """.trimIndent()
-            val res = startRenamer(code) ?: error("renamer failed")
+                """.trimIndent(),
+            )
         }
 
     @Test
@@ -174,8 +172,8 @@ class RenamerTest {
                 dec f : WrongType
                 --- f <= a
                 --- f() <= a
-                """.trimIndent()
-            val res = startRenamer(code) ?: error("renamer failed")
+                """.trimIndent(),
+            )
         }
 
     @Test
@@ -201,7 +199,7 @@ class RenamerTest {
                 --- f(a, b) <= a
                 """.trimIndent()
 
-            val res = startRenamer(code) ?: error("renamer failed")
+            val res = startRenamer(code)
             assertEquals(
                 Program(
                     list =
@@ -385,7 +383,7 @@ class RenamerTest {
                 end
                 """.trimIndent()
 
-            val res = startRenamer(code) ?: error("renamer failed")
+            val res = startRenamer(code)
             assertEquals(
                 AstNode.Module(
                     name = "test2",

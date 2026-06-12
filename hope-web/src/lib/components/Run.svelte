@@ -13,8 +13,8 @@
 			terminal.writeln('No syntax tree to compile');
 			return;
 		}
+		const compiled = await compiler.compile(tree);
 		compiler.currentProblems().forEach((problem) => terminal.writeln(problem.message));
-		const compiled = await compiler.instantiate();
 		if (!compiled) {
 			terminal.writeln('Compilation failed');
 			return;
