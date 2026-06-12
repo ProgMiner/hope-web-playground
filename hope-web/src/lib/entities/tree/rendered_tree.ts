@@ -35,7 +35,7 @@ export class RenderedTree {
 			id: `${this.level}-${cursor.range.from?.index}-${cursor.range.to?.index}-${cursor.text}`,
 			start: cursor.range.from ?? zeroPoint(),
 			end: cursor.range.to ?? zeroPoint(),
-			displayed: displayed,
+			displayed: displayed
 		};
 	}
 

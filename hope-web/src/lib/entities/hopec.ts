@@ -11,9 +11,9 @@ export interface CompilationResult {
 const memory = initializeMemory();
 
 function initializeMemory(): WebAssembly.Memory {
-  const memory = hopec.memory as WebAssembly.Memory;
-  memory.grow(1);
-  return memory;
+	const memory = hopec.memory as WebAssembly.Memory;
+	memory.grow(1);
+	return memory;
 }
 
 export class Hopec {

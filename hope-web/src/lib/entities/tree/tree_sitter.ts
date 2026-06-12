@@ -1,5 +1,12 @@
 import { Node, type Point, Tree, TreeCursor } from 'web-tree-sitter';
-import { emptyNode, emptyTree, type GenericNode, type GenericTree, type Range, type Resource } from './generic_tree';
+import {
+	emptyNode,
+	emptyTree,
+	type GenericNode,
+	type GenericTree,
+	type Range,
+	type Resource
+} from './generic_tree';
 
 export interface RenderedTreeRow {
 	indent: string;
@@ -18,8 +25,7 @@ export class TsToTree {
 	constructor(
 		private readonly tree: Tree | undefined,
 		private readonly resource: Resource | undefined
-	) {
-	}
+	) {}
 
 	build(): GenericTree {
 		const tree = emptyTree(treeSitterType());
