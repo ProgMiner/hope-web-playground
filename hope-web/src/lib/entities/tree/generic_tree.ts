@@ -9,12 +9,6 @@ export interface GenericNode {
 	children: GenericNode[];
 }
 
-export interface GenericLocation {
-	file: string;
-	from: number;
-	to: number;
-}
-
 export interface Range {
 	resource: Resource | undefined;
 	from: Point | undefined;
@@ -36,6 +30,29 @@ export function zeroPoint(): Point {
 		index: 0,
 		row: 0,
 		column: 0
+	};
+}
+
+export function emptyTree(type: string): GenericTree {
+	return {
+		type: type,
+		root: emptyNode()
+	};
+}
+
+export function emptyNode(): GenericNode {
+	return {
+		range: emptyRange(),
+		text: '',
+		children: []
+	};
+}
+
+export function emptyRange(): Range {
+	return {
+		resource: undefined,
+		from: undefined,
+		to: undefined
 	};
 }
 

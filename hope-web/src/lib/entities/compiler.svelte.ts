@@ -1,5 +1,11 @@
 import type { Tree } from 'web-tree-sitter';
-import { allLeaves, zeroPoint, type GenericNode, type Point, type Resource } from './generic_tree';
+import {
+	allLeaves,
+	zeroPoint,
+	type GenericNode,
+	type Point,
+	type Resource
+} from './tree/generic_tree';
 import { Hopec, type CompilationResult } from './hopec';
 
 export type StatusSeverity = 'info' | 'warning' | 'error';
@@ -35,13 +41,15 @@ export class Compiler {
 	}
 
 	currentProblems(): CompilationStatus[] {
-		const tree = this.result?.representations.find(
-			(tree) => tree.type === this.hopec.statusTreeType()
-		);
+		const tree = this.statusTree();
 		if (!tree) {
 			return [];
 		}
 		return allLeaves(tree).map((problem) => this.status(problem));
+	}
+
+	statusTree() {
+		return this.result?.representations.find((tree) => tree.type === this.hopec.statusTreeType());
 	}
 
 	private status(problem: GenericNode): CompilationStatus {

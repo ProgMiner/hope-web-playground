@@ -1,6 +1,7 @@
 import { editor, MarkerSeverity, Position } from 'monaco-editor';
 import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
 import type { CompilationStatus } from './compiler.svelte';
+import type { Range } from './tree/generic_tree';
 
 class Listeners {
 	readonly content: ((e: editor.IModelContentChangedEvent) => void)[] = [];
@@ -97,5 +98,17 @@ export class MonacoEditor {
 
 	installContent(text: string) {
 		this.standalone.setValue(text);
+	}
+
+	focusRange(range: Range) {
+		if (!range.from || !range.to) {
+			return;
+		}
+		this.standalone.setSelection({
+			startLineNumber: range.from.row + 1,
+			startColumn: range.from.column + 1,
+			endLineNumber: range.to.row + 1,
+			endColumn: range.to.column + 1
+		});
 	}
 }

@@ -1,6 +1,6 @@
 import type { Tree } from 'web-tree-sitter';
 import * as hopec from 'hopec-driver';
-import type { GenericTree } from './generic_tree';
+import type { GenericTree } from './tree/generic_tree';
 
 export interface CompilationResult {
 	size: number;
@@ -8,14 +8,15 @@ export interface CompilationResult {
 	instance: WebAssembly.Instance;
 }
 
+const memory = initializeMemory();
+
+function initializeMemory(): WebAssembly.Memory {
+  const memory = hopec.memory as WebAssembly.Memory;
+  memory.grow(1);
+  return memory;
+}
+
 export class Hopec {
-	private readonly memory: WebAssembly.Memory;
-
-	constructor() {
-		this.memory = hopec.memory as WebAssembly.Memory;
-		this.memory.grow(1);
-	}
-
 	compile(input: Tree): CompilationResult | undefined {
 		return (hopec.compile as (input: Tree) => CompilationResult | undefined)(input);
 	}
@@ -33,7 +34,7 @@ export class Hopec {
 	}
 
 	async instantiateModule(size: number): Promise<WebAssembly.Instance> {
-		const compiled = await WebAssembly.instantiate(this.memory.buffer.slice(0, size));
+		const compiled = await WebAssembly.instantiate(memory.buffer.slice(0, size));
 		return compiled.instance;
 	}
 }
