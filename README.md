@@ -16,14 +16,14 @@ tree-sitter build # builds .dll/.so for JVM bindings
 ### Kotlin/WASM
 
 ```bash
-./gradlew wasmJsNodeProductionRun
+./gradlew wasmJsBrowserProductionWebpack
 ```
 
 ```bat
-gradlew.bat wasmJsNodeProductionRun
+gradlew.bat wasmJsBrowserProductionWebpack
 ```
 
-After this command, you should be able to locate built WASM & JS modules under the ```build/wasm/packages```.
+After this command, you should be able to locate built WASM & JS modules under the `build/wasm/packages`.
 
 ### Web
 
@@ -35,6 +35,7 @@ npm run dev
 ```
 
 If you're encountering errors with `node-gyp`, try this before `npm install`:
+
 ```bash
 export CXXFLAGS="-std=c++20"
 ```

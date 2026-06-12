@@ -3,19 +3,17 @@
 	import type { Terminal } from '$lib/entities/terminal.svelte';
 	import type { Tree } from 'web-tree-sitter';
 
-	let {
-		tree,
-		terminal,
-		compiler
-	}: { tree: Tree | undefined; terminal: Terminal; compiler: Compiler } = $props();
+	let compiler = new Compiler();
+	let { freshTree, terminal }: { freshTree: () => Tree | undefined; terminal: Terminal } = $props();
 
 	async function run(): Promise<void> {
+		const tree = freshTree();
 		if (!tree) {
 			terminal.writeln('No syntax tree to compile');
 			return;
 		}
 		compiler.currentProblems().forEach((problem) => terminal.writeln(problem.message));
-		const compiled = await compiler.instantiate();
+		const compiled = await compiler.compile(tree);
 		if (!compiled) {
 			terminal.writeln('Compilation failed');
 			return;

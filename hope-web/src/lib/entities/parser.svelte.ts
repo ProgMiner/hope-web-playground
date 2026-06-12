@@ -35,6 +35,10 @@ export class TreeSitter {
 		return this.tree;
 	}
 
+	freshParse(): Tree | undefined {
+		return this.parser?.parse(this.text!(), null) ?? undefined;
+	}
+
 	currentVersion(): number {
 		return this.version;
 	}

@@ -5,8 +5,7 @@ import ru.hopec.desugarer.DesugaredRepresentation.Type
 import ru.hopec.typecheck.TypedRepresentation.Expr
 import ru.hopec.typecheck.TypedRepresentation.Pattern
 import kotlin.test.Test
-import kotlin.test.assertContains
-import kotlin.test.assertFalse
+import kotlin.test.assertEquals
 import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Function.Name as FunName
 
 class PatternsTest {
@@ -16,20 +15,47 @@ class PatternsTest {
     private val consCtor = FunName.Constructor(Data.Name.Core.List, "cons")
     private val tupleCtor = FunName.Constructor(Data.Name.Core.Tuple, "#")
 
+    private fun assertFunction(
+        w: String,
+        expected: String,
+    ) = assertEquals(normalize(expected), normalize(region(w, "(func \$fn.top.f")))
+
     @Test
-    fun `wildcard pattern emits no br_if`() {
+    fun `wildcard pattern matches unconditionally`() {
         val w = wat(singleFuncProgram(lambda = wildLambda(numType, numType, Expr.Literal.Num(0))))
-        assertContains(w, "unreachable")
-        assertFalse(w.contains("br_if \$skip"))
+
+        assertFunction(
+            w,
+            """
+            (func ${'$'}fn.top.f (param ${'$'}arg i32) (result i32)
+              (block ${'$'}match_end0 (result i32)
+                (block ${'$'}skip1
+                  (br ${'$'}match_end0
+                    (i32.const 0)))
+                (unreachable)))
+            """.trimIndent(),
+        )
     }
 
     @Test
-    fun `variable pattern emits local set and get`() {
+    fun `variable pattern binds arg to local`() {
         val lambda = varLambda("x", numType, numType, Expr.Variable(numType, "x"))
         val w = wat(singleFuncProgram(lambda = lambda))
-        assertContains(w, "local.set")
-        assertContains(w, "local.get")
-        assertContains(w, "v_x")
+
+        assertFunction(
+            w,
+            """
+            (func ${'$'}fn.top.f (param ${'$'}arg i32) (result i32)
+              (local ${'$'}v_x_0 i32)
+              (block ${'$'}match_end0 (result i32)
+                (block ${'$'}skip1
+                  (local.set ${'$'}v_x_0
+                    (local.get ${'$'}arg))
+                  (br ${'$'}match_end0
+                    (local.get ${'$'}v_x_0)))
+                (unreachable)))
+            """.trimIndent(),
+        )
     }
 
     @Test
@@ -44,11 +70,25 @@ class PatternsTest {
                 ),
             )
         val w = wat(singleFuncProgram(lambda = lambda))
-        assertContains(w, "i32.const 1")
-        assertContains(w, "i32.ne")
-        assertContains(w, "br_if")
-        assertContains(w, "\$skip")
-        assertContains(w, "\$match_end")
+
+        assertFunction(
+            w,
+            """
+            (func ${'$'}fn.top.f (param ${'$'}arg i32) (result i32)
+              (block ${'$'}match_end0 (result i32)
+                (block ${'$'}skip1
+                  (br_if ${'$'}skip1
+                    (i32.ne
+                      (local.get ${'$'}arg)
+                      (i32.const 1)))
+                  (br ${'$'}match_end0
+                    (i32.const 1)))
+                (block ${'$'}skip2
+                  (br ${'$'}match_end0
+                    (i32.const 0)))
+                (unreachable)))
+            """.trimIndent(),
+        )
     }
 
     @Test
@@ -63,12 +103,27 @@ class PatternsTest {
                 ),
             )
         val w = wat(singleFuncProgram(lambda = lambda))
-        assertContains(w, "br_if")
-        assertContains(w, "i32.eqz")
+
+        assertFunction(
+            w,
+            """
+            (func ${'$'}fn.top.f (param ${'$'}arg i32) (result i32)
+              (block ${'$'}match_end0 (result i32)
+                (block ${'$'}skip1
+                  (br_if ${'$'}skip1
+                    (local.get ${'$'}arg))
+                  (br ${'$'}match_end0
+                    (i32.const 1)))
+                (block ${'$'}skip2
+                  (br ${'$'}match_end0
+                    (i32.const 0)))
+                (unreachable)))
+            """.trimIndent(),
+        )
     }
 
     @Test
-    fun `cons pattern checks pointer is non-zero`() {
+    fun `cons pattern checks non-zero then destructures tuple`() {
         val tuplePat =
             Pattern.Data(
                 Type.Data.tuple(numType, Type.Data.list(numType)),
@@ -85,16 +140,40 @@ class PatternsTest {
                 ),
             )
         val w = wat(singleFuncProgram(lambda = lambda))
-        assertContains(w, "i32.eqz")
-        assertContains(w, "br_if")
-        assertContains(w, "i32.load")
-        assertContains(w, "i32.load offset=0")
-        assertContains(w, "\$skip")
-        assertContains(w, "\$match_end")
+
+        assertFunction(
+            w,
+            """
+            (func ${'$'}fn.top.f (param ${'$'}arg i32) (result i32)
+              (local ${'$'}t_0 i32)
+              (local ${'$'}t_1 i32)
+              (local ${'$'}t_2 i32)
+              (block ${'$'}match_end0 (result i32)
+                (block ${'$'}skip1
+                  (br_if ${'$'}skip1
+                    (i32.eqz
+                      (local.get ${'$'}arg)))
+                  (local.set ${'$'}t_0
+                    (i32.load offset=0
+                      (local.get ${'$'}arg)))
+                  (local.set ${'$'}t_1
+                    (i32.load offset=0
+                      (local.get ${'$'}t_0)))
+                  (local.set ${'$'}t_2
+                    (i32.load offset=4
+                      (local.get ${'$'}t_0)))
+                  (br ${'$'}match_end0
+                    (i32.const 0)))
+                (block ${'$'}skip2
+                  (br ${'$'}match_end0
+                    (i32.const 1)))
+                (unreachable)))
+            """.trimIndent(),
+        )
     }
 
     @Test
-    fun `tuple pattern loads both fields`() {
+    fun `tuple pattern loads both fields into bound variables`() {
         val tuplePat =
             Pattern.Data(
                 Type.Data.tuple(numType, numType),
@@ -108,11 +187,31 @@ class PatternsTest {
                 listOf(Expr.Lambda.Branch(tuplePat, body)),
             )
         val w = wat(singleFuncProgram(lambda = lambda))
-        assertContains(w, "i32.load offset=0")
-        assertContains(w, "i32.load offset=4")
-        assertContains(w, "local.set")
-        assertContains(w, "local.get")
-        assertContains(w, "v_a")
-        assertContains(w, "v_b")
+
+        assertFunction(
+            w,
+            """
+            (func ${'$'}fn.top.f (param ${'$'}arg i32) (result i32)
+              (local ${'$'}v_a_0 i32)
+              (local ${'$'}v_b_1 i32)
+              (local ${'$'}t_0 i32)
+              (local ${'$'}t_1 i32)
+              (block ${'$'}match_end0 (result i32)
+                (block ${'$'}skip1
+                  (local.set ${'$'}t_0
+                    (i32.load offset=0
+                      (local.get ${'$'}arg)))
+                  (local.set ${'$'}v_a_0
+                    (local.get ${'$'}t_0))
+                  (local.set ${'$'}t_1
+                    (i32.load offset=4
+                      (local.get ${'$'}arg)))
+                  (local.set ${'$'}v_b_1
+                    (local.get ${'$'}t_1))
+                  (br ${'$'}match_end0
+                    (local.get ${'$'}v_a_0)))
+                (unreachable)))
+            """.trimIndent(),
+        )
     }
 }

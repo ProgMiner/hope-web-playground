@@ -85,7 +85,7 @@ class RenamerTest {
             """
             dec * : WrongType
             infix * : 6
-            
+
             dec f : WrongType
             --- f(x) <= x * f 12
             """.trimIndent(),
@@ -121,7 +121,7 @@ class RenamerTest {
         startRenamer(
             """
             dec f : WrongType
-            --- f(g(a :: l)) <= a 
+            --- f(g(a :: l)) <= a
             """.trimIndent(),
         ).program
 
@@ -159,7 +159,7 @@ class RenamerTest {
             startRenamer(
                 """
                 dec f : WrongType
-                --- f(42, 'c') <= a 
+                --- f(42, 'c') <= a
                 """.trimIndent(),
             )
         }
@@ -170,8 +170,8 @@ class RenamerTest {
             startRenamer(
                 """
                 dec f : WrongType
-                --- f <= a 
-                --- f() <= a 
+                --- f <= a
+                --- f() <= a
                 """.trimIndent(),
             )
         }
@@ -190,16 +190,16 @@ class RenamerTest {
     @Test
     fun `test function overload`() =
         runTest {
-            val res =
-                startRenamer(
-                    """
-                    dec f : WrongType1
-                    --- f(x :: xs) <= x
-                    
-                    dec f : WrongType2
-                    --- f(a, b) <= a
-                    """.trimIndent(),
-                )
+            val code =
+                """
+                dec f : WrongType1
+                --- f(x :: xs) <= x
+
+                dec f : WrongType2
+                --- f(a, b) <= a
+                """.trimIndent()
+
+            val res = startRenamer(code)
             assertEquals(
                 Program(
                     list =
@@ -367,23 +367,23 @@ class RenamerTest {
     @Test
     fun `test module use`() =
         runTest {
-            val res =
-                startRenamer(
-                    """
-                    module test
-                        dec <> : WrongType
-                        infix <> : 6
-                        --- a <> b <= a :: b
-                        pubconst <>
-                    end
-                    
-                    module test2
-                        uses test
-                        dec f : WrongType
-                        --- f(x) <= a <> b
-                    end
-                    """.trimIndent(),
-                )
+            val code =
+                """
+                module test
+                    dec <> : WrongType
+                    infix <> : 6
+                    --- a <> b <= a :: b
+                    pubconst <>
+                end
+
+                module test2
+                    uses test
+                    dec f : WrongType
+                    --- f(x) <= a <> b
+                end
+                """.trimIndent()
+
+            val res = startRenamer(code)
             assertEquals(
                 AstNode.Module(
                     name = "test2",

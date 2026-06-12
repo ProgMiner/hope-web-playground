@@ -47,6 +47,36 @@ class DesugarerTest {
             assertNotNull(desugared)
         }
 
+    @Test
+    fun `top-level main keeps source name`() =
+        runTest {
+            val program =
+                RenamedRepresentation(
+                    Program(
+                        listOf(
+                            AstNode.FunctionDeclaration(
+                                "main",
+                                listOf(
+                                    AstNode.FunctionEquation(
+                                        null,
+                                        AstNode.DecimalLiteral(5L),
+                                    ),
+                                ),
+                                emptyList(),
+                                numType,
+                            ),
+                        ),
+                    ),
+                )
+            val desugared = startDesugarer(program) ?: error("desugarer error")
+            assertNotNull(
+                desugared.topLevel.functions[
+                    DesugaredRepresentation.Declarations.Function.Name
+                        .User(null, "main"),
+                ],
+            )
+        }
+
     private val typeA =
         AstNode.DataDeclaration(
             "A",
@@ -258,9 +288,9 @@ class DesugarerTest {
             val let = branch.body as DesugaredRepresentation.Expr.Let
             val matcher = let.matcher as DesugaredRepresentation.Expr.Application
             val arg = matcher.args.first() as DesugaredRepresentation.Expr.Variable
-            assertEquals(1, arg.binder)
+            assertEquals(0, arg.binder)
             val body = let.body as DesugaredRepresentation.Expr.Variable
-            assertEquals(1, body.binder)
+            assertEquals(0, body.binder)
         }
 
     private val id =

@@ -3,11 +3,11 @@ package ru.hopec.codegen.test
 import ru.hopec.typecheck.TypedRepresentation.Expr
 import ru.hopec.typecheck.TypedRepresentation.Pattern
 import kotlin.test.Test
-import kotlin.test.assertContains
+import kotlin.test.assertEquals
 
 class ExpressionsTest {
     @Test
-    fun `if expression emits s-expression form`() {
+    fun `if expression generates folded s-expression function`() {
         val ifExpr =
             Expr.If(
                 Expr.Literal.TruVal(true),
@@ -15,16 +15,27 @@ class ExpressionsTest {
                 Expr.Literal.Num(0),
             )
         val w = wat(singleFuncProgram(lambda = wildLambda(numType, numType, ifExpr)))
-        assertContains(w, "(if (result i32)")
-        assertContains(w, "(then")
-        assertContains(w, "(else")
-        assertContains(w, "i32.const 1")
-        assertContains(w, "i32.const 0")
-        assertContains(w, "i32.const 1\n")
+
+        val expected =
+            """
+            (func ${'$'}fn.top.f (param ${'$'}arg i32) (result i32)
+              (block ${'$'}match_end0 (result i32)
+                (block ${'$'}skip1
+                  (br ${'$'}match_end0
+                    (if (result i32)
+                      (i32.const 1)
+                      (then
+                        (i32.const 1))
+                      (else
+                        (i32.const 0)))))
+                (unreachable)))
+            """.trimIndent()
+
+        assertEquals(normalize(expected), normalize(region(w, "(func \$fn.top.f")))
     }
 
     @Test
-    fun `let binding emits local set then body`() {
+    fun `let binding generates folded local set then body`() {
         val letExpr =
             Expr.Let(
                 Pattern.Variable(numType, "y"),
@@ -32,10 +43,28 @@ class ExpressionsTest {
                 Expr.Variable(numType, "y"),
             )
         val w = wat(singleFuncProgram(lambda = wildLambda(numType, numType, letExpr)))
-        assertContains(w, "i32.const 10")
-        assertContains(w, "local.set")
-        assertContains(w, "local.get")
-        assertContains(w, "v_y")
-        assertContains(w, "\$let_fail")
+
+        val expected =
+            """
+            (func ${'$'}fn.top.f (param ${'$'}arg i32) (result i32)
+              (local ${'$'}v_y_0 i32)
+              (local ${'$'}t_0 i32)
+              (block ${'$'}match_end0 (result i32)
+                (block ${'$'}skip1
+                  (br ${'$'}match_end0
+                    (block (result i32)
+                      (local.set ${'$'}t_0
+                        (i32.const 10))
+                      (block ${'$'}let_ok3
+                        (block ${'$'}let_fail2
+                          (local.set ${'$'}v_y_0
+                            (local.get ${'$'}t_0))
+                          (br ${'$'}let_ok3))
+                        (unreachable))
+                      (local.get ${'$'}v_y_0))))
+                (unreachable)))
+            """.trimIndent()
+
+        assertEquals(normalize(expected), normalize(region(w, "(func \$fn.top.f")))
     }
 }

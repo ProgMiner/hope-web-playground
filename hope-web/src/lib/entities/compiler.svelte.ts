@@ -29,15 +29,13 @@ export class Compiler {
 		this.result = $state();
 	}
 
-	private compile(input: Tree) {
-		this.result = this.hopec.compile(input);
-	}
-
-	async instantiate(): Promise<WebAssembly.Instance | undefined> {
-		if (!this.result) {
+	async compile(input: Tree): Promise<WebAssembly.Instance | undefined> {
+		const result = this.hopec.compile(input);
+		this.result = result;
+		if (!result || result.size === 0) {
 			return undefined;
 		}
-		return await this.hopec.instantiateModule(this.result.size);
+		return await this.hopec.instantiateModule(result.size);
 	}
 
 	currentProblems(): CompilationStatus[] {

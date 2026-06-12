@@ -346,4 +346,19 @@ class TypecheckTests {
             )
         assertEquals(typedIsNil, annotateGlobal(desugIsNil))
     }
+
+    @Test
+    fun nullaryValueDeclaration() {
+        val desugMain =
+            DesugaredRepresentation.Declarations.Function(
+                DesugaredRepresentation.Expr.Lambda(
+                    dsBranches(
+                        dsWild to DesugaredRepresentation.Literal.Num(5),
+                    ),
+                ),
+                polymorphic(Type.Data.num),
+            )
+
+        assertNotNull(annotateGlobal(desugMain))
+    }
 }

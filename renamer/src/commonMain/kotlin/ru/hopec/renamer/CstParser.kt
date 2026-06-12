@@ -369,11 +369,19 @@ class CstParser(
             }
 
             "conditional_expression" -> {
-                AstNode.IfExpr(
-                    condition = parseExpression(node.getChildOrThrow(0u), operators),
-                    thenBranch = parseExpression(node.getChildOrThrow(1u), operators),
-                    elseBranch = parseExpression(node.getChildOrThrow(2u), operators),
-                )
+                if (node.child(1u)!!.text == "if") {
+                    AstNode.IfExpr(
+                        condition = parseExpression(node.getChildOrThrow(1u), operators),
+                        thenBranch = parseExpression(node.getChildOrThrow(0u), operators),
+                        elseBranch = parseExpression(node.getChildOrThrow(2u), operators),
+                    )
+                } else {
+                    AstNode.IfExpr(
+                        condition = parseExpression(node.getChildOrThrow(0u), operators),
+                        thenBranch = parseExpression(node.getChildOrThrow(1u), operators),
+                        elseBranch = parseExpression(node.getChildOrThrow(2u), operators),
+                    )
+                }
             }
 
             "local_variable_expression" -> {
@@ -385,8 +393,8 @@ class CstParser(
                     )
                 } else {
                     AstNode.LetExpr(
-                        pattern = parsePattern(node.getChildOrThrow(2u), operators),
-                        value = parseExpression(node.getChildOrThrow(1u), operators),
+                        pattern = parsePattern(node.getChildOrThrow(1u), operators),
+                        value = parseExpression(node.getChildOrThrow(2u), operators),
                         body = parseExpression(node.getChildOrThrow(0u), operators),
                     )
                 }
