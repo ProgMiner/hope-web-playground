@@ -4,8 +4,7 @@
 	import type { Tree } from 'web-tree-sitter';
 
 	let compiler = new Compiler();
-	let { freshTree, terminal }: { freshTree: () => Tree | undefined; terminal: Terminal } =
-		$props();
+	let { freshTree, terminal }: { freshTree: () => Tree | undefined; terminal: Terminal } = $props();
 
 	async function run(): Promise<void> {
 		const tree = freshTree();
