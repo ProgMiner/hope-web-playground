@@ -3,17 +3,9 @@
 	import type { Terminal } from '$lib/entities/terminal.svelte';
 	import type { Tree } from 'web-tree-sitter';
 
-<<<<<<< HEAD
 	let compiler = new Compiler();
 	let { freshTree, terminal }: { freshTree: () => Tree | undefined; terminal: Terminal } =
 		$props();
-=======
-	let {
-		tree,
-		terminal,
-		compiler
-	}: { tree: Tree | undefined; terminal: Terminal; compiler: Compiler } = $props();
->>>>>>> master
 
 	async function run(): Promise<void> {
 		const tree = freshTree();

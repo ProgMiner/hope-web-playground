@@ -99,11 +99,7 @@
 <div class="flex h-screen flex-col">
 	<div class="flex flex-row">
 		<Appearance />
-<<<<<<< HEAD
 		<Run freshTree={() => sitter.freshParse()} {terminal} />
-=======
-		<Run tree={sitter.currentTree()} {terminal} {compiler} />
->>>>>>> master
 	</div>
 	<div class="flex flex-1 flex-row overflow-auto">
 		<FileTree rows={files} {open} rebuild={rebuildFileTree} />
