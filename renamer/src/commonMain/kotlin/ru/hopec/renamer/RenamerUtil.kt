@@ -53,6 +53,12 @@ fun TsSyntaxNode.getChildOrThrow(i: UInt): TsSyntaxNode {
             child.range(),
         )
     }
+    if (child.isMissing) {
+        throw RenamerException(
+            "Expected ${child.type}",
+            child.range(),
+        )
+    }
     return child
 }
 

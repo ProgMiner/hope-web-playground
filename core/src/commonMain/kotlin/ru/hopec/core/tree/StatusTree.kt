@@ -6,7 +6,7 @@ import ru.hopec.core.MultiStatus
 fun CompilationStatus.intoNode(): GenericNode =
     GenericNode(
         range,
-        message,
+        severity.prefix() + message,
         if (this is MultiStatus) {
             children().map { it.intoNode() }
         } else {

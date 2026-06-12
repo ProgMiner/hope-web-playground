@@ -5,6 +5,8 @@ export interface ImaginaryResource {
 
 	currentName(): string;
 
+	currentPath(): string;
+
 	rename(other: string): void;
 
 	isContainer(): boolean;

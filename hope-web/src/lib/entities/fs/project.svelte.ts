@@ -18,6 +18,10 @@ export class ImaginaryProject {
 		return undefined;
 	}
 
+	currentPath(): string {
+		return '';
+	}
+
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	setParent(other: ImaginaryContainer) {}
 

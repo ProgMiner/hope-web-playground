@@ -39,7 +39,7 @@ class MultiStatus : CompilationStatus {
             joinToString(separator = ", ")
         }
 
-    private fun okMessage(): String = "everything is OK"
+    private fun okMessage(): String = "OK"
 
     private fun severitySummary(
         severity: StatusSeverity,

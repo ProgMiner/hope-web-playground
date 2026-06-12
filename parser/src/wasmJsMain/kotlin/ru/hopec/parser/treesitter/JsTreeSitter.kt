@@ -97,7 +97,7 @@ private class JsSyntaxNode(
 
     override val previousNamedSibling: TsSyntaxNode? by lazy { delegate.previousNamedSibling?.wrap() }
 
-    override fun toString(): String = delegate.toString()
+    override fun toString(): String = type
 
     override fun child(index: UInt): TsSyntaxNode? = delegate.child(index)?.wrap()
 

@@ -23,6 +23,10 @@ export class ImaginaryFile {
 		return this.name;
 	}
 
+	currentPath(): string {
+		return this.parent.currentPath() + '/' + this.name;
+	}
+
 	rename(other: string): void {
 		this.name = other;
 	}

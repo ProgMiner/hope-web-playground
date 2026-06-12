@@ -16,7 +16,7 @@ fun GenericTree.toJsObject(): JsObject =
 
 fun GenericNode.toJsObject(): JsObject =
     JsObject().apply {
-        set("location", range.toJsObject())
+        set("range", range.toJsObject())
         set("text", text)
         set("children", children.map { it.toJsObject() }.toJsArray())
     }
@@ -39,7 +39,3 @@ fun Point.toJsObject(): JsObject =
         set("row", row)
         set("column", column)
     }
-
-@OptIn(ExperimentalJsExport::class)
-@JsExport
-fun genericTreeType(): String = "GENERIC"

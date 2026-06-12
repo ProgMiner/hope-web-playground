@@ -5,7 +5,9 @@ import ru.hopec.core.topography.Range
 enum class StatusSeverity {
     INFO,
     WARNING,
-    ERROR,
+    ERROR, ;
+
+    fun prefix() = "[$name] "
 }
 
 interface CompilationStatus {
