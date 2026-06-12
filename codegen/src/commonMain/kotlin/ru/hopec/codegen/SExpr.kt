@@ -57,7 +57,6 @@ internal sealed class SExpr {
     }
 }
 
-
 internal fun atom(text: String): SExpr = SExpr.Inst(text, emptyList())
 
 internal fun inst(

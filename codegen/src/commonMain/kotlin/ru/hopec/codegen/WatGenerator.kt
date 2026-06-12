@@ -35,7 +35,6 @@ class WatGenerator(
 
     private val code = WatCodeEmitter(this)
 
-
     internal fun freshLabel(prefix: String = "lbl") = "\$$prefix${labelCounter++}"
 
     internal fun nextLiftedId() = liftedCounter++
@@ -89,7 +88,6 @@ class WatGenerator(
             is DataName.Defined -> "${name.module ?: "top"}.${name.name}"
         }
 
-
     fun generate(): String {
         assignConstructorTags()
         emitMemoryAndGlobals()
@@ -104,7 +102,6 @@ class WatGenerator(
         )
         return SExpr.Inst("module", moduleChildren.toList()).format()
     }
-
 
     private fun assignConstructorTags() {
         fun process(
@@ -124,7 +121,6 @@ class WatGenerator(
         }
     }
 
-
     private fun emitMemoryAndGlobals() {
         moduleChildren.add(SExpr.Raw("(memory (export \"memory\") 1)"))
         moduleChildren.add(SExpr.Raw("(global \$heap_ptr (mut i32) (i32.const 4096))"))
@@ -133,7 +129,6 @@ class WatGenerator(
     private fun emitRuntime() {
         for (snippet in WatRuntime.ALL) moduleChildren.add(SExpr.Raw(snippet))
     }
-
 
     private fun emitAllFunctions() {
         emitDeclFunctions(program.topLevel)
@@ -288,7 +283,6 @@ class WatGenerator(
             }
         }
 
-
     private fun emitExports() {
         for ((name, _) in program.topLevel.functions) {
             if (name is FuncName.User) {
@@ -303,7 +297,6 @@ class WatGenerator(
             }
         }
     }
-
 
     private fun emitFunctionElem() {
         if (funcTable.isNotEmpty()) {

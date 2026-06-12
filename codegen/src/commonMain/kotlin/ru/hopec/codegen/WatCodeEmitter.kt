@@ -25,7 +25,6 @@ internal class WatCodeEmitter(
             )
     }
 
-
     fun emitBranchMatch(
         branches: List<Expr.Lambda.Branch>,
         argLocal: String,
@@ -46,7 +45,6 @@ internal class WatCodeEmitter(
         blocks.add(unreachable())
         return block(matchEnd, "i32", blocks)
     }
-
 
     fun emitPatternCheck(
         pattern: Pattern,
@@ -169,7 +167,6 @@ internal class WatCodeEmitter(
         }
     }
 
-
     fun genExpr(
         expr: Expr,
         ctx: WatFunctionContext,
@@ -235,7 +232,6 @@ internal class WatCodeEmitter(
         )
     }
 
-
     private fun genIdentifier(
         expr: Expr.Identifier,
         ctx: WatFunctionContext,
@@ -271,7 +267,6 @@ internal class WatCodeEmitter(
                 genClosureRef(gen.wrapperFor(name), emptyList(), ctx)
             }
         }
-
 
     private fun genApplication(
         expr: Expr.Application,
@@ -383,7 +378,6 @@ internal class WatCodeEmitter(
             }
         }
 
-
     private fun genString(
         value: String,
         ctx: WatFunctionContext,
@@ -406,7 +400,6 @@ internal class WatCodeEmitter(
         }
         return resultBlock(stmts, localGet(tmpList))
     }
-
 
     private fun genLambdaClosure(
         lambda: Expr.Lambda,
@@ -439,7 +432,6 @@ internal class WatCodeEmitter(
         }
         return resultBlock(stmts, localGet(tmp))
     }
-
 
     private fun computeFreeVars(lambda: Expr.Lambda): List<String> {
         val bound = mutableSetOf<String>()
