@@ -2,6 +2,7 @@ package ru.hopec.parser.test
 
 import kotlinx.coroutines.test.runTest
 import ru.hopec.core.CompilationContext
+import ru.hopec.core.StatusSeverity
 import ru.hopec.parser.TreeSitterRepresentation
 import ru.hopec.parser.treesitter.parseHope
 import ru.hopec.renamer.AstNode
@@ -9,34 +10,43 @@ import ru.hopec.renamer.AstNode.FunctionDeclaration
 import ru.hopec.renamer.Program
 import ru.hopec.renamer.RenamedRepresentation
 import ru.hopec.renamer.RenamerPass
-import kotlin.collections.get
-import kotlin.collections.listOf
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 
 class RenamerTest {
-    private suspend fun startRenamer(input: String): RenamedRepresentation? {
-        val parsed = parseHope(input)
-        val treeSitterRep = TreeSitterRepresentation(parsed)
+    private suspend fun contextAfterPass(input: String): CompilationContext {
         val context = CompilationContext()
-        return RenamerPass.run(treeSitterRep, context)
+        runPass(input, context)
+        return context
     }
 
-    suspend fun `function declaration`(): Program {
-        val code =
+    private suspend fun startRenamer(input: String): RenamedRepresentation {
+        val context = CompilationContext()
+        val result = runPass(input, context) ?: error("renamer failed")
+        assertEquals(StatusSeverity.INFO, context.result().severity)
+        return result
+    }
+
+    private suspend fun runPass(
+        input: String,
+        context: CompilationContext,
+    ): RenamedRepresentation? = RenamerPass.run(tree(input), context)
+
+    private suspend fun tree(input: String) = TreeSitterRepresentation(parseHope(input))
+
+    suspend fun functionDeclaration(): Program =
+        startRenamer(
             """
             dec f : WrongType
             --- f(x) <= x
-            """.trimIndent()
-        val res = startRenamer(code) ?: error("renamer failed")
-        return res.program
-    }
+            """.trimIndent(),
+        ).program
 
     @Test
     fun `test function declaration`() =
         runTest {
-            val program = `function declaration`()
+            val program = functionDeclaration()
             assertEquals(
                 1,
                 program.list.filterIsInstance<FunctionDeclaration>().size,
@@ -47,7 +57,7 @@ class RenamerTest {
     @Test
     fun `test function declaration have equation`() =
         runTest {
-            val program = `function declaration`()
+            val program = functionDeclaration()
             val functionDeclaration = program.list.filterIsInstance<FunctionDeclaration>().first()
             assertEquals(
                 1,
@@ -56,18 +66,30 @@ class RenamerTest {
             )
         }
 
-    suspend fun application(): Program {
-        val code =
+    suspend fun badFunctionDeclaration() =
+        contextAfterPass(
+            """
+            dec f : WrongType -> (typ ->)
+            --- f(x) <= x
+            """.trimIndent(),
+        )
+
+    @Test
+    fun `bad function declaration has errors`() =
+        runTest {
+            assertEquals(StatusSeverity.ERROR, badFunctionDeclaration().result().severity)
+        }
+
+    suspend fun application(): Program =
+        startRenamer(
             """
             dec * : WrongType
             infix * : 6
             
             dec f : WrongType
             --- f(x) <= x * f 12
-            """.trimIndent()
-        val res = startRenamer(code) ?: error("renamer failed")
-        return res.program
-    }
+            """.trimIndent(),
+        ).program
 
     @Test
     fun `test application`() =
@@ -95,15 +117,13 @@ class RenamerTest {
             )
         }
 
-    suspend fun `complex pattern`(): Program {
-        val code =
+    suspend fun `complex pattern`(): Program =
+        startRenamer(
             """
             dec f : WrongType
             --- f(g(a :: l)) <= a 
-            """.trimIndent()
-        val res = startRenamer(code) ?: error("renamer failed")
-        return res.program
-    }
+            """.trimIndent(),
+        ).program
 
     @Test
     fun `test complex pattern`() =
@@ -136,50 +156,50 @@ class RenamerTest {
     @Test
     fun `test const pattern`() =
         runTest {
-            val code =
+            startRenamer(
                 """
                 dec f : WrongType
                 --- f(42, 'c') <= a 
-                """.trimIndent()
-            val res = startRenamer(code) ?: error("renamer failed")
+                """.trimIndent(),
+            )
         }
 
     @Test
     fun `test empty pattern`() =
         runTest {
-            val code =
+            startRenamer(
                 """
                 dec f : WrongType
                 --- f <= a 
                 --- f() <= a 
-                """.trimIndent()
-            val res = startRenamer(code) ?: error("renamer failed")
+                """.trimIndent(),
+            )
         }
 
     @Test
     fun `test binding pattern`() =
         runTest {
-            val code =
+            startRenamer(
                 """
                 dec f : WrongType
                 --- f(Test @ a :: xs) <= x
-                """.trimIndent()
-            val res = startRenamer(code) ?: error("renamer failed")
+                """.trimIndent(),
+            )
         }
 
     @Test
     fun `test function overload`() =
         runTest {
-            val code =
-                """
-                dec f : WrongType1
-                --- f(x :: xs) <= x
-                
-                dec f : WrongType2
-                --- f(a, b) <= a
-                """.trimIndent()
-
-            val res = startRenamer(code) ?: error("renamer failed")
+            val res =
+                startRenamer(
+                    """
+                    dec f : WrongType1
+                    --- f(x :: xs) <= x
+                    
+                    dec f : WrongType2
+                    --- f(a, b) <= a
+                    """.trimIndent(),
+                )
             assertEquals(
                 Program(
                     list =
@@ -232,13 +252,13 @@ class RenamerTest {
     @Test
     fun `test list pattern`() =
         runTest {
-            val code =
-                """
-                dec f : WrongType
-                --- f([x, y]) <= f (x, y)
-                """.trimIndent()
-            val res = startRenamer(code) ?: error("renamer failed")
-            val list = res.program.list
+            val list =
+                startRenamer(
+                    """
+                    dec f : WrongType
+                    --- f([x, y]) <= f (x, y)
+                    """.trimIndent(),
+                ).program.list
             val functionDeclaration = list.filterIsInstance<FunctionDeclaration>()[0]
             val pattern = functionDeclaration.equations[0].pattern
             assertEquals(
@@ -264,13 +284,13 @@ class RenamerTest {
     @Test
     fun `test tuple with const`() =
         runTest {
-            val code =
-                """
-                dec f : WrongType
-                --- f(x) <= (42, "test", 'c', true)
-                """.trimIndent()
-            val res = startRenamer(code) ?: error("renamer failed")
-            val list = res.program.list
+            val list =
+                startRenamer(
+                    """
+                    dec f : WrongType
+                    --- f(x) <= (42, "test", 'c', true)
+                    """.trimIndent(),
+                ).program.list
             val functionDeclaration = list.filterIsInstance<FunctionDeclaration>()[0]
             val tuple = functionDeclaration.equations[0].body
             assertEquals(
@@ -290,14 +310,14 @@ class RenamerTest {
     @Test
     fun `test lambda`() =
         runTest {
-            val code =
-                """
-                dec f : WrongType
-                --- f(x) <= lambda nil => error
-                                | a :: xs => a
-                """.trimIndent()
-            val res = startRenamer(code) ?: error("renamer failed")
-            val list = res.program.list
+            val list =
+                startRenamer(
+                    """
+                    dec f : WrongType
+                    --- f(x) <= lambda nil => error
+                                    | a :: xs => a
+                    """.trimIndent(),
+                ).program.list
             val function = list.filterIsInstance<FunctionDeclaration>()[0]
             assertEquals(
                 AstNode.LambdaExpr(
@@ -328,16 +348,17 @@ class RenamerTest {
     @Test
     fun `test data constructors`() =
         runTest {
-            val code = "data x == empty ++ cons(x)"
-            val res = startRenamer(code) ?: error("renamer failed")
-            val list = res.program.list
+            val list = startRenamer("data x == empty ++ cons(x)").program.list
 
             assertEquals(
                 AstNode.DataDeclaration(
                     name = "x",
                     boundVars = emptyList(),
                     dataConstructors =
-                        listOf(Pair("empty", null), Pair("cons", AstNode.NamedType(type = "x", arguments = emptyList()))),
+                        listOf(
+                            Pair("empty", null),
+                            Pair("cons", AstNode.NamedType(type = "x", arguments = emptyList())),
+                        ),
                 ),
                 list[0],
             )
@@ -346,23 +367,23 @@ class RenamerTest {
     @Test
     fun `test module use`() =
         runTest {
-            val code =
-                """
-                module test
-                    dec <> : WrongType
-                    infix <> : 6
-                    --- a <> b <= a :: b
-                    pubconst <>
-                end
-                
-                module test2
-                    uses test
-                    dec f : WrongType
-                    --- f(x) <= a <> b
-                end
-                """.trimIndent()
-
-            val res = startRenamer(code) ?: error("renamer failed")
+            val res =
+                startRenamer(
+                    """
+                    module test
+                        dec <> : WrongType
+                        infix <> : 6
+                        --- a <> b <= a :: b
+                        pubconst <>
+                    end
+                    
+                    module test2
+                        uses test
+                        dec f : WrongType
+                        --- f(x) <= a <> b
+                    end
+                    """.trimIndent(),
+                )
             assertEquals(
                 AstNode.Module(
                     name = "test2",
@@ -374,12 +395,15 @@ class RenamerTest {
                                 equations =
                                     listOf(
                                         AstNode.FunctionEquation(
-                                            pattern =
-                                                AstNode.VariablePattern("x"),
+                                            pattern = AstNode.VariablePattern("x"),
                                             body =
                                                 AstNode.ApplicationExpr(
                                                     function = AstNode.IdentExpr(name = "<>"),
-                                                    arguments = listOf(AstNode.IdentExpr(name = "a"), AstNode.IdentExpr(name = "b")),
+                                                    arguments =
+                                                        listOf(
+                                                            AstNode.IdentExpr(name = "a"),
+                                                            AstNode.IdentExpr(name = "b"),
+                                                        ),
                                                 ),
                                         ),
                                     ),
@@ -395,13 +419,14 @@ class RenamerTest {
     @Test
     fun `test error`() =
         runTest {
-            val noFunctionName =
-                """
-                module test
-                    dec : String -> Long
-                end
-                """.trimIndent()
-            val res = startRenamer(noFunctionName) ?: error("renamer failed")
+            val res =
+                startRenamer(
+                    """
+                    module test
+                        dec : String -> Long
+                    end
+                    """.trimIndent(),
+                )
             assertIs<AstNode.Module>(res.program.list[0])
             assertIs<AstNode.Error>((res.program.list[0] as AstNode.Module).statements[0])
         }
@@ -409,7 +434,7 @@ class RenamerTest {
     @Test
     fun `test example`() =
         runTest {
-            val code =
+            startRenamer(
                 """
                 module ordered_trees
                   pubtype otree
@@ -465,8 +490,7 @@ class RenamerTest {
                   --- sort(l) <= flatten(insert ## (l,empty))
 
                 end
-                """.trimIndent()
-
-            val res = startRenamer(code) ?: error("renamer failed")
+                """.trimIndent(),
+            )
         }
 }

@@ -1,15 +1,27 @@
 package ru.hopec.renamer
 
-import ru.hopec.core.StatusSeverity
+import ru.hopec.core.CompilationContext
+import ru.hopec.core.errorStatus
 import ru.hopec.core.topography.Range
 
 open class RenamerException : IllegalStateException {
     val range: Range
     val fatal: Boolean
 
-    constructor(message: String, range: Range, fatal: Boolean = false) :
-        super("[${StatusSeverity.ERROR.name}] " + "${range.from?.row}:${range.from?.column} " + message) {
+    constructor(message: String, range: Range, fatal: Boolean = false) : super("$range: $message") {
         this.range = range
         this.fatal = fatal
     }
 }
+
+fun CompilationContext.add(exception: Exception) {
+    report(errorStatus(exception.message ?: "", exception.range()))
+    println("Syntax error: ${exception.message}")
+}
+
+private fun Exception.range(): Range =
+    if (this is RenamerException) {
+        range
+    } else {
+        Range()
+    }

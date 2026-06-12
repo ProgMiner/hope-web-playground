@@ -1,5 +1,7 @@
-import { editor, Position } from 'monaco-editor';
+import { editor, MarkerSeverity, Position } from 'monaco-editor';
 import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
+import type { CompilationStatus } from './compiler.svelte';
+import type { Range } from './tree/generic_tree';
 
 class Listeners {
 	readonly content: ((e: editor.IModelContentChangedEvent) => void)[] = [];
@@ -57,11 +59,56 @@ export class MonacoEditor {
 		this.decorations.set(fresh);
 	}
 
+	updateMarkers(fresh: CompilationStatus[]) {
+		const model = this.standalone.getModel();
+		if (!model) {
+			return;
+		}
+		editor.setModelMarkers(
+			model,
+			'hopec',
+			fresh.map((status) => this.markerData(status))
+		);
+	}
+
+	private markerData(problem: CompilationStatus): editor.IMarkerData {
+		return {
+			startLineNumber: problem.from.row + 1,
+			startColumn: problem.from.column + 1,
+			endLineNumber: problem.to.row + 1,
+			endColumn: problem.to.column + 1,
+			message: problem.message,
+			severity: this.severity(problem)
+		};
+	}
+
+	private severity(problem: CompilationStatus): MarkerSeverity {
+		if (problem.severity === 'error') {
+			return MarkerSeverity.Error;
+		}
+		if (problem.severity === 'warning') {
+			return MarkerSeverity.Warning;
+		}
+		return MarkerSeverity.Info;
+	}
+
 	currentContents(): string {
 		return this.standalone.getValue();
 	}
 
 	installContent(text: string) {
 		this.standalone.setValue(text);
+	}
+
+	focusRange(range: Range) {
+		if (!range.from || !range.to) {
+			return;
+		}
+		this.standalone.setSelection({
+			startLineNumber: range.from.row + 1,
+			startColumn: range.from.column + 1,
+			endLineNumber: range.to.row + 1,
+			endColumn: range.to.column + 1
+		});
 	}
 }

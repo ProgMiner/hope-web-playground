@@ -1,5 +1,6 @@
 package ru.hopec.renamer
 
+import ru.hopec.core.CompilationContext
 import ru.hopec.parser.TreeSitterRepresentation
 import ru.hopec.parser.treesitter.TsSyntaxNode
 import ru.hopec.parser.treesitter.range
@@ -32,7 +33,7 @@ class CstParser(
         ) : ApplicationToken
     }
 
-    fun parse(): Program {
+    fun parse(context: CompilationContext): Program {
         val rootNode = from.tree.rootNode
         val globalParserState = ParserState(operators = internalOperators)
         val topLevelNodes =
@@ -43,6 +44,7 @@ class CstParser(
                         else -> parseStatementOrInternal(child, globalParserState)
                     }
                 } catch (e: RenamerException) {
+                    context.add(e)
                     AstNode.Error(e)
                 }
             }).toMutableList()

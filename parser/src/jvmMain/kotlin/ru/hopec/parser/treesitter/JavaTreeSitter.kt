@@ -111,7 +111,7 @@ private class JavaSyntaxNode(
 
     override val previousNamedSibling: TsSyntaxNode? by lazy { delegate.prevNamedSibling?.nonNull()?.wrap(tree) }
 
-    override fun toString(): String = delegate.toString()
+    override fun toString(): String = type
 
     override fun child(index: UInt): TsSyntaxNode? = delegate.getChild(index.toInt())?.nonNull()?.wrap(tree)
 

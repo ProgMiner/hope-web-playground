@@ -10,4 +10,9 @@ export class Terminal {
 	write(text: string) {
 		this.contents += text;
 	}
+
+	writeln(text: string) {
+		this.write(text);
+		this.write('\n');
+	}
 }

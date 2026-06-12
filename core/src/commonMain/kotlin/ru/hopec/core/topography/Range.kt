@@ -4,4 +4,6 @@ data class Range(
     val resource: Resource? = null,
     val from: Point? = null,
     val to: Point? = null,
-)
+) {
+    override fun toString(): String = "${resource?.toString()?.plus(": ") ?: ""}$from-$to"
+}
