@@ -71,7 +71,8 @@ class DesugarerTest {
             val desugared = startDesugarer(program) ?: error("desugarer error")
             assertNotNull(
                 desugared.topLevel.functions[
-                    DesugaredRepresentation.Declarations.Function.Name.User(null, "main"),
+                    DesugaredRepresentation.Declarations.Function.Name
+                        .User(null, "main"),
                 ],
             )
         }

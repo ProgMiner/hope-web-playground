@@ -81,7 +81,8 @@ fun region(
 }
 
 fun normalize(s: String): String =
-    s.trim()
+    s
+        .trim()
         .lineSequence()
         .map { it.trimEnd() }
         .filter { it.isNotBlank() }

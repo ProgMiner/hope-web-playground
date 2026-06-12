@@ -16,7 +16,11 @@ internal sealed class SExpr {
         ) {
             val pad = "  ".repeat(indent)
             if (args.isEmpty()) {
-                sb.append(pad).append('(').append(head).append(')')
+                sb
+                    .append(pad)
+                    .append('(')
+                    .append(head)
+                    .append(')')
             } else {
                 sb.append(pad).append('(').append(head)
                 for (a in args) {
