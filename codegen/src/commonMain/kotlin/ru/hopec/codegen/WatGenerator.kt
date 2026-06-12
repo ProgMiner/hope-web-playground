@@ -8,55 +8,23 @@ import ru.hopec.typecheck.TypedRepresentation.Expr
 import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Data.Name as DataName
 import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Function.Name as FuncName
 
-/**
- * Переводит [TypedRepresentation] в WebAssembly Text Format (WAT).
- *
- * ## Представление в памяти
- * Любое значение HOPE — это `i32`.
- *
- * | Тип HOPE                  | Значение в WAT                                        |
- * |---------------------------|-------------------------------------------------------|
- * | `Num`                     | распакованный `i32` (младшие 32 бита `Long`)          |
- * | `Char`                    | распакованный `i32` (код Unicode)                     |
- * | `TruVal`                  | распакованный `i32`: 0 = false, 1 = true              |
- * | `nil`                     | `i32` == 0 (нулевой указатель)                        |
- * | `cons(arg)`               | указатель на кучу → `[field: i32]`                    |
- * | `Tuple # (a, b)`          | указатель на кучу → `[fst: i32, snd: i32]`            |
- * | `emptySet`                | `i32` == 0 (нулевой указатель)                        |
- * | `set a` (непустое)        | указатель на кучу → `[value: i32, next: i32]`         |
- * | пользовательский ADT ctor | указатель на кучу → `[tag: i32, field₀: i32, …]`      |
- * | замыкание `a → b`         | указатель на кучу → `[func_idx: i32, n_caps: i32, …]` |
- *
- * Все функции в таблице (для `call_indirect`) имеют единую сигнатуру
- * `(closure_ptr: i32, arg: i32) → i32`. Функции верхнего уровня, core-операции
- * и конструкторы, используемые как значения, попадают в таблицу через
- * synthesized-обёртки ([wrapperFor]).
- *
- * Генерация кода выражений и сопоставления с паттернами вынесена в [WatCodeEmitter].
- */
 class WatGenerator(
     private val program: TypedRepresentation,
 ) {
-    // ── Дочерние узлы модуля в порядке эмиссии ───────────────────────────────
     private val moduleChildren = mutableListOf<SExpr>()
 
-    // ── Счётчики ────────────────────────────────────────────────────────────
     private var labelCounter = 0
     private var liftedCounter = 0
 
-    // ── Теги и арность конструкторов: (DataName × ctorName) → … ─────────────
     internal val constructorTags = mutableMapOf<Pair<DataName, String>, Int>()
     internal val constructorArity = mutableMapOf<Pair<DataName, String>, Int>()
 
-    // ── Таблица функций для косвенных вызовов (замыкания) ────────────────────
     private val funcTable = mutableListOf<String>()
     private val funcTableIdx = mutableMapOf<String, Int>()
 
-    // ── Обёртки для функций-значений: имя → WAT-имя обёртки ─────────────────
     private val wrapperIds = mutableMapOf<FuncName, String>()
     private val pendingWrappers = ArrayDeque<Pair<FuncName, String>>()
 
-    // ── Лямбды, поднятые в область модуля ────────────────────────────────────
     internal data class LiftedLambda(
         val watName: String,
         val captures: List<String>,
@@ -65,12 +33,8 @@ class WatGenerator(
 
     private val liftedLambdas = mutableListOf<LiftedLambda>()
 
-    // ── Делегат для кода выражений / паттернов ───────────────────────────────
     private val code = WatCodeEmitter(this)
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // API, доступное WatCodeEmitter
-    // ═══════════════════════════════════════════════════════════════════════
 
     internal fun freshLabel(prefix: String = "lbl") = "\$$prefix${labelCounter++}"
 
@@ -86,10 +50,6 @@ class WatGenerator(
             funcTable.size - 1
         }
 
-    /**
-     * WAT-имя обёртки с сигнатурой `$closure_fn` для функции [name].
-     * Обёртка эмитится отложенно в [emitAllFunctions].
-     */
     internal fun wrapperFor(name: FuncName): String =
         wrapperIds.getOrPut(name) {
             val id = "\$wrap.${watId(name).removePrefix("\$")}"
@@ -129,9 +89,6 @@ class WatGenerator(
             is DataName.Defined -> "${name.module ?: "top"}.${name.name}"
         }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Точка входа
-    // ═══════════════════════════════════════════════════════════════════════
 
     fun generate(): String {
         assignConstructorTags()
@@ -148,9 +105,6 @@ class WatGenerator(
         return SExpr.Inst("module", moduleChildren.toList()).format()
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Назначение тегов конструкторам
-    // ═══════════════════════════════════════════════════════════════════════
 
     private fun assignConstructorTags() {
         fun process(
@@ -170,9 +124,6 @@ class WatGenerator(
         }
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Память, глобальные переменные, рантайм
-    // ═══════════════════════════════════════════════════════════════════════
 
     private fun emitMemoryAndGlobals() {
         moduleChildren.add(SExpr.Raw("(memory (export \"memory\") 1)"))
@@ -183,9 +134,6 @@ class WatGenerator(
         for (snippet in WatRuntime.ALL) moduleChildren.add(SExpr.Raw(snippet))
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Эмиссия функций
-    // ═══════════════════════════════════════════════════════════════════════
 
     private fun emitAllFunctions() {
         emitDeclFunctions(program.topLevel)
@@ -193,8 +141,6 @@ class WatGenerator(
             emitDeclFunctions(module.public)
             emitDeclFunctions(module.private)
         }
-        // Очереди могут расти в процессе эмиссии: лямбды внутри лямбд,
-        // обёртки, на которые ссылаются тела лямбд, и т.д.
         var lifted = 0
         while (lifted < liftedLambdas.size || pendingWrappers.isNotEmpty()) {
             while (lifted < liftedLambdas.size) {
@@ -211,15 +157,12 @@ class WatGenerator(
         for ((name, func) in decls.functions) emitFunction(watId(name), func.lambda)
     }
 
-    /** Эмиттирует функцию верхнего уровня с одним аргументом типа `i32`. */
     private fun emitFunction(
         watName: String,
         lambda: Expr.Lambda,
     ) {
         val ctx = WatFunctionContext(::esc)
 
-        // Сначала собираем тело, чтобы знать набор локалов
-        // до момента вывода объявлений в заголовке.
         val body = code.emitBranchMatch(lambda.branches, "\$arg", ctx)
 
         val children = mutableListOf<SExpr>()
@@ -229,12 +172,6 @@ class WatGenerator(
         moduleChildren.add(SExpr.Inst("func $watName (param \$arg i32) (result i32)", children))
     }
 
-    /**
-     * Поднятая лямбда принимает `(closure_ptr: i32, arg: i32) → i32`,
-     * чтобы её можно было вызвать через `$rt.apply`. Захваченные переменные
-     * загружаются из `closure_ptr` по смещениям 8, 12, 16, … (после
-     * func_idx[4] и n_caps[4]).
-     */
     private fun emitLiftedLambda(lifted: LiftedLambda) {
         val ctx = WatFunctionContext(::esc)
 
@@ -255,10 +192,6 @@ class WatGenerator(
         )
     }
 
-    /**
-     * Обёртка с сигнатурой `$closure_fn` для функции/конструктора [name],
-     * чтобы значение можно было вызвать через `$rt.apply`.
-     */
     private fun emitWrapper(
         name: FuncName,
         watName: String,
@@ -271,7 +204,6 @@ class WatGenerator(
                 is FuncName.Core -> {
                     val op = WatCodeEmitter.CORE_BIN_OPS[name.name]
                     if (op != null) {
-                        // Аргумент — кортеж (a, b) в куче.
                         listOf(
                             inst(
                                 op,
@@ -315,8 +247,6 @@ class WatGenerator(
                 )
 
             name.data == DataName.Core.Tuple -> {
-                // Каррированный `#`: первая ступень возвращает замыкание,
-                // захватившее fst; вторая строит кортеж.
                 val stage2 = "$watName.1"
                 val stage2Idx = registerInFuncTable(stage2)
                 moduleChildren.add(
@@ -358,9 +288,6 @@ class WatGenerator(
             }
         }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Экспорты
-    // ═══════════════════════════════════════════════════════════════════════
 
     private fun emitExports() {
         for ((name, _) in program.topLevel.functions) {
@@ -377,9 +304,6 @@ class WatGenerator(
         }
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Таблица функций
-    // ═══════════════════════════════════════════════════════════════════════
 
     private fun emitFunctionElem() {
         if (funcTable.isNotEmpty()) {
