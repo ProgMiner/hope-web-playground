@@ -1,16 +1,16 @@
 package ru.hopec.typecheck
 
-import ru.hopec.typecheck.DesugaredRepresentation
-import ru.hopec.typecheck.TypedRepresentation.Declarations
-import ru.hopec.typecheck.TypedRepresentation.Declarations.Data.Name.Core
-import ru.hopec.typecheck.TypedRepresentation.PolymorphicType
-import ru.hopec.typecheck.TypedRepresentation.Type
+import ru.hopec.desugarer.DesugaredRepresentation
+import ru.hopec.desugarer.DesugaredRepresentation.Declarations
+import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Data.Name.Core
+import ru.hopec.desugarer.DesugaredRepresentation.PolymorphicType
+import ru.hopec.desugarer.DesugaredRepresentation.Type
 
 internal data class Signature(
     val functions: Map<Declarations.Function.Name, PolymorphicType>,
     val data: Map<Declarations.Data.Name, Declarations.Data>,
 ) {
-    fun extend(other: DesugaredRepresentation.Declarations): Signature {
+    fun extend(other: Declarations): Signature {
         val extendedFunctions = functions.toMutableMap()
         other.functions.forEach { entry -> extendedFunctions[entry.key] = entry.value.type }
         val extendedData = data.toMutableMap()

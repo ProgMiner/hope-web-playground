@@ -1,13 +1,13 @@
 package ru.hopec.codegen
 
 import ru.hopec.codegen.runtime.WatRuntime
+import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Data
 import ru.hopec.typecheck.TypedRepresentation
 import ru.hopec.typecheck.TypedRepresentation.Declarations
-import ru.hopec.typecheck.TypedRepresentation.Declarations.Data
 import ru.hopec.typecheck.TypedRepresentation.Expr
 import ru.hopec.typecheck.TypedRepresentation.Pattern
-import ru.hopec.typecheck.TypedRepresentation.Declarations.Data.Name as DataName
-import ru.hopec.typecheck.TypedRepresentation.Declarations.Function.Name as FuncName
+import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Data.Name as DataName
+import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Function.Name as FuncName
 
 /**
  * Переводит [TypedRepresentation] в WebAssembly Text Format (WAT).
@@ -253,13 +253,24 @@ class WatGenerator(
         ctx: WatFunctionContext,
     ) {
         when (p) {
-            is Pattern.Variable -> ctx.getOrAdd(p.name)
+            is Pattern.Variable -> {
+                ctx.getOrAdd(p.name)
+            }
+
             is Pattern.NamedData -> {
                 ctx.getOrAdd(p.name)
                 collectPatVars(p.data, ctx)
             }
-            is Pattern.Data -> p.args.forEach { collectPatVars(it, ctx) }
+
+            is Pattern.Data -> {
+                p.args.forEach { collectPatVars(it, ctx) }
+            }
+
             is Pattern.Wildcard -> {}
+
+            else -> {
+                TODO("add support for literal patterns")
+            }
         }
     }
 
@@ -273,20 +284,25 @@ class WatGenerator(
                 collectExprVars(e.matcher, ctx)
                 collectExprVars(e.body, ctx)
             }
-            is Expr.Lambda ->
+
+            is Expr.Lambda -> {
                 e.branches.forEach {
                     collectPatVars(it.pattern, ctx)
                     collectExprVars(it.body, ctx)
                 }
+            }
+
             is Expr.Application -> {
                 collectExprVars(e.left, ctx)
                 collectExprVars(e.right, ctx)
             }
+
             is Expr.If -> {
                 collectExprVars(e.condition, ctx)
                 collectExprVars(e.positive, ctx)
                 collectExprVars(e.negative, ctx)
             }
+
             else -> {}
         }
     }

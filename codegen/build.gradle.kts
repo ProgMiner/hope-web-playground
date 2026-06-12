@@ -23,6 +23,7 @@ kotlin {
             implementation("com.squareup.okio:okio:3.16.2")
             implementation(project(":core"))
             implementation(project(":parser"))
+            implementation(project(":desugarer"))
             implementation(project(":typecheck"))
         }
 

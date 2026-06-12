@@ -22,6 +22,7 @@ kotlin {
         commonMain.dependencies {
             implementation(project(":core"))
             implementation(project(":renamer"))
+            implementation(project(":desugarer"))
             implementation(project(":parser"))
         }
 

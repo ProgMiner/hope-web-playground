@@ -1,14 +1,16 @@
 package ru.hopec.typecheck
 
-import ru.hopec.typecheck.TypedRepresentation.Declarations
-import ru.hopec.typecheck.TypedRepresentation.Declarations.Data.Name.Core
-import ru.hopec.typecheck.TypedRepresentation.Type
+import ru.hopec.desugarer.DesugaredRepresentation
+import ru.hopec.desugarer.DesugaredRepresentation.Declarations
+import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Data.Name.Core
+import ru.hopec.desugarer.DesugaredRepresentation.PolymorphicType
+import ru.hopec.desugarer.DesugaredRepresentation.Type
 import kotlin.math.max
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 
-private fun polymorphic(type: Type): TypedRepresentation.PolymorphicType {
+private fun polymorphic(type: Type): PolymorphicType {
     fun maxBinder(type: Type): Int =
         when (type) {
             is Type.Variable -> type.index
@@ -16,7 +18,7 @@ private fun polymorphic(type: Type): TypedRepresentation.PolymorphicType {
             is Type.Data -> type.args.maxOfOrNull(::maxBinder) ?: 0
         }
 
-    return TypedRepresentation.PolymorphicType(type, maxBinder(type) + 1)
+    return PolymorphicType(type, maxBinder(type) + 1)
 }
 
 private fun typeVar(i: Int) = Type.Variable(i)
@@ -45,20 +47,12 @@ private fun branches(vararg branches: Pair<TypedRepresentation.Pattern, TypedRep
         TypedRepresentation.Expr.Lambda.Branch(it.first, it.second)
     }
 
-private val constructorTrue =
-    Declarations.Function.Name.Constructor(
-        Declarations.Data.Name.Core.TruVal,
-        "true",
-    )
+private val constructorTrue = Declarations.Function.Name.Constructor(Core.TruVal, "true")
 
-private val constructorFalse =
-    Declarations.Function.Name.Constructor(
-        Declarations.Data.Name.Core.TruVal,
-        "false",
-    )
+private val constructorFalse = Declarations.Function.Name.Constructor(Core.TruVal, "false")
 
-private val dsTrue = DesugaredRepresentation.Expr.Identifier(constructorTrue)
-private val dsFalse = DesugaredRepresentation.Expr.Identifier(constructorFalse)
+private val dsTrue = DesugaredRepresentation.Expr.Identifier(setOf(constructorTrue))
+private val dsFalse = DesugaredRepresentation.Expr.Identifier(setOf(constructorFalse))
 private val typedTrue = TypedRepresentation.Expr.Identifier(Type.Data.truval, constructorTrue)
 private val typedFalse = TypedRepresentation.Expr.Identifier(Type.Data.truval, constructorFalse)
 private val dsWild = DesugaredRepresentation.Pattern.Wildcard
@@ -74,18 +68,23 @@ private fun dsBranches(vararg branches: Pair<DesugaredRepresentation.Pattern, De
         DesugaredRepresentation.Expr.Lambda.Branch(it.first, it.second)
     }
 
+private fun dsApp(
+    fn: DesugaredRepresentation.Expr,
+    vararg args: DesugaredRepresentation.Expr,
+) = DesugaredRepresentation.Expr.Application(fn, args.toList())
+
 private infix fun DesugaredRepresentation.Expr.dsAp(right: DesugaredRepresentation.Expr) =
-    DesugaredRepresentation.Expr.Application(this, right)
+    DesugaredRepresentation.Expr.Application(this, listOf(right))
 
 private fun dsTuple(
     left: DesugaredRepresentation.Expr,
     right: DesugaredRepresentation.Expr,
-) = (DesugaredRepresentation.Expr.Identifier(makeTuple) dsAp left) dsAp right
+) = dsApp(DesugaredRepresentation.Expr.Identifier(setOf(makeTuple)), left, right)
 
 private fun dsTuplePat(
     left: DesugaredRepresentation.Pattern,
     right: DesugaredRepresentation.Pattern,
-) = DesugaredRepresentation.Pattern.Data(makeTuple, listOf(left, right))
+) = DesugaredRepresentation.Pattern.Data(setOf(makeTuple), listOf(left, right))
 
 private fun tuplePat(
     left: TypedRepresentation.Pattern,
@@ -93,12 +92,12 @@ private fun tuplePat(
 ) = TypedRepresentation.Pattern.Data(Type.Data.tuple(left.type, right.type), makeTuple, listOf(left, right))
 
 class TypecheckTests {
-    private fun annotateGlobal(func: DesugaredRepresentation.Declarations.Function) = TypecheckingContext.runFunction(Signature.core, func)
+    private fun annotateGlobal(func: Declarations.Function) = TypecheckingContext.runFunction(Signature.core, func)
 
     @Test
     fun smoke() {
         val desugId =
-            DesugaredRepresentation.Declarations.Function(
+            Declarations.Function(
                 DesugaredRepresentation.Expr.Lambda(
                     dsBranches(dsPatVar("x") to dsVar("x", 0)),
                 ),
@@ -120,7 +119,7 @@ class TypecheckTests {
     @Test
     fun letPolymorphism() {
         val poly =
-            DesugaredRepresentation.Declarations.Function(
+            Declarations.Function(
                 DesugaredRepresentation.Expr.Lambda(
                     dsBranches(
                         dsPatVar("x") to
@@ -149,9 +148,46 @@ class TypecheckTests {
     }
 
     @Test
+    fun multipleArgumentsApplication() {
+        val poly =
+            Declarations.Function(
+                DesugaredRepresentation.Expr.Lambda(
+                    dsBranches(
+                        dsWild to
+                            dsApp(
+                                DesugaredRepresentation.Expr.Lambda(
+                                    dsBranches(
+                                        dsPatVar("x") to
+                                            DesugaredRepresentation.Expr.Lambda(
+                                                dsBranches(
+                                                    dsPatVar("y") to
+                                                        DesugaredRepresentation.Expr.Lambda(
+                                                            dsBranches(
+                                                                dsPatVar("z") to dsApp(dsVar("x", 2), dsVar("y", 1), dsVar("z", 0)),
+                                                            ),
+                                                        ),
+                                                ),
+                                            ),
+                                    ),
+                                ),
+                                DesugaredRepresentation.Expr.Lambda(
+                                    dsBranches(dsPatVar("x") to dsVar("x", 0)),
+                                ),
+                                DesugaredRepresentation.Expr.Identifier(setOf(cons)),
+                                dsTuple(dsTrue, DesugaredRepresentation.Expr.Identifier(setOf(nil))),
+                            ),
+                    ),
+                ),
+                polymorphic(typeVar(0) arrow Type.Data.list(Type.Data.truval)),
+            )
+        val result = annotateGlobal(poly)
+        assertNotNull(result)
+    }
+
+    @Test
     fun nestedLet() {
         val poly =
-            DesugaredRepresentation.Declarations.Function(
+            Declarations.Function(
                 DesugaredRepresentation.Expr.Lambda(
                     dsBranches(
                         dsPatVar("x") to
@@ -212,18 +248,18 @@ class TypecheckTests {
     @Test
     fun complexPattern() {
         val desugFunction =
-            DesugaredRepresentation.Declarations.Function(
+            Declarations.Function(
                 DesugaredRepresentation.Expr.Lambda(
                     dsBranches(
                         DesugaredRepresentation.Pattern.NamedData(
                             "foo",
                             DesugaredRepresentation.Pattern.Data(
-                                cons,
+                                setOf(cons),
                                 listOf(
                                     dsTuplePat(
                                         dsTuplePat(
                                             dsWild,
-                                            DesugaredRepresentation.Pattern.Data(constructorTrue, listOf()),
+                                            DesugaredRepresentation.Pattern.Data(setOf(constructorTrue), listOf()),
                                         ),
                                         dsWild,
                                     ),
@@ -241,18 +277,18 @@ class TypecheckTests {
     @Test
     fun moreSpecificTypeDefinition() {
         val desugFunction =
-            DesugaredRepresentation.Declarations.Function(
+            Declarations.Function(
                 DesugaredRepresentation.Expr.Lambda(
                     dsBranches(
                         DesugaredRepresentation.Pattern.NamedData(
                             "foo",
                             DesugaredRepresentation.Pattern.Data(
-                                cons,
+                                setOf(cons),
                                 listOf(
                                     dsTuplePat(
                                         dsTuplePat(
                                             dsWild,
-                                            DesugaredRepresentation.Pattern.Data(constructorTrue, listOf()),
+                                            DesugaredRepresentation.Pattern.Data(setOf(constructorTrue), listOf()),
                                         ),
                                         dsWild,
                                     ),
@@ -281,11 +317,14 @@ class TypecheckTests {
     @Test
     fun multipleBranches() {
         val desugIsNil =
-            DesugaredRepresentation.Declarations.Function(
+            Declarations.Function(
                 DesugaredRepresentation.Expr.Lambda(
                     dsBranches(
-                        DesugaredRepresentation.Pattern.Data(cons, listOf(dsTuplePat(dsWild, dsWild))) to dsFalse,
-                        DesugaredRepresentation.Pattern.Data(nil, listOf()) to dsTrue,
+                        DesugaredRepresentation.Pattern.Data(
+                            setOf(cons),
+                            listOf(dsTuplePat(dsWild, dsWild)),
+                        ) to dsFalse,
+                        DesugaredRepresentation.Pattern.Data(setOf(nil), listOf()) to dsTrue,
                     ),
                 ),
                 polymorphic(Type.Data.list(Type.Variable(0)) arrow Type.Data.truval),

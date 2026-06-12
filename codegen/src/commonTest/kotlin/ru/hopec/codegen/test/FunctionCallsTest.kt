@@ -1,20 +1,21 @@
 package ru.hopec.codegen.test
 
+import ru.hopec.desugarer.DesugaredRepresentation.Type
 import ru.hopec.typecheck.TypedRepresentation
 import ru.hopec.typecheck.TypedRepresentation.Declarations
 import ru.hopec.typecheck.TypedRepresentation.Declarations.Function
 import ru.hopec.typecheck.TypedRepresentation.Expr
-import ru.hopec.typecheck.TypedRepresentation.Type
 import kotlin.test.Test
 import kotlin.test.assertContains
+import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Function.Name as FunName
 
 class FunctionCallsTest {
-    private val plusCore = Function.Name.Core("+")
-    private val tupleCtor = Function.Name.Constructor(Type.Data.tuple(Type.Data.num, Type.Data.num).constructor, "#")
+    private val plusCore = FunName.Core("+")
+    private val tupleCtor = FunName.Constructor(Type.Data.tuple(Type.Data.num, Type.Data.num).constructor, "#")
 
     @Test
     fun `user function emits direct call`() {
-        val callee = Function.Name.User(null, "helper")
+        val callee = FunName.User(null, "helper")
         val callExpr =
             Expr.Application(
                 numType,
@@ -29,8 +30,8 @@ class FunctionCallsTest {
                 Declarations(
                     emptyMap(),
                     mapOf(
-                        Function.Name.User(null, "main") to caller,
-                        Function.Name.User(null, "helper") to helper,
+                        FunName.User(null, "main") to caller,
+                        FunName.User(null, "helper") to helper,
                     ),
                 ),
             )
