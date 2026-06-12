@@ -15,7 +15,6 @@ data class DesugarerLocalContext(
             level++
         }
 
-    // De Brujin index: 0 — ближайший биндер (level - declaredLevel - 1)
     fun getLocalVar(name: String) = localScope[name]?.let { ResolvedExpr.Local(level - it - 1) }
 
     // возможно тут сразу стоит отбросить не нуль-арные конструкторы

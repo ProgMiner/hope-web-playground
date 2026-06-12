@@ -15,7 +15,6 @@ internal data class Signature(
         other.functions.forEach { entry -> extendedFunctions[entry.key] = entry.value.type }
         val extendedData = data.toMutableMap()
         extendedData.putAll(other.data.toMap())
-        // Конструкторы данных — тоже функции: выводим их типы из объявления.
         other.data.forEach { (dataName, dataDecl) ->
             val resultType =
                 Type.Data(dataName, (0 until dataDecl.boundTypeVariables).map { Type.Variable(it) })
@@ -25,8 +24,6 @@ internal data class Signature(
                     if (args.isEmpty()) {
                         resultType
                     } else {
-                        // Многоместный конструктор принимает один кортеж
-                        // (правоассоциативная свёртка #).
                         val argType = args.reduceRight { left, right -> Type.Data.tuple(left, right) }
                         Type.Arrow(argType, resultType)
                     }

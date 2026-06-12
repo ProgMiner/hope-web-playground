@@ -56,8 +56,6 @@ internal class TypecheckingContext private constructor(
         return TypedRepresentation.Module(public, private)
     }
 
-    // Ошибка типизации любой функции — ошибка всего набора деклараций:
-    // молча выбрасывать функции нельзя, иначе codegen получит неполную программу.
     private fun runDeclarations(declarations: DesugaredRepresentation.Declarations): TypedRepresentation.Declarations? {
         val functions =
             declarations.functions
