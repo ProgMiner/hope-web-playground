@@ -14,9 +14,7 @@ export class ParsedProject {
 	) {}
 
 	createFile(file: ImaginaryFile) {
-		const fresh = new ParsedFile(this.editor, this.currentText(file));
-		fresh.init();
-		this.resources.set(file, fresh);
+		this.resources.set(file, new ParsedFile(this.editor, this.currentText(file)));
 	}
 
 	openProject(project: ImaginaryProject) {

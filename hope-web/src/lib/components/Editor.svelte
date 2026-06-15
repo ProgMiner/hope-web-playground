@@ -34,7 +34,7 @@
 	let project: ImaginaryProject = $state(loadProject(examplarProject()));
 	let opened: ImaginaryFile | undefined = $state();
 	let parsed: ParsedProject | undefined = $state();
-	let trees: SvelteMap<Resource, SvelteMap<string, GenericTree>> = new SvelteMap();
+	let trees: SvelteMap<string, SvelteMap<string, GenericTree>> = new SvelteMap();
 
 	onMount(async () => {
 		await initEditor();
@@ -54,8 +54,11 @@
 	}
 
 	function updateTree(t: Tree) {
-		setTree(new TsToTree(t, opened?.currentResource()).build());
-		rebuild();
+		const resource = opened?.currentResource();
+		if (resource) {
+			setTree(resource, new TsToTree(t, resource).build());
+			rebuild();
+		}
 	}
 
 	function currentTrees(): SvelteMap<string, GenericTree> {
@@ -63,7 +66,7 @@
 		if (!resource) {
 			return new SvelteMap();
 		}
-		return trees.get(resource) ?? new SvelteMap();
+		return trees.get(resource.path) ?? new SvelteMap();
 	}
 
 	function rebuild() {
@@ -77,9 +80,7 @@
 	}
 
 	function setTrees(representations: TranslationUnitRepresentations[]) {
-		representations.forEach((repr) =>
-			repr.trees.forEach((tree) => setTreeInResource(repr.resource, tree))
-		);
+		representations.forEach((repr) => repr.trees.forEach((tree) => setTree(repr.resource, tree)));
 	}
 
 	function updateMarkers(problems: CompilationStatus[]) {
@@ -88,32 +89,29 @@
 		);
 	}
 
-	function setTree(tree: GenericTree | undefined) {
-		const resource = tree?.root.range.resource;
-		if (!resource) {
-			return;
+	function setTree(resource: Resource, tree: GenericTree) {
+		if (!trees.has(resource.path)) {
+			trees.set(resource.path, new SvelteMap());
 		}
-		setTreeInResource(resource, tree);
-	}
-
-	function setTreeInResource(resource: Resource, tree: GenericTree) {
-		if (!trees.has(resource)) {
-			trees.set(resource, new SvelteMap());
-		}
-		trees.get(resource)!.set(tree.type, tree);
+		trees.get(resource.path)!.set(tree.type, tree);
 	}
 
 	function open(file: ImaginaryFile) {
-		opened?.encode(editor?.currentContents() ?? '');
+		closeFile();
 		opened = file;
 		value = file.decode();
 		editor?.installContent(value);
 		bindParsedFile();
 	}
 
+	function closeFile() {
+		parsed?.currentFile()?.unbind();
+		opened?.encode(editor?.currentContents() ?? '');
+	}
+
 	function bindParsedFile() {
-		parsed?.currentFile()?.bind();
 		parsed?.currentFile()?.listenTree({ notify: updateTree });
+		parsed?.currentFile()?.bind();
 	}
 
 	function rebuildFileTree() {

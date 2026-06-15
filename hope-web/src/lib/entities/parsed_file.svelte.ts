@@ -12,11 +12,8 @@ export class ParsedFile {
 		this.highlight = new Highlighting(editor, this.sitter);
 	}
 
-	init() {
-		this.sitter.parse();
-	}
-
 	bind() {
+		this.sitter.parse();
 		this.highlight.bind();
 	}
 

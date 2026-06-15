@@ -84,7 +84,6 @@ export class Compiler {
 function debounced(callback: (input: CompilationInput) => void) {
 	let timeout: number;
 	return (input: CompilationInput) => {
-    console.log(input);
 		window.clearTimeout(timeout);
 		timeout = window.setTimeout(() => callback(input), 300);
 	};

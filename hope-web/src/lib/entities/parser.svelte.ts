@@ -4,8 +4,8 @@ import { HighlightInfo, type Highlighted } from './highlight_info.svelte';
 const hope = await initHope();
 
 async function initHope(): Promise<Language> {
-		await Parser.init();
-		return await Language.load('$lib/../../tree-sitter-hope.wasm');
+	await Parser.init();
+	return await Language.load('$lib/../../tree-sitter-hope.wasm');
 }
 
 export class TreeSitter {

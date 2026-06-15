@@ -3,7 +3,7 @@ import * as hopec from 'hopec-driver';
 import type { GenericTree, Resource } from './tree/generic_tree';
 
 export interface TranslationUnitRepresentations {
-  resource: Resource;
+	resource: Resource;
 	trees: GenericTree[];
 }
 
@@ -14,7 +14,7 @@ export interface CompilationResult {
 }
 
 export interface TranslationUnit {
-  resource: Resource;
+	resource: Resource;
 	tree: Tree;
 }
 
