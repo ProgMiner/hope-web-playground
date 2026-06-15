@@ -2,6 +2,7 @@ package ru.hopec.parser.test
 
 import kotlinx.coroutines.test.runTest
 import ru.hopec.core.CompilationContext
+import ru.hopec.core.GlobalCompilationContext
 import ru.hopec.core.StatusSeverity
 import ru.hopec.parser.TreeSitterRepresentation
 import ru.hopec.parser.treesitter.parseHope
@@ -16,13 +17,13 @@ import kotlin.test.assertIs
 
 class RenamerTest {
     private suspend fun contextAfterPass(input: String): CompilationContext {
-        val context = CompilationContext()
+        val context = GlobalCompilationContext()
         runPass(input, context)
         return context
     }
 
     private suspend fun startRenamer(input: String): RenamedRepresentation {
-        val context = CompilationContext()
+        val context = GlobalCompilationContext()
         val result = runPass(input, context) ?: error("renamer failed")
         assertEquals(StatusSeverity.INFO, context.result().severity)
         return result

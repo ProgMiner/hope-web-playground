@@ -4,7 +4,8 @@ import com.dylibso.chicory.runtime.Instance
 import com.dylibso.chicory.wasm.Parser
 import kotlinx.coroutines.runBlocking
 import okio.Buffer
-import ru.hopec.core.CompilationContext
+import ru.hopec.core.GlobalCompilationContext
+import ru.hopec.core.isError
 import ru.hopec.driver.Hopec
 import ru.hopec.parser.treesitter.parseHope
 import kotlin.test.Test
@@ -15,8 +16,8 @@ class EndToEndTest {
     private fun compile(source: String): ByteArray? {
         val tree = runBlocking { parseHope(source) }
         val buffer = Buffer()
-        val status = Hopec(CompilationContext()).run(tree, buffer)
-        if (status != 0) return null
+        val status = Hopec(GlobalCompilationContext()).run(tree, buffer)
+        if (status.isError()) return null
         return buffer.readByteArray()
     }
 

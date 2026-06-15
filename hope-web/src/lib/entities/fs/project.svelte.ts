@@ -64,4 +64,8 @@ export class ImaginaryProject {
 			root: this.root.serialize()
 		};
 	}
+
+	allFiles() {
+		return this.root.allFiles();
+	}
 }

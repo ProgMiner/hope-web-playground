@@ -1,7 +1,5 @@
 <script lang="ts">
 	import { MonacoEditor } from '$lib/entities/editor.svelte';
-	import { Highlighting } from '$lib/entities/highlighting.svelte';
-	import { TreeSitter } from '$lib/entities/parser.svelte';
 	import { onDestroy, onMount } from 'svelte';
 	import type { Tree } from 'web-tree-sitter';
 	import Appearance from './Appearance.svelte';
@@ -19,34 +17,34 @@
 		type RenderedResourceRow
 	} from '$lib/entities/fs/rendered_resource.svelte';
 	import FileTree from './fs/FileTree.svelte';
-	import { Compiler } from '$lib/entities/compiler.svelte';
+	import { Compiler, type CompilationStatus } from '$lib/entities/compiler.svelte';
 	import { TsToTree } from '$lib/entities/tree/tree_sitter';
 	import { SvelteMap } from 'svelte/reactivity';
-	import type { GenericTree, Range } from '$lib/entities/tree/generic_tree';
+	import type { GenericTree, Range, Resource } from '$lib/entities/tree/generic_tree';
 	import TreesView from './TreesView.svelte';
+	import { ParsedProject } from '$lib/entities/parsed_project.svelte';
+	import type { TranslationUnitRepresentations } from '$lib/entities/hopec';
 
 	let { editor = $bindable() }: { editor: MonacoEditor | undefined } = $props();
 	let value: string = $state('');
 	let view: HTMLDivElement | undefined = $state();
 	let compiler = new Compiler();
-	let highlight: Highlighting | undefined = $state();
-	let sitter = new TreeSitter();
 	let terminal = new Terminal();
 	let files: RenderedResourceRow[] = $state([]);
 	let project: ImaginaryProject = $state(loadProject(examplarProject()));
 	let opened: ImaginaryFile | undefined = $state();
-	let trees: SvelteMap<string, GenericTree> = new SvelteMap();
+	let parsed: ParsedProject | undefined = $state();
+	let trees: SvelteMap<Resource, SvelteMap<string, GenericTree>> = new SvelteMap();
 
 	onMount(async () => {
 		await initEditor();
-		await sitter.init(() => editor!.currentContents());
-		await initHighlighting();
+		parsed = new ParsedProject(editor!, () => opened);
+		parsed.openProject(project);
 		rebuildFileTree();
 	});
 
 	onDestroy(() => {
-		highlight?.dispose();
-		sitter.dispose();
+		parsed?.closeProject();
 		editor?.dispose();
 	});
 
@@ -55,29 +53,54 @@
 		await editor.init();
 	}
 
-	async function initHighlighting() {
-		highlight = new Highlighting(editor!, sitter);
-		highlight.listenTree({ notify: updateTree });
-		await highlight.init();
-	}
-
 	function updateTree(t: Tree) {
-		setTree(new TsToTree(t, undefined).build());
-		compiler.rebuild(t);
+		setTree(new TsToTree(t, opened?.currentResource()).build());
+		rebuild();
 	}
 
-	$effect(() => {
-		setTree(compiler.statusTree());
-		editor?.updateMarkers(
-			compiler.currentProblems()
-			// .filter((problem) => problem.resource?.path === opened?.currentPath())
+	function currentTrees(): SvelteMap<string, GenericTree> {
+		const resource = opened?.currentResource();
+		if (!resource) {
+			return new SvelteMap();
+		}
+		return trees.get(resource) ?? new SvelteMap();
+	}
+
+	function rebuild() {
+		const input = parsed?.buildInput();
+		if (!input) {
+			return;
+		}
+		compiler.rebuild(input);
+		setTrees(compiler.currentRepresentations());
+		updateMarkers(compiler.currentProblems());
+	}
+
+	function setTrees(representations: TranslationUnitRepresentations[]) {
+		representations.forEach((repr) =>
+			repr.trees.forEach((tree) => setTreeInResource(repr.resource, tree))
 		);
-	});
+	}
+
+	function updateMarkers(problems: CompilationStatus[]) {
+		editor?.updateMarkers(
+			problems.filter((problem) => problem.resource?.path === opened?.currentPath())
+		);
+	}
 
 	function setTree(tree: GenericTree | undefined) {
-		if (tree) {
-			trees.set(tree.type, tree);
+		const resource = tree?.root.range.resource;
+		if (!resource) {
+			return;
 		}
+		setTreeInResource(resource, tree);
+	}
+
+	function setTreeInResource(resource: Resource, tree: GenericTree) {
+		if (!trees.has(resource)) {
+			trees.set(resource, new SvelteMap());
+		}
+		trees.get(resource)!.set(tree.type, tree);
 	}
 
 	function open(file: ImaginaryFile) {
@@ -85,6 +108,12 @@
 		opened = file;
 		value = file.decode();
 		editor?.installContent(value);
+		bindParsedFile();
+	}
+
+	function bindParsedFile() {
+		parsed?.currentFile()?.bind();
+		parsed?.currentFile()?.listenTree({ notify: updateTree });
 	}
 
 	function rebuildFileTree() {
@@ -99,7 +128,7 @@
 <div class="flex h-screen flex-col">
 	<div class="flex flex-row">
 		<Appearance />
-		<Run freshTree={() => sitter.freshParse()} {terminal} />
+		<Run input={() => parsed?.buildInput()} {terminal} />
 	</div>
 	<div class="flex flex-1 flex-row overflow-auto">
 		<FileTree rows={files} {open} rebuild={rebuildFileTree} />
@@ -108,7 +137,7 @@
 			<TerminalComponent {terminal} />
 		</div>
 		<div class="flex flex-2 flex-col overflow-auto p-1">
-			<TreesView {trees} {focus} />
+			<TreesView trees={currentTrees()} {focus} />
 		</div>
 	</div>
 </div>

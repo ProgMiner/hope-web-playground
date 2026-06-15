@@ -13,3 +13,5 @@ fun CompilationStatus.intoNode(): GenericNode =
             listOf()
         },
     )
+
+fun statusTreeType(): String = "STATUS"

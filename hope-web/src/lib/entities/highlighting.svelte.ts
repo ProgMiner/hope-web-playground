@@ -10,25 +10,31 @@ export interface HighlightingListener {
 
 export class Highlighting {
 	private readonly listeners: HighlightingListener[];
+	private readonly listener: (e: editor.IModelContentChangedEvent) => void;
 
 	constructor(
 		private readonly editor: MonacoEditor,
 		private readonly parser: TreeSitter
 	) {
 		this.listeners = [];
+		this.listener = this.edited.bind(this);
 	}
 
 	listenTree(listener: HighlightingListener) {
 		this.listeners.push(listener);
 	}
 
-	async init(): Promise<void> {
-		this.parser.parse();
-		this.editor.addEditListener((e) => this.edited(e));
+	bind() {
+		this.editor.addEditListener(this.listener);
 		const tree = this.parser.currentTree();
 		if (tree) {
 			this.highlight(tree.rootNode);
+			this.fireTreeUpdated();
 		}
+	}
+
+	unbind() {
+		this.editor.removeEditListener(this.listener);
 	}
 
 	private edited(e: editor.IModelContentChangedEvent) {
@@ -67,7 +73,7 @@ export class Highlighting {
 		return { row: line - 1, column: column - 1 };
 	}
 
-	highlight(node: Node) {
+	private highlight(node: Node) {
 		const decorations: editor.IModelDeltaDecoration[] = [];
 		this.parser.highlightingInfo(node.tree.rootNode).forEach((highlighted) =>
 			decorations.push({
@@ -81,7 +87,6 @@ export class Highlighting {
 			})
 		);
 		this.editor.updateDecorations(decorations);
-		this.fireTreeUpdated();
 	}
 
 	private fireTreeUpdated() {
@@ -89,9 +94,5 @@ export class Highlighting {
 		if (tree) {
 			this.listeners.forEach((l) => l.notify(tree));
 		}
-	}
-
-	dispose() {
-		this.parser.dispose();
 	}
 }

@@ -1,19 +1,20 @@
 <script lang="ts">
 	import { Compiler } from '$lib/entities/compiler.svelte';
+	import type { CompilationInput } from '$lib/entities/hopec';
 	import type { Terminal } from '$lib/entities/terminal.svelte';
-	import type { Tree } from 'web-tree-sitter';
 
 	let compiler = new Compiler();
-	let { freshTree, terminal }: { freshTree: () => Tree | undefined; terminal: Terminal } = $props();
+	let { input, terminal }: { input: () => CompilationInput | undefined; terminal: Terminal } =
+		$props();
 
 	async function run(): Promise<void> {
-		const tree = freshTree();
-		if (!tree) {
+		const trees = input();
+		if (!trees) {
 			terminal.writeln('No syntax tree to compile');
 			return;
 		}
 		compiler.currentProblems().forEach((problem) => terminal.writeln(problem.message));
-		const compiled = await compiler.compile(tree);
+		const compiled = await compiler.compile(trees);
 		if (!compiled) {
 			terminal.writeln('Compilation failed');
 			return;

@@ -1,11 +1,25 @@
 import type { Tree } from 'web-tree-sitter';
 import * as hopec from 'hopec-driver';
-import type { GenericTree } from './tree/generic_tree';
+import type { GenericTree, Resource } from './tree/generic_tree';
+
+export interface TranslationUnitRepresentations {
+  resource: Resource;
+	trees: GenericTree[];
+}
 
 export interface CompilationResult {
 	size: number;
-	representations: GenericTree[];
+	representations: TranslationUnitRepresentations[];
 	instance: WebAssembly.Instance;
+}
+
+export interface TranslationUnit {
+  resource: Resource;
+	tree: Tree;
+}
+
+export interface CompilationInput {
+	resources: TranslationUnit[];
 }
 
 const memory = initializeMemory();
@@ -17,8 +31,8 @@ function initializeMemory(): WebAssembly.Memory {
 }
 
 export class Hopec {
-	compile(input: Tree): CompilationResult | undefined {
-		return (hopec.compile as (input: Tree) => CompilationResult | undefined)(input);
+	compile(input: CompilationInput): CompilationResult | undefined {
+		return (hopec.compile as (input: CompilationInput) => CompilationResult | undefined)(input);
 	}
 
 	statusTreeType(): string {

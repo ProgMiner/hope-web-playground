@@ -71,4 +71,8 @@ export class ImaginaryFolder {
 			children: this.sortedChildren().map((child) => child.serialize())
 		};
 	}
+
+	allFiles() {
+		return this.children.flatMap((child) => child.allFiles());
+	}
 }
