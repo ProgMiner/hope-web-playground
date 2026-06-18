@@ -199,3 +199,13 @@ data class DesugaredRepresentation(
         }
     }
 }
+
+fun DesugaredRepresentation.Declarations.dumpSignature(service: SignatureService) {
+    functions.forEach { service.addFunction(it.key, it.value.type) }
+    data.forEach { service.addData(it.key, it.value) }
+}
+
+fun DesugaredRepresentation.dumpSignature(service: SignatureService) {
+    modules.forEach { it.value.public.dumpSignature(service) }
+    topLevel.dumpSignature(service)
+}

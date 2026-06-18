@@ -26,4 +26,6 @@ class LocalCompilationContext(
     override fun result(): CompilationStatus = status
 
     override fun resolveModule(module: String) = global.resolveModule(module)
+
+    override fun services() = global.services()
 }
