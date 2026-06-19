@@ -48,6 +48,7 @@ export class ImaginaryFile {
 
 	serialize() {
 		return {
+			type: 'file',
 			name: this.name,
 			contents: btoa(Array.from(this.contents, (byte) => String.fromCodePoint(byte)).join(''))
 		};

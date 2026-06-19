@@ -60,6 +60,7 @@ export class ImaginaryProject {
 
 	serialize() {
 		return {
+			type: 'project',
 			name: this.name,
 			root: this.root.serialize()
 		};

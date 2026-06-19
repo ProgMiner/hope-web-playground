@@ -1,6 +1,7 @@
 package ru.hopec.core
 
 import ru.hopec.core.topography.Range
+import ru.hopec.core.topography.Resource
 
 enum class StatusSeverity {
     INFO,
@@ -37,3 +38,6 @@ fun errorStatus(
     message: String,
     location: Range,
 ): CompilationStatus = CompilationStatus.Plain(StatusSeverity.ERROR, message, location)
+
+fun CompilationStatus.inResource(resource: Resource): CompilationStatus =
+    CompilationStatus.Plain(severity, message, Range(resource, range.from, range.to))
