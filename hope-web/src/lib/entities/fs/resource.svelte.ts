@@ -1,5 +1,7 @@
 import type { ImaginaryFile } from './file.svelte';
 
+export type ImaginaryResourceType = 'project' | 'folder' | 'file';
+
 export interface ImaginaryResource {
 	currentParent(): ImaginaryContainer | undefined;
 

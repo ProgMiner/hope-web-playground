@@ -3,8 +3,11 @@
 	import type { CompilationInput } from '$lib/entities/hopec';
 	import type { Terminal } from '$lib/entities/terminal.svelte';
 
-	let compiler = new Compiler();
-	let { input, terminal }: { input: () => CompilationInput | undefined; terminal: Terminal } =
+	let {
+		input,
+		compiler,
+		terminal
+	}: { input: () => CompilationInput | undefined; compiler: Compiler; terminal: Terminal } =
 		$props();
 
 	async function run(): Promise<void> {
@@ -13,8 +16,8 @@
 			terminal.writeln('No syntax tree to compile');
 			return;
 		}
-		compiler.currentProblems().forEach((problem) => terminal.writeln(problem.message));
 		const compiled = await compiler.compile(trees);
+		compiler.currentProblems().forEach((problem) => terminal.writeln(problem.message));
 		if (!compiled) {
 			terminal.writeln('Compilation failed');
 			return;

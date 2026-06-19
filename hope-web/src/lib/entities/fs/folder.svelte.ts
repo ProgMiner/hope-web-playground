@@ -67,6 +67,7 @@ export class ImaginaryFolder {
 
 	serialize() {
 		return {
+			type: 'folder',
 			name: this.name,
 			children: this.sortedChildren().map((child) => child.serialize())
 		};

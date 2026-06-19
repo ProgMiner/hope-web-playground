@@ -2,13 +2,13 @@
 	import { MonacoEditor } from '$lib/entities/editor.svelte';
 	import { onDestroy, onMount } from 'svelte';
 	import type { Tree } from 'web-tree-sitter';
-	import Appearance from './Appearance.svelte';
-	import Run from './Run.svelte';
+	import Appearance from './toolbar/Appearance.svelte';
+	import Run from './toolbar/Run.svelte';
 	import { Terminal } from '$lib/entities/terminal.svelte';
 	import TerminalComponent from './TerminalComponent.svelte';
 	import type { ImaginaryProject } from '$lib/entities/fs/project.svelte';
 	import {
-		exemplarPorject as examplarProject,
+		exemplarProject as examplarProject,
 		loadProject
 	} from '$lib/entities/fs/deserialize.svelte';
 	import type { ImaginaryFile } from '$lib/entities/fs/file.svelte';
@@ -24,14 +24,17 @@
 	import TreesView from './TreesView.svelte';
 	import { ParsedProject } from '$lib/entities/parsed_project.svelte';
 	import type { TranslationUnitRepresentations } from '$lib/entities/hopec';
+	import Save from './toolbar/Save.svelte';
+	import Load from './toolbar/Load.svelte';
+	import LoadExample from './toolbar/LoadExample.svelte';
 
 	let { editor = $bindable() }: { editor: MonacoEditor | undefined } = $props();
 	let value: string = $state('');
 	let view: HTMLDivElement | undefined = $state();
-	let compiler = new Compiler();
+	let compiler = new Compiler(rebuilt);
 	let terminal = new Terminal();
 	let files: RenderedResourceRow[] = $state([]);
-	let project: ImaginaryProject = $state(loadProject(examplarProject()));
+	let project: ImaginaryProject | undefined = $state();
 	let opened: ImaginaryFile | undefined = $state();
 	let parsed: ParsedProject | undefined = $state();
 	let trees: SvelteMap<string, SvelteMap<string, GenericTree>> = new SvelteMap();
@@ -39,14 +42,22 @@
 	onMount(async () => {
 		await initEditor();
 		parsed = new ParsedProject(editor!, () => opened);
-		parsed.openProject(project);
-		rebuildFileTree();
+		openProject(loadProject(await examplarProject('syntax')));
 	});
 
 	onDestroy(() => {
 		parsed?.closeProject();
 		editor?.dispose();
 	});
+
+	function openProject(fresh: ImaginaryProject) {
+		closeFile();
+		opened = undefined;
+		editor?.installContent('');
+		project = fresh;
+		parsed?.openProject(project);
+		rebuildFileTree();
+	}
 
 	async function initEditor() {
 		editor = new MonacoEditor(view!, value);
@@ -71,10 +82,12 @@
 
 	function rebuild() {
 		const input = parsed?.buildInput();
-		if (!input) {
-			return;
+		if (input) {
+			compiler.rebuild(input);
 		}
-		compiler.rebuild(input);
+	}
+
+	function rebuilt() {
 		setTrees(compiler.currentRepresentations());
 		updateMarkers(compiler.currentProblems());
 	}
@@ -106,6 +119,10 @@
 
 	function closeFile() {
 		parsed?.currentFile()?.unbind();
+		flushCurrentFile();
+	}
+
+	function flushCurrentFile() {
 		opened?.encode(editor?.currentContents() ?? '');
 	}
 
@@ -126,7 +143,10 @@
 <div class="flex h-screen flex-col">
 	<div class="flex flex-row">
 		<Appearance />
-		<Run input={() => parsed?.buildInput()} {terminal} />
+		<Save project={() => project} saving={flushCurrentFile} />
+		<Load loaded={openProject} />
+		<LoadExample loaded={openProject} current={() => project} />
+		<Run input={() => parsed?.buildInput()} {terminal} {compiler} />
 	</div>
 	<div class="flex flex-1 flex-row overflow-auto">
 		<FileTree rows={files} {open} rebuild={rebuildFileTree} />

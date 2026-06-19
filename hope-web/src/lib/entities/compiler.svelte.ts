@@ -28,7 +28,7 @@ export class Compiler {
 	readonly rebuild: (input: CompilationInput) => void;
 	private result: CompilationResult | undefined;
 
-	constructor() {
+	constructor(private readonly rebuilt: () => void) {
 		this.hopec = new Hopec();
 		this.rebuild = debounced((input) => this.compile(input));
 		this.result = $state();
@@ -37,6 +37,7 @@ export class Compiler {
 	async compile(input: CompilationInput): Promise<WebAssembly.Instance | undefined> {
 		const result = this.hopec.compile(input);
 		this.result = result;
+		this.rebuilt();
 		if (!result || result.size === 0) {
 			return undefined;
 		}

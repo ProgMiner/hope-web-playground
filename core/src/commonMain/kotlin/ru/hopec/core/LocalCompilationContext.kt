@@ -21,7 +21,7 @@ class LocalCompilationContext(
         trees.add(tree)
     }
 
-    override fun report(status: CompilationStatus) = this.status.add(status)
+    override fun report(status: CompilationStatus) = this.status.add(status.inResource(resource))
 
     override fun result(): CompilationStatus = status
 
