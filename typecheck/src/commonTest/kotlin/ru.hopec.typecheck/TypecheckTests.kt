@@ -6,7 +6,6 @@ import ru.hopec.desugarer.DesugaredRepresentation.Declarations
 import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Data.Name.Core
 import ru.hopec.desugarer.DesugaredRepresentation.PolymorphicType
 import ru.hopec.desugarer.DesugaredRepresentation.Type
-import ru.hopec.desugarer.SignatureService
 import ru.hopec.desugarer.withSignatureService
 import kotlin.math.max
 import kotlin.test.Test
