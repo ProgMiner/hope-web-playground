@@ -47,6 +47,13 @@ export class MonacoEditor {
 		this.listeners.content.push(listener);
 	}
 
+	removeEditListener(listener: (e: editor.IModelContentChangedEvent) => void) {
+		const index = this.listeners.content.indexOf(listener);
+		if (index != -1) {
+			this.listeners.content.splice(index, 1);
+		}
+	}
+
 	onContentChange(e: editor.IModelContentChangedEvent) {
 		this.listeners.content.forEach((listener) => listener(e));
 	}

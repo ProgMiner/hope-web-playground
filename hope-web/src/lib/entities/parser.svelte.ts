@@ -1,24 +1,27 @@
 import { Parser, Language, Tree, Edit, type Range, Node } from 'web-tree-sitter';
 import { HighlightInfo, type Highlighted } from './highlight_info.svelte';
 
+const hope = await initHope();
+
+async function initHope(): Promise<Language> {
+	await Parser.init();
+	return await Language.load('$lib/../../tree-sitter-hope.wasm');
+}
+
 export class TreeSitter {
 	private parser: Parser | undefined;
 	private tree: Tree | undefined;
-	private text: (() => string) | undefined;
-	private version: number = 0;
+	private readonly text: () => string | undefined;
 
-	async init(text: () => string): Promise<void> {
-		await Parser.init();
-		const hope = await Language.load('$lib/../../tree-sitter-hope.wasm');
+	constructor(text: () => string | undefined) {
 		this.parser = new Parser();
 		this.parser.setLanguage(hope);
 		this.text = text;
 	}
 
 	parse(): Range[] {
-		this.version++;
 		const old = this.tree;
-		const parsed = this.parser?.parse(this.text!(), old);
+		const parsed = this.parser?.parse(this.text() ?? '', old);
 		if (parsed) {
 			this.tree = parsed!;
 			return old?.getChangedRanges(this.tree) ?? [];
@@ -36,11 +39,7 @@ export class TreeSitter {
 	}
 
 	freshParse(): Tree | undefined {
-		return this.parser?.parse(this.text!(), null) ?? undefined;
-	}
-
-	currentVersion(): number {
-		return this.version;
+		return this.parser?.parse(this.text()!, null) ?? undefined;
 	}
 
 	highlightingInfo(node: Node): Highlighted[] {

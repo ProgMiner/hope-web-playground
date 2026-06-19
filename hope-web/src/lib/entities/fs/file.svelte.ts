@@ -1,3 +1,4 @@
+import type { Resource } from '../tree/generic_tree';
 import { type ImaginaryContainer } from './resource.svelte';
 
 export class ImaginaryFile {
@@ -50,5 +51,13 @@ export class ImaginaryFile {
 			name: this.name,
 			contents: btoa(Array.from(this.contents, (byte) => String.fromCodePoint(byte)).join(''))
 		};
+	}
+
+	allFiles() {
+		return [this];
+	}
+
+	currentResource(): Resource {
+		return { path: this.currentPath() };
 	}
 }

@@ -1,12 +1,17 @@
-import type { Tree } from 'web-tree-sitter';
 import {
 	allLeaves,
 	zeroPoint,
 	type GenericNode,
+	type GenericTree,
 	type Point,
 	type Resource
 } from './tree/generic_tree';
-import { Hopec, type CompilationResult } from './hopec';
+import {
+	Hopec,
+	type CompilationInput,
+	type CompilationResult,
+	type TranslationUnitRepresentations
+} from './hopec';
 
 export type StatusSeverity = 'info' | 'warning' | 'error';
 
@@ -20,7 +25,7 @@ export interface CompilationStatus {
 
 export class Compiler {
 	private readonly hopec: Hopec;
-	readonly rebuild: (input: Tree) => void;
+	readonly rebuild: (input: CompilationInput) => void;
 	private result: CompilationResult | undefined;
 
 	constructor() {
@@ -29,7 +34,7 @@ export class Compiler {
 		this.result = $state();
 	}
 
-	async compile(input: Tree): Promise<WebAssembly.Instance | undefined> {
+	async compile(input: CompilationInput): Promise<WebAssembly.Instance | undefined> {
 		const result = this.hopec.compile(input);
 		this.result = result;
 		if (!result || result.size === 0) {
@@ -39,15 +44,18 @@ export class Compiler {
 	}
 
 	currentProblems(): CompilationStatus[] {
-		const tree = this.statusTree();
-		if (!tree) {
-			return [];
-		}
-		return allLeaves(tree).map((problem) => this.status(problem));
+		return this.statusTrees().flatMap(allLeaves).map(this.status.bind(this));
 	}
 
-	statusTree() {
-		return this.result?.representations.find((tree) => tree.type === this.hopec.statusTreeType());
+	private statusTrees(): GenericTree[] {
+		return this.currentRepresentations()
+			.map((repr) => repr.trees.find((tree) => tree.type === this.hopec.statusTreeType()))
+			.filter((tree) => tree)
+			.map((tree) => tree!);
+	}
+
+	currentRepresentations(): TranslationUnitRepresentations[] {
+		return this.result?.representations ?? [];
 	}
 
 	private status(problem: GenericNode): CompilationStatus {
@@ -73,9 +81,9 @@ export class Compiler {
 	}
 }
 
-function debounced(callback: (input: Tree) => void) {
+function debounced(callback: (input: CompilationInput) => void) {
 	let timeout: number;
-	return (input: Tree) => {
+	return (input: CompilationInput) => {
 		window.clearTimeout(timeout);
 		timeout = window.setTimeout(() => callback(input), 300);
 	};

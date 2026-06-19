@@ -1,18 +1,17 @@
 package ru.hopec.desugarer
 
 import kotlinx.coroutines.test.runTest
-import ru.hopec.core.CompilationContext
+import ru.hopec.core.GlobalCompilationContext
 import ru.hopec.renamer.AstNode
 import ru.hopec.renamer.Program
 import ru.hopec.renamer.RenamedRepresentation
-import kotlin.collections.emptyList
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 
 class DesugarerTest {
     private fun startDesugarer(from: RenamedRepresentation): DesugaredRepresentation? {
-        val context = CompilationContext()
+        val context = GlobalCompilationContext()
         return try {
             DesugarerPass.run(from, context)
         } catch (e: Throwable) {

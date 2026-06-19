@@ -1,3 +1,5 @@
+import type { ImaginaryFile } from './file.svelte';
+
 export interface ImaginaryResource {
 	currentParent(): ImaginaryContainer | undefined;
 
@@ -12,6 +14,8 @@ export interface ImaginaryResource {
 	isContainer(): boolean;
 
 	serialize(): object;
+
+	allFiles(): ImaginaryFile[];
 }
 
 export interface ImaginaryContainer extends ImaginaryResource {

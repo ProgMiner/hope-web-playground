@@ -4,24 +4,22 @@ package ru.hopec.driver
 
 import okio.Buffer
 import ru.hopec.core.CompilationContext
+import ru.hopec.core.GlobalCompilationContext
 import ru.hopec.core.JsObject
 import ru.hopec.core.StatusSeverity
+import ru.hopec.core.TranslationUnitRepresentations
 import ru.hopec.core.set
 import ru.hopec.core.toJsObject
-import ru.hopec.core.tree.GenericTree
-import ru.hopec.core.tree.intoNode
-import ru.hopec.parser.treesitter.JsTree
-import ru.hopec.parser.treesitter.Tree
 import kotlin.wasm.unsafe.Pointer
 import kotlin.wasm.unsafe.UnsafeWasmMemoryApi
 import kotlin.wasm.unsafe.withScopedMemoryAllocator
 
 @OptIn(ExperimentalWasmJsInterop::class, UnsafeWasmMemoryApi::class)
 @JsExport
-fun compile(input: Tree): JsObject {
+fun compile(input: CompilationInput): JsObject {
     val buffer = Buffer()
-    val context = CompilationContext()
-    Hopec(context).run(JsTree(input), buffer)
+    val context = GlobalCompilationContext()
+    Hopec(context).run(input.toHopec(), buffer)
     val result = buffer.readByteArray()
     withScopedMemoryAllocator {
         val buffer = Pointer(0U)
@@ -32,9 +30,9 @@ fun compile(input: Tree): JsObject {
 
 data class CompilationResult(
     val size: UInt,
-    val representations: List<GenericTree>,
+    val representations: List<TranslationUnitRepresentations>,
 ) {
-    constructor(size: UInt, context: CompilationContext) : this(size, trees(context))
+    constructor(size: UInt, context: CompilationContext) : this(size, context.trees())
 
     @OptIn(ExperimentalWasmJsInterop::class)
     fun toJsObject() =
@@ -42,11 +40,6 @@ data class CompilationResult(
             set("size", size)
             set("representations", representations.map { it.toJsObject() }.toJsArray())
         }
-}
-
-private fun trees(context: CompilationContext): List<GenericTree> {
-    context.rememberTree(GenericTree(statusTreeType(), context.result().intoNode()))
-    return context.trees()
 }
 
 @JsExport
