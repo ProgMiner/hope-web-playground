@@ -2,22 +2,14 @@ package ru.hopec.driver.test
 
 import com.dylibso.chicory.runtime.Instance
 import com.dylibso.chicory.wasm.Parser
-import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.joinAll
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import okio.Buffer
-import ru.hopec.core.GlobalCompilationContext
 import ru.hopec.core.isError
 import ru.hopec.core.topography.Resource
 import ru.hopec.driver.Hopec
 import ru.hopec.driver.HopecInput
 import ru.hopec.driver.defaultContext
 import ru.hopec.parser.treesitter.parseHope
-import kotlin.coroutines.CoroutineContext
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals

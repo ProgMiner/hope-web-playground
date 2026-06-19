@@ -8,10 +8,7 @@ import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.types.path
 import kotlinx.coroutines.runBlocking
 import okio.Buffer
-import ru.hopec.core.GlobalCompilationContext
-import ru.hopec.core.Services
 import ru.hopec.core.isError
-import ru.hopec.desugarer.SignatureService
 import ru.hopec.parser.treesitter.parseHope
 import java.nio.file.Path
 import kotlin.io.path.readText

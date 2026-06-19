@@ -3,9 +3,7 @@ package ru.hopec.typecheck
 import ru.hopec.core.CompilationContext
 import ru.hopec.desugarer.DesugaredRepresentation
 import ru.hopec.desugarer.DesugaredRepresentation.Type
-import ru.hopec.desugarer.SignatureService
 import ru.hopec.desugarer.signatureService
-import ru.hopec.typecheck.TypedRepresentation
 import kotlin.math.max
 import kotlin.math.min
 

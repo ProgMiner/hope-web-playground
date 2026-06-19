@@ -1,7 +1,6 @@
 package ru.hopec.typecheck
 
 import ru.hopec.core.GlobalCompilationContext
-import ru.hopec.core.Services
 import ru.hopec.desugarer.DesugaredRepresentation
 import ru.hopec.desugarer.DesugaredRepresentation.Declarations
 import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Data.Name.Core

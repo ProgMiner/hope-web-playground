@@ -4,14 +4,11 @@ package ru.hopec.driver
 
 import okio.Buffer
 import ru.hopec.core.CompilationContext
-import ru.hopec.core.GlobalCompilationContext
 import ru.hopec.core.JsObject
-import ru.hopec.core.Services
 import ru.hopec.core.StatusSeverity
 import ru.hopec.core.TranslationUnitRepresentations
 import ru.hopec.core.set
 import ru.hopec.core.toJsObject
-import ru.hopec.desugarer.SignatureService
 import kotlin.wasm.unsafe.Pointer
 import kotlin.wasm.unsafe.UnsafeWasmMemoryApi
 import kotlin.wasm.unsafe.withScopedMemoryAllocator
