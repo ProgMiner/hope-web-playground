@@ -102,8 +102,7 @@ class TypecheckTests {
         return context
     }
 
-    private fun annotateGlobal(func: Declarations.Function) =
-        TypecheckingContext.runFunction(defaultContext(), func)
+    private fun annotateGlobal(func: Declarations.Function) = TypecheckingContext.runFunction(defaultContext(), func)
 
     @Test
     fun smoke() {
@@ -134,13 +133,13 @@ class TypecheckTests {
                 DesugaredRepresentation.Expr.Lambda(
                     dsBranches(
                         dsPatVar("x") to
-                                DesugaredRepresentation.Expr.Let(
-                                    dsPatVar("idf"),
-                                    DesugaredRepresentation.Expr.Lambda(
-                                        dsBranches(dsPatVar("x") to dsVar("x", 0)),
-                                    ),
-                                    dsTuple(dsVar("idf", 0) dsAp dsVar("x", 1), dsVar("idf", 0) dsAp dsTrue),
+                            DesugaredRepresentation.Expr.Let(
+                                dsPatVar("idf"),
+                                DesugaredRepresentation.Expr.Lambda(
+                                    dsBranches(dsPatVar("x") to dsVar("x", 0)),
                                 ),
+                                dsTuple(dsVar("idf", 0) dsAp dsVar("x", 1), dsVar("idf", 0) dsAp dsTrue),
+                            ),
                     ),
                 ),
                 polymorphic(typeVar(0) arrow Type.Data.tuple(typeVar(0), Type.Data.truval)),
@@ -151,10 +150,10 @@ class TypecheckTests {
         assertEquals(
             typeVar(1) arrow typeVar(1),
             (
-                    result.lambda.branches
-                        .first()
-                        .body as TypedRepresentation.Expr.Let
-                    ).matcher.type,
+                result.lambda.branches
+                    .first()
+                    .body as TypedRepresentation.Expr.Let
+            ).matcher.type,
         )
     }
 
@@ -165,32 +164,33 @@ class TypecheckTests {
                 DesugaredRepresentation.Expr.Lambda(
                     dsBranches(
                         dsWild to
-                                dsApp(
-                                    DesugaredRepresentation.Expr.Lambda(
-                                        dsBranches(
-                                            dsPatVar("x") to
-                                                    DesugaredRepresentation.Expr.Lambda(
-                                                        dsBranches(
-                                                            dsPatVar("y") to
-                                                                    DesugaredRepresentation.Expr.Lambda(
-                                                                        dsBranches(
-                                                                            dsPatVar("z") to dsApp(
-                                                                                dsVar("x", 2),
-                                                                                dsVar("y", 1),
-                                                                                dsVar("z", 0)
-                                                                            ),
-                                                                        ),
+                            dsApp(
+                                DesugaredRepresentation.Expr.Lambda(
+                                    dsBranches(
+                                        dsPatVar("x") to
+                                            DesugaredRepresentation.Expr.Lambda(
+                                                dsBranches(
+                                                    dsPatVar("y") to
+                                                        DesugaredRepresentation.Expr.Lambda(
+                                                            dsBranches(
+                                                                dsPatVar("z") to
+                                                                    dsApp(
+                                                                        dsVar("x", 2),
+                                                                        dsVar("y", 1),
+                                                                        dsVar("z", 0),
                                                                     ),
+                                                            ),
                                                         ),
-                                                    ),
-                                        ),
+                                                ),
+                                            ),
                                     ),
-                                    DesugaredRepresentation.Expr.Lambda(
-                                        dsBranches(dsPatVar("x") to dsVar("x", 0)),
-                                    ),
-                                    DesugaredRepresentation.Expr.Identifier(setOf(cons)),
-                                    dsTuple(dsTrue, DesugaredRepresentation.Expr.Identifier(setOf(nil))),
                                 ),
+                                DesugaredRepresentation.Expr.Lambda(
+                                    dsBranches(dsPatVar("x") to dsVar("x", 0)),
+                                ),
+                                DesugaredRepresentation.Expr.Identifier(setOf(cons)),
+                                dsTuple(dsTrue, DesugaredRepresentation.Expr.Identifier(setOf(nil))),
+                            ),
                     ),
                 ),
                 polymorphic(typeVar(0) arrow Type.Data.list(Type.Data.truval)),
@@ -206,53 +206,53 @@ class TypecheckTests {
                 DesugaredRepresentation.Expr.Lambda(
                     dsBranches(
                         dsPatVar("x") to
-                                DesugaredRepresentation.Expr.Let(
-                                    dsPatVar("flp"),
-                                    DesugaredRepresentation.Expr.Lambda(
-                                        dsBranches(
-                                            dsTuplePat(dsPatVar("z"), dsPatVar("y")) to
-                                                    dsTuple(
-                                                        DesugaredRepresentation.Expr.Let(
-                                                            dsPatVar("idf"),
-                                                            DesugaredRepresentation.Expr.Lambda(
-                                                                dsBranches(dsPatVar("u") to dsVar("u", 0)),
-                                                            ),
-                                                            dsVar("idf", 0),
-                                                        ),
-                                                        dsVar("y", 0),
+                            DesugaredRepresentation.Expr.Let(
+                                dsPatVar("flp"),
+                                DesugaredRepresentation.Expr.Lambda(
+                                    dsBranches(
+                                        dsTuplePat(dsPatVar("z"), dsPatVar("y")) to
+                                            dsTuple(
+                                                DesugaredRepresentation.Expr.Let(
+                                                    dsPatVar("idf"),
+                                                    DesugaredRepresentation.Expr.Lambda(
+                                                        dsBranches(dsPatVar("u") to dsVar("u", 0)),
                                                     ),
-                                        ),
-                                    ),
-                                    dsTuple(
-                                        dsVar("flp", 0),
-                                        DesugaredRepresentation.Expr.Let(
-                                            dsPatVar("v"),
-                                            DesugaredRepresentation.Expr.Lambda(
-                                                dsBranches(
-                                                    dsPatVar("p") to
-                                                            dsVar(
-                                                                "p",
-                                                                0,
-                                                            ),
+                                                    dsVar("idf", 0),
                                                 ),
+                                                dsVar("y", 0),
                                             ),
-                                            dsVar("v", 0),
-                                        ),
                                     ),
                                 ),
+                                dsTuple(
+                                    dsVar("flp", 0),
+                                    DesugaredRepresentation.Expr.Let(
+                                        dsPatVar("v"),
+                                        DesugaredRepresentation.Expr.Lambda(
+                                            dsBranches(
+                                                dsPatVar("p") to
+                                                    dsVar(
+                                                        "p",
+                                                        0,
+                                                    ),
+                                            ),
+                                        ),
+                                        dsVar("v", 0),
+                                    ),
+                                ),
+                            ),
                     ),
                 ),
                 polymorphic(
                     typeVar(0) arrow
-                            Type.Data.tuple(
-                                (
-                                        Type.Data.tuple(
-                                            typeVar(1),
-                                            typeVar(2),
-                                        ) arrow Type.Data.tuple(typeVar(3) arrow typeVar(3), typeVar(2))
-                                        ),
-                                typeVar(1) arrow typeVar(1),
+                        Type.Data.tuple(
+                            (
+                                Type.Data.tuple(
+                                    typeVar(1),
+                                    typeVar(2),
+                                ) arrow Type.Data.tuple(typeVar(3) arrow typeVar(3), typeVar(2))
                             ),
+                            typeVar(1) arrow typeVar(1),
+                        ),
                 ),
             )
 
@@ -319,10 +319,10 @@ class TypecheckTests {
                             Type.Data.truval,
                         ),
                     ) arrow
-                            Type.Data.tuple(
-                                Type.Data.list(Type.Data.tuple(Type.Data.num, Type.Data.truval)),
-                                Type.Data.truval,
-                            ),
+                        Type.Data.tuple(
+                            Type.Data.list(Type.Data.tuple(Type.Data.num, Type.Data.truval)),
+                            Type.Data.truval,
+                        ),
                 ),
             )
 

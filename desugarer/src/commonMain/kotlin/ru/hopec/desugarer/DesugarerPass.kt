@@ -9,12 +9,13 @@ object DesugarerPass : CompilationPass<RenamedRepresentation, DesugaredRepresent
         from: RenamedRepresentation,
         context: CompilationContext,
     ): DesugaredRepresentation? {
-        val repr = try {
-            Desugarer().renamedToDesugared(from)
-        } catch (e: IllegalStateException) {
-            context.add(e)
-            null
-        }
+        val repr =
+            try {
+                Desugarer().renamedToDesugared(from)
+            } catch (e: IllegalStateException) {
+                context.add(e)
+                null
+            }
         repr?.dumpSignature(context.signatureService())
 
         return repr

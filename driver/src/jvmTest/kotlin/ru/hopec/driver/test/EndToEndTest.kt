@@ -32,9 +32,10 @@ class EndToEndTest {
     }
 
     private fun compile(vararg sources: Pair<String, String>): ByteArray? {
-        val trees = runBlocking {
-            sources.map { Resource(it.first) to parseHope(it.second) }.toList()
-        }
+        val trees =
+            runBlocking {
+                sources.map { Resource(it.first) to parseHope(it.second) }.toList()
+            }
         val buffer = Buffer()
         val status = Hopec(defaultContext()).run(HopecInput(trees), buffer)
         if (status.isError()) return null
@@ -48,9 +49,8 @@ class EndToEndTest {
     }
 
     private fun runMain(vararg sources: Pair<String, String>): Long {
-        fun displayInput(vararg sources: Pair<String, String>): String {
-            return sources.map { "${it.first}.hope:\n${it.second}\n\n" }.reduce { l, r -> l + r }
-        }
+        fun displayInput(vararg sources: Pair<String, String>): String =
+            sources.map { "${it.first}.hope:\n${it.second}\n\n" }.reduce { l, r -> l + r }
 
         val binary = compile(*sources) ?: error("compilation failed:\n${displayInput(*sources)}")
         val main = Instance.builder(Parser.parse(binary)).build().export("main")

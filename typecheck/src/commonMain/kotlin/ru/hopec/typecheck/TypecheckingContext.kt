@@ -13,7 +13,10 @@ private typealias LetRange = Pair<Int, Int>
 
 private val nullRage = 0 to 0
 
-internal fun annotate(repr: DesugaredRepresentation, context: CompilationContext): TypedRepresentation? {
+internal fun annotate(
+    repr: DesugaredRepresentation,
+    context: CompilationContext,
+): TypedRepresentation? {
     val modules =
         repr.modules
             .map { (name, module) ->
