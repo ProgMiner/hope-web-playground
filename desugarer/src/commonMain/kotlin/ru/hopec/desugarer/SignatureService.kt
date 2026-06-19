@@ -1,6 +1,7 @@
 package ru.hopec.desugarer
 
 import ru.hopec.core.CompilationContext
+import ru.hopec.core.GlobalCompilationContext
 import ru.hopec.core.Service
 import ru.hopec.desugarer.DesugaredRepresentation.Declarations
 import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Data.Name.Core
@@ -175,6 +176,11 @@ class SignatureService private constructor(
                 ),
             )
     }
+}
+
+fun GlobalCompilationContext.withSignatureService(): GlobalCompilationContext {
+    this.services().addService(SignatureService.core(this))
+    return this
 }
 
 fun CompilationContext.signatureService() =

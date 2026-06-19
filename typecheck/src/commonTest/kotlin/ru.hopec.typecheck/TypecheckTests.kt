@@ -7,6 +7,7 @@ import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Data.Name.Core
 import ru.hopec.desugarer.DesugaredRepresentation.PolymorphicType
 import ru.hopec.desugarer.DesugaredRepresentation.Type
 import ru.hopec.desugarer.SignatureService
+import ru.hopec.desugarer.withSignatureService
 import kotlin.math.max
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -94,12 +95,7 @@ private fun tuplePat(
 ) = TypedRepresentation.Pattern.Data(Type.Data.tuple(left.type, right.type), makeTuple, listOf(left, right))
 
 class TypecheckTests {
-    fun defaultContext(): GlobalCompilationContext {
-        val context = GlobalCompilationContext()
-        val signatureService = SignatureService.core(context)
-        context.services().addService(signatureService)
-        return context
-    }
+    fun defaultContext() = GlobalCompilationContext().withSignatureService()
 
     private fun annotateGlobal(func: Declarations.Function) = TypecheckingContext.runFunction(defaultContext(), func)
 
