@@ -1,6 +1,10 @@
 package ru.hopec.desugarer
 
 import ru.hopec.core.Representation
+import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Function
+import ru.hopec.desugarer.DesugaredRepresentation.PolymorphicType
+import ru.hopec.desugarer.DesugaredRepresentation.Type
+import kotlin.math.max
 
 data class DesugaredRepresentation(
     val modules: Map<String, Module>,
@@ -201,8 +205,37 @@ data class DesugaredRepresentation(
 }
 
 fun DesugaredRepresentation.Declarations.dumpSignature(service: SignatureService) {
+    fun arrowFrom(
+        result: Type,
+        args: List<Type>,
+    ): Type = args.foldRight(result) { res, arg -> Type.Arrow(arg, res) }
+
+    fun Type.polymorphic(): PolymorphicType {
+        fun maxBinder(type: Type): Int =
+            when (type) {
+                is Type.Variable -> type.index
+                is Type.Arrow -> max(maxBinder(type.argument), maxBinder(type.result))
+                is Type.Data -> type.args.maxOfOrNull(::maxBinder) ?: -1
+            }
+
+        return PolymorphicType(this, maxBinder(this) + 1)
+    }
+
+    fun freeArgs(boundTypeVariables: Int): List<Type> =
+        generateSequence(0) {
+            it + 1
+        }.map { Type.Variable(it) }.take(boundTypeVariables).toList()
+
     functions.forEach { service.addFunction(it.key, it.value.type) }
-    data.forEach { service.addData(it.key, it.value) }
+    data.forEach {
+        service.addData(it.key, it.value)
+        it.value.constructors.forEach { (name, args) ->
+            service.addFunction(
+                Function.Name.Constructor(it.key, name),
+                arrowFrom(Type.Data(it.key, freeArgs(it.value.boundTypeVariables)), args).polymorphic(),
+            )
+        }
+    }
 }
 
 fun DesugaredRepresentation.dumpSignature(service: SignatureService) {

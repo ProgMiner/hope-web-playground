@@ -17,7 +17,7 @@ private fun polymorphic(type: Type): PolymorphicType {
         when (type) {
             is Type.Variable -> type.index
             is Type.Arrow -> max(maxBinder(type.argument), maxBinder(type.result))
-            is Type.Data -> type.args.maxOfOrNull(::maxBinder) ?: 0
+            is Type.Data -> type.args.maxOfOrNull(::maxBinder) ?: -1
         }
 
     return PolymorphicType(type, maxBinder(type) + 1)

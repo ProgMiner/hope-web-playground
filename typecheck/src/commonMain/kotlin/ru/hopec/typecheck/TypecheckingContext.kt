@@ -380,7 +380,7 @@ internal class TypecheckingContext private constructor(
     ): TypedRepresentation.Pattern? {
         return when (pattern) {
             is DesugaredRepresentation.Pattern.Data -> {
-                val candidates = pattern.constructor.filter { it in signature.functions }
+                val candidates = pattern.constructor // .filter { it in signature.functions }
                 if (candidates.size != 1) {
                     return null
                 }
