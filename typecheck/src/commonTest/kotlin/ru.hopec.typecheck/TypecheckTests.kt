@@ -95,11 +95,15 @@ private fun tuplePat(
 ) = TypedRepresentation.Pattern.Data(Type.Data.tuple(left.type, right.type), makeTuple, listOf(left, right))
 
 class TypecheckTests {
-    private fun context(service: SignatureService) =
-        GlobalCompilationContext(services = Services(mutableListOf(service)))
+    fun defaultContext(): GlobalCompilationContext {
+        val context = GlobalCompilationContext()
+        val signatureService = SignatureService.core(context)
+        context.services().addService(signatureService)
+        return context
+    }
 
     private fun annotateGlobal(func: Declarations.Function) =
-        TypecheckingContext.runFunction(context(SignatureService.core), func)
+        TypecheckingContext.runFunction(defaultContext(), func)
 
     @Test
     fun smoke() {
