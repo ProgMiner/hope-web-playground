@@ -1,6 +1,24 @@
 import registry from '../assets/themes/themelist.json';
 import { editor } from 'monaco-editor';
 
+const themesMap = (() => {
+	const orig = import.meta.glob<editor.IStandaloneThemeData>(
+		'$lib/../../node_modules/monaco-themes/themes/*.json'
+	);
+
+	return Object.keys(orig).reduce(
+		(acc, key) => {
+			const newKey = key.replace(/^.*\/monaco-themes\/themes\//, '');
+			if (newKey !== key) {
+				acc[newKey] = orig[key];
+			}
+
+			return acc;
+		},
+		{} as Record<string, () => Promise<editor.IStandaloneThemeData>>
+	);
+})();
+
 class KnownTheme {
 	constructor(
 		private readonly key: string,
@@ -8,9 +26,7 @@ class KnownTheme {
 	) {}
 
 	load(): Promise<editor.IStandaloneThemeData> {
-		return import(/* @vite-ignore */ `../assets/themes/${this.name}.json`, {
-			assert: { type: 'json' }
-		});
+		return themesMap[`${this.name}.json`]();
 	}
 
 	monacoKey(): string {

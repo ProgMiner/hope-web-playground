@@ -1,11 +1,14 @@
 import { Parser, Language, Tree, Edit, type Range, Node } from 'web-tree-sitter';
 import { HighlightInfo, type Highlighted } from './highlight_info.svelte';
 
+import treeSitterWasmUrl from '$lib/../../tree-sitter-hope.wasm?url';
+
 const hope = await initHope();
 
 async function initHope(): Promise<Language> {
 	await Parser.init();
-	return await Language.load('$lib/../../tree-sitter-hope.wasm');
+
+	return Language.load(treeSitterWasmUrl);
 }
 
 export class TreeSitter {
