@@ -1,43 +1,65 @@
-package ru.hopec.typecheck
+package ru.hopec.desugarer
 
-import ru.hopec.desugarer.DesugaredRepresentation
+import ru.hopec.core.CompilationContext
+import ru.hopec.core.GlobalCompilationContext
+import ru.hopec.core.Service
 import ru.hopec.desugarer.DesugaredRepresentation.Declarations
 import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Data.Name.Core
 import ru.hopec.desugarer.DesugaredRepresentation.PolymorphicType
 import ru.hopec.desugarer.DesugaredRepresentation.Type
 
-internal data class Signature(
-    val functions: Map<Declarations.Function.Name, PolymorphicType>,
-    val data: Map<Declarations.Data.Name, Declarations.Data>,
-) {
-    fun extend(other: Declarations): Signature {
-        val extendedFunctions = functions.toMutableMap()
-        other.functions.forEach { entry -> extendedFunctions[entry.key] = entry.value.type }
-        val extendedData = data.toMutableMap()
-        extendedData.putAll(other.data.toMap())
-        other.data.forEach { (dataName, dataDecl) ->
-            val resultType =
-                Type.Data(dataName, (0 until dataDecl.boundTypeVariables).map { Type.Variable(it) })
-            dataDecl.constructors.forEach { (ctorName, args) ->
-                val ctorKey = Declarations.Function.Name.Constructor(dataName, ctorName)
-                val type =
-                    if (args.isEmpty()) {
-                        resultType
-                    } else {
-                        val argType = args.reduceRight { left, right -> Type.Data.tuple(left, right) }
-                        Type.Arrow(argType, resultType)
-                    }
-                extendedFunctions[ctorKey] = PolymorphicType(type, dataDecl.boundTypeVariables)
-            }
-        }
-        return Signature(extendedFunctions, extendedData)
+class SignatureService private constructor(
+    private val context: CompilationContext,
+    val functions: MutableMap<Declarations.Function.Name, PolymorphicType> = mutableMapOf(),
+    val data: MutableMap<Declarations.Data.Name, Declarations.Data> = mutableMapOf(),
+) : Service {
+    fun addFunction(
+        name: Declarations.Function.Name,
+        type: PolymorphicType,
+    ) {
+        functions[name] = type
     }
 
-    fun extendLocal(other: DesugaredRepresentation.Module): Signature = extend(other.public).extend(other.private)
+    fun addData(
+        name: Declarations.Data.Name,
+        value: Declarations.Data,
+    ) {
+        data[name] = value
+    }
 
-    fun extend(other: DesugaredRepresentation.Module): Signature = extend(other.public)
+    fun getFunction(name: Declarations.Function.Name): PolymorphicType {
+        val type = functions[name]
+        if (type != null) return type
 
-    fun extendAll(others: Iterable<DesugaredRepresentation.Module>): Signature = others.fold(this) { acc, cur -> acc.extend(cur) }
+        val module =
+            when (name) {
+                is Declarations.Function.Name.Core -> {
+                    throw IllegalStateException("core names should be in signature")
+                }
+
+                is Declarations.Function.Name.User -> {
+                    name.module
+                }
+
+                is Declarations.Function.Name.Constructor -> {
+                    when (name.data) {
+                        is Declarations.Data.Name.Core -> {
+                            throw IllegalStateException("core data constructors should be in signature")
+                        }
+
+                        is Declarations.Data.Name.Defined -> {
+                            name.data.module
+                        }
+                    }
+                }
+            } ?: throw IllegalStateException("top level functions should already be in signature")
+        desugarModule(module)
+        return functions[name] ?: throw IllegalStateException("type not in signature after corresponding module desugaring")
+    }
+
+    private fun desugarModule(module: String) {
+        context.resolveModule(module)?.runPass(DesugarerPass)
+    }
 
     companion object {
         private val binaryNumOp =
@@ -58,11 +80,16 @@ internal data class Signature(
                 0,
             )
 
-        val core =
-            Signature(
-                mapOf(
+        fun core(context: CompilationContext) =
+            SignatureService(
+                context,
+                mutableMapOf(
                     Declarations.Function.Name.Constructor(Core.TruVal, "true") to PolymorphicType(Type.Data.truval, 0),
-                    Declarations.Function.Name.Constructor(Core.TruVal, "false") to PolymorphicType(Type.Data.truval, 0),
+                    Declarations.Function.Name.Constructor(Core.TruVal, "false") to
+                        PolymorphicType(
+                            Type.Data.truval,
+                            0,
+                        ),
                     Declarations.Function.Name.Constructor(
                         Core.List,
                         "nil",
@@ -113,7 +140,7 @@ internal data class Signature(
                             1,
                         ),
                 ),
-                mapOf(
+                mutableMapOf(
                     Core.Num to Declarations.Data(mapOf(), 0),
                     Core.Char to Declarations.Data(mapOf(), 0),
                     Core.TruVal to
@@ -150,3 +177,11 @@ internal data class Signature(
             )
     }
 }
+
+fun GlobalCompilationContext.withSignatureService(): GlobalCompilationContext {
+    this.services().addService(SignatureService.core(this))
+    return this
+}
+
+fun CompilationContext.signatureService() =
+    services().get<SignatureService>() ?: throw IllegalStateException("No signature service in compilation context")

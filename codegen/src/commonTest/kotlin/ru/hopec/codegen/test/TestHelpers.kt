@@ -65,7 +65,10 @@ fun region(
     var i = lineStart
     while (i < wat.length) {
         when (wat[i]) {
-            '(' -> depth++
+            '(' -> {
+                depth++
+            }
+
             ')' -> {
                 depth--
                 if (depth == 0) {

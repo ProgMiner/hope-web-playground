@@ -6,6 +6,7 @@ import ru.hopec.core.tree.GenericTree
 class GlobalCompilationContext(
     private val status: MultiStatus = MultiStatus(label = "Compilation"),
     private val units: TranslationUnits = TranslationUnits(),
+    private val services: Services = Services(),
 ) : CompilationContext {
     override fun trees() = units.all().flatMap { it.context.trees() }
 
@@ -16,6 +17,8 @@ class GlobalCompilationContext(
     override fun result(): CompilationStatus = status
 
     override fun resolveModule(module: String) = units.resolve(module)
+
+    override fun services() = services
 
     fun resolveMain() = units.resolveMain()
 

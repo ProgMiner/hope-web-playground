@@ -8,11 +8,17 @@ object DesugarerPass : CompilationPass<RenamedRepresentation, DesugaredRepresent
     override fun run(
         from: RenamedRepresentation,
         context: CompilationContext,
-    ) = try {
-        Desugarer().renamedToDesugared(from)
-    } catch (e: IllegalStateException) {
-        context.add(e)
-        null
+    ): DesugaredRepresentation? {
+        val repr =
+            try {
+                Desugarer().renamedToDesugared(from)
+            } catch (e: IllegalStateException) {
+                context.add(e)
+                null
+            }
+        repr?.dumpSignature(context.signatureService())
+
+        return repr
     }
 
     private fun CompilationContext.add(exception: Exception) {

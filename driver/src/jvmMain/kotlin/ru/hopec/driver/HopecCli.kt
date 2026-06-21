@@ -8,7 +8,6 @@ import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.types.path
 import kotlinx.coroutines.runBlocking
 import okio.Buffer
-import ru.hopec.core.GlobalCompilationContext
 import ru.hopec.core.isError
 import ru.hopec.parser.treesitter.parseHope
 import java.nio.file.Path
@@ -20,7 +19,7 @@ class HopecCompile : CliktCommand() {
     override fun run() {
         val tree = runBlocking { parseHope(input.readText()) }
         val buffer = Buffer()
-        val status = Hopec(GlobalCompilationContext()).run(tree, buffer)
+        val status = Hopec(defaultContext()).run(tree, buffer)
         if (status.isError()) {
             echo("compilation failed", err = true)
             return

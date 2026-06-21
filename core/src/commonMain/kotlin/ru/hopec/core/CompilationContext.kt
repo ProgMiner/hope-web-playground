@@ -12,4 +12,6 @@ interface CompilationContext {
     fun result(): CompilationStatus
 
     fun resolveModule(module: String): TranslationUnit?
+
+    fun services(): Services
 }

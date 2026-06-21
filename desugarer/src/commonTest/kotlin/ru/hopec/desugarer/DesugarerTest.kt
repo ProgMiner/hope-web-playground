@@ -10,8 +10,10 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 
 class DesugarerTest {
+    fun defaultContext() = GlobalCompilationContext().withSignatureService()
+
     private fun startDesugarer(from: RenamedRepresentation): DesugaredRepresentation? {
-        val context = GlobalCompilationContext()
+        val context = defaultContext()
         return try {
             DesugarerPass.run(from, context)
         } catch (e: Throwable) {

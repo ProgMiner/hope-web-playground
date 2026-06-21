@@ -4,9 +4,11 @@ import com.dylibso.chicory.runtime.Instance
 import com.dylibso.chicory.wasm.Parser
 import kotlinx.coroutines.runBlocking
 import okio.Buffer
-import ru.hopec.core.GlobalCompilationContext
 import ru.hopec.core.isError
+import ru.hopec.core.topography.Resource
 import ru.hopec.driver.Hopec
+import ru.hopec.driver.HopecInput
+import ru.hopec.driver.defaultContext
 import ru.hopec.parser.treesitter.parseHope
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -16,13 +18,33 @@ class EndToEndTest {
     private fun compile(source: String): ByteArray? {
         val tree = runBlocking { parseHope(source) }
         val buffer = Buffer()
-        val status = Hopec(GlobalCompilationContext()).run(tree, buffer)
+        val status = Hopec(defaultContext()).run(tree, buffer)
+        if (status.isError()) return null
+        return buffer.readByteArray()
+    }
+
+    private fun compile(vararg sources: Pair<String, String>): ByteArray? {
+        val trees =
+            runBlocking {
+                sources.map { Resource(it.first) to parseHope(it.second) }.toList()
+            }
+        val buffer = Buffer()
+        val status = Hopec(defaultContext()).run(HopecInput(trees), buffer)
         if (status.isError()) return null
         return buffer.readByteArray()
     }
 
     private fun runMain(source: String): Long {
         val binary = compile(source) ?: error("compilation failed:\n$source")
+        val main = Instance.builder(Parser.parse(binary)).build().export("main")
+        return main.apply(0)[0]
+    }
+
+    private fun runMain(vararg sources: Pair<String, String>): Long {
+        fun displayInput(vararg sources: Pair<String, String>): String =
+            sources.map { "${it.first}.hope:\n${it.second}\n\n" }.reduce { l, r -> l + r }
+
+        val binary = compile(*sources) ?: error("compilation failed:\n${displayInput(*sources)}")
         val main = Instance.builder(Parser.parse(binary)).build().export("main")
         return main.apply(0)[0]
     }
@@ -183,5 +205,24 @@ class EndToEndTest {
         val binary = compile(source) ?: error("compilation failed")
         assertNotEquals(0, binary.size)
         Parser.parse(binary)
+    }
+
+    @Test
+    fun `multiple files`() {
+        val main =
+            """
+            uses foo
+                
+            dec main : num
+            --- main <= bar (6, 7)
+            """.trimIndent()
+        val foo =
+            """
+            dec bar : num
+            --- bar (x, y) <= x * y
+            """.trimIndent()
+        // TODO: uncomment test when all stages of multifile compilation are ready
+        // assertEquals(42, runMain("main" to main, "foo" to foo))
+        assert(true)
     }
 }

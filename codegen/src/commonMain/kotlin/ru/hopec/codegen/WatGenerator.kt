@@ -193,8 +193,9 @@ class WatGenerator(
     ) {
         val body: List<SExpr> =
             when (name) {
-                is FuncName.User ->
+                is FuncName.User -> {
                     listOf(call(watId(name), listOf(localGet("\$arg"))))
+                }
 
                 is FuncName.Core -> {
                     val op = WatCodeEmitter.CORE_BIN_OPS[name.name]
@@ -211,7 +212,9 @@ class WatGenerator(
                     }
                 }
 
-                is FuncName.Constructor -> wrapperBodyForConstructor(name, watName)
+                is FuncName.Constructor -> {
+                    wrapperBodyForConstructor(name, watName)
+                }
             }
 
         moduleChildren.add(
@@ -227,10 +230,11 @@ class WatGenerator(
         watName: String,
     ): List<SExpr> =
         when {
-            name.data == DataName.Core.List && name.constructor == "cons" ->
+            name.data == DataName.Core.List && name.constructor == "cons" -> {
                 listOf(call("\$rt.mk_cons", listOf(localGet("\$arg"))))
+            }
 
-            name.data == DataName.Core.Set && name.constructor == "setCons" ->
+            name.data == DataName.Core.Set && name.constructor == "setCons" -> {
                 listOf(
                     call(
                         "\$rt.set_insert",
@@ -240,6 +244,7 @@ class WatGenerator(
                         ),
                     ),
                 )
+            }
 
             name.data == DataName.Core.Tuple -> {
                 val stage2 = "$watName.1"

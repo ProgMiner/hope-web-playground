@@ -8,5 +8,5 @@ class TypeCheckPass : CompilationPass<DesugaredRepresentation, TypedRepresentati
     override fun run(
         from: DesugaredRepresentation,
         context: CompilationContext,
-    ): TypedRepresentation? = annotate(from)
+    ): TypedRepresentation? = annotate(from, context)
 }

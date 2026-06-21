@@ -1,10 +1,12 @@
 package ru.hopec.typecheck
 
+import ru.hopec.core.GlobalCompilationContext
 import ru.hopec.desugarer.DesugaredRepresentation
 import ru.hopec.desugarer.DesugaredRepresentation.Declarations
 import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Data.Name.Core
 import ru.hopec.desugarer.DesugaredRepresentation.PolymorphicType
 import ru.hopec.desugarer.DesugaredRepresentation.Type
+import ru.hopec.desugarer.withSignatureService
 import kotlin.math.max
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -15,7 +17,7 @@ private fun polymorphic(type: Type): PolymorphicType {
         when (type) {
             is Type.Variable -> type.index
             is Type.Arrow -> max(maxBinder(type.argument), maxBinder(type.result))
-            is Type.Data -> type.args.maxOfOrNull(::maxBinder) ?: 0
+            is Type.Data -> type.args.maxOfOrNull(::maxBinder) ?: -1
         }
 
     return PolymorphicType(type, maxBinder(type) + 1)
@@ -92,7 +94,9 @@ private fun tuplePat(
 ) = TypedRepresentation.Pattern.Data(Type.Data.tuple(left.type, right.type), makeTuple, listOf(left, right))
 
 class TypecheckTests {
-    private fun annotateGlobal(func: Declarations.Function) = TypecheckingContext.runFunction(Signature.core, func)
+    fun defaultContext() = GlobalCompilationContext().withSignatureService()
+
+    private fun annotateGlobal(func: Declarations.Function) = TypecheckingContext.runFunction(defaultContext(), func)
 
     @Test
     fun smoke() {
@@ -163,7 +167,12 @@ class TypecheckTests {
                                                     dsPatVar("y") to
                                                         DesugaredRepresentation.Expr.Lambda(
                                                             dsBranches(
-                                                                dsPatVar("z") to dsApp(dsVar("x", 2), dsVar("y", 1), dsVar("z", 0)),
+                                                                dsPatVar("z") to
+                                                                    dsApp(
+                                                                        dsVar("x", 2),
+                                                                        dsVar("y", 1),
+                                                                        dsVar("z", 0),
+                                                                    ),
                                                             ),
                                                         ),
                                                 ),

@@ -1,8 +1,9 @@
 package ru.hopec.typecheck
 
+import ru.hopec.core.CompilationContext
 import ru.hopec.desugarer.DesugaredRepresentation
 import ru.hopec.desugarer.DesugaredRepresentation.Type
-import ru.hopec.typecheck.TypedRepresentation
+import ru.hopec.desugarer.signatureService
 import kotlin.math.max
 import kotlin.math.min
 
@@ -10,21 +11,25 @@ private typealias LetRange = Pair<Int, Int>
 
 private val nullRage = 0 to 0
 
-internal fun annotate(repr: DesugaredRepresentation): TypedRepresentation? {
-    val signature = Signature.core.extendAll(repr.modules.map { it.value })
+internal fun annotate(
+    repr: DesugaredRepresentation,
+    context: CompilationContext,
+): TypedRepresentation? {
     val modules =
         repr.modules
             .map { (name, module) ->
-                name to (TypecheckingContext.runModule(signature.extendLocal(module), module) ?: return null)
+                name to (TypecheckingContext.runModule(context, module) ?: return null)
             }.toMap()
     val topLevel =
-        TypecheckingContext.runDeclarations(signature.extend(repr.topLevel), repr.topLevel) ?: return null
+        TypecheckingContext.runDeclarations(context, repr.topLevel) ?: return null
     return TypedRepresentation(modules, topLevel)
 }
 
 internal class TypecheckingContext private constructor(
-    val signature: Signature,
+    val context: CompilationContext,
 ) {
+    val signature = context.signatureService()
+
     private data class BoundVariable(
         val typeVariable: Int,
         val letRange: LetRange,
@@ -32,19 +37,19 @@ internal class TypecheckingContext private constructor(
 
     companion object {
         fun runModule(
-            signature: Signature,
+            context: CompilationContext,
             module: DesugaredRepresentation.Module,
-        ): TypedRepresentation.Module? = TypecheckingContext(signature).runModule(module)
+        ): TypedRepresentation.Module? = TypecheckingContext(context).runModule(module)
 
         fun runDeclarations(
-            signature: Signature,
+            context: CompilationContext,
             declarations: DesugaredRepresentation.Declarations,
-        ): TypedRepresentation.Declarations? = TypecheckingContext(signature).runDeclarations(declarations)
+        ): TypedRepresentation.Declarations? = TypecheckingContext(context).runDeclarations(declarations)
 
         fun runFunction(
-            signature: Signature,
+            context: CompilationContext,
             function: DesugaredRepresentation.Declarations.Function,
-        ): TypedRepresentation.Declarations.Function? = TypecheckingContext(signature).runFunction(function)
+        ): TypedRepresentation.Declarations.Function? = TypecheckingContext(context).runFunction(function)
     }
 
     private var substitution: ArrayList<Type> = arrayListOf()
@@ -264,7 +269,7 @@ internal class TypecheckingContext private constructor(
                     return null
                 }
                 val name = candidates.single()
-                val type = signature.functions[name] ?: return null
+                val type = signature.getFunction(name)
                 val shift = shiftValue()
                 bindTypes(type.boundTypeVariables)
                 TypedRepresentation.Expr.Identifier(type.type.shift(shift), name)
@@ -375,12 +380,12 @@ internal class TypecheckingContext private constructor(
     ): TypedRepresentation.Pattern? {
         return when (pattern) {
             is DesugaredRepresentation.Pattern.Data -> {
-                val candidates = pattern.constructor.filter { it in signature.functions }
+                val candidates = pattern.constructor // .filter { it in signature.functions }
                 if (candidates.size != 1) {
                     return null
                 }
                 val constructor = candidates.single()
-                val func = signature.functions[constructor] ?: return null
+                val func = signature.getFunction(constructor)
                 val (args, type) = func.type.constructorArguments() ?: return null
                 if (pattern.args.size != args.size) return null
                 val shift = shiftValue()

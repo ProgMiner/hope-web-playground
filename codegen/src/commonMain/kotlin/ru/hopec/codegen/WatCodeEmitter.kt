@@ -53,30 +53,38 @@ internal class WatCodeEmitter(
         ctx: WatFunctionContext,
     ): List<SExpr> =
         when (pattern) {
-            is Pattern.Wildcard -> emptyList()
+            is Pattern.Wildcard -> {
+                emptyList()
+            }
 
-            is Pattern.Variable ->
+            is Pattern.Variable -> {
                 listOf(localSet(ctx.bind(pattern.name), localGet(argLocal)))
+            }
 
-            is Pattern.NamedData ->
+            is Pattern.NamedData -> {
                 listOf(localSet(ctx.bind(pattern.name), localGet(argLocal))) +
                     emitPatternCheck(pattern.data, argLocal, failLabel, ctx)
+            }
 
             is Pattern.Data -> {
                 emitDataCheck(pattern, argLocal, failLabel, ctx)
             }
 
-            is Expr.Literal.Num ->
+            is Expr.Literal.Num -> {
                 listOf(brIf(failLabel, i32Ne(localGet(argLocal), i32Const(pattern.value.toInt()))))
+            }
 
-            is Expr.Literal.Char ->
+            is Expr.Literal.Char -> {
                 listOf(brIf(failLabel, i32Ne(localGet(argLocal), i32Const(pattern.value.code))))
+            }
 
-            is Expr.Literal.TruVal ->
+            is Expr.Literal.TruVal -> {
                 listOf(brIf(failLabel, i32Ne(localGet(argLocal), i32Const(if (pattern.value) 1 else 0))))
+            }
 
-            is Expr.Literal.String ->
+            is Expr.Literal.String -> {
                 emitStringPatternCheck(pattern.value, argLocal, failLabel, ctx)
+            }
         }
 
     private fun emitStringPatternCheck(
@@ -112,11 +120,13 @@ internal class WatCodeEmitter(
                 listOf(brIf(failLabel, i32Ne(localGet(argLocal), i32Const(expected))))
             }
 
-            ctor.data == DataName.Core.List && ctor.constructor == "nil" ->
+            ctor.data == DataName.Core.List && ctor.constructor == "nil" -> {
                 listOf(brIf(failLabel, localGet(argLocal)))
+            }
 
-            ctor.data == DataName.Core.Set && ctor.constructor == "emptySet" ->
+            ctor.data == DataName.Core.Set && ctor.constructor == "emptySet" -> {
                 listOf(brIf(failLabel, localGet(argLocal)))
+            }
 
             ctor.data == DataName.Core.List && ctor.constructor == "cons" -> {
                 val stmts = mutableListOf<SExpr>()
@@ -172,20 +182,48 @@ internal class WatCodeEmitter(
         ctx: WatFunctionContext,
     ): SExpr =
         when (expr) {
-            is Expr.Literal.Num -> i32Const(expr.value.toInt())
-            is Expr.Literal.TruVal -> i32Const(if (expr.value) 1 else 0)
-            is Expr.Literal.Char -> i32Const(expr.value.code)
-            is Expr.Literal.String -> genString(expr.value, ctx)
-            is Expr.Variable ->
+            is Expr.Literal.Num -> {
+                i32Const(expr.value.toInt())
+            }
+
+            is Expr.Literal.TruVal -> {
+                i32Const(if (expr.value) 1 else 0)
+            }
+
+            is Expr.Literal.Char -> {
+                i32Const(expr.value.code)
+            }
+
+            is Expr.Literal.String -> {
+                genString(expr.value, ctx)
+            }
+
+            is Expr.Variable -> {
                 localGet(
                     ctx.lookup(expr.name)
                         ?: error("Unbound variable '${expr.name}'"),
                 )
-            is Expr.Identifier -> genIdentifier(expr, ctx)
-            is Expr.Application -> genApplication(expr, ctx)
-            is Expr.If -> genIf(expr, ctx)
-            is Expr.Let -> genLet(expr, ctx)
-            is Expr.Lambda -> genLambdaClosure(expr, ctx)
+            }
+
+            is Expr.Identifier -> {
+                genIdentifier(expr, ctx)
+            }
+
+            is Expr.Application -> {
+                genApplication(expr, ctx)
+            }
+
+            is Expr.If -> {
+                genIf(expr, ctx)
+            }
+
+            is Expr.Let -> {
+                genLet(expr, ctx)
+            }
+
+            is Expr.Lambda -> {
+                genLambdaClosure(expr, ctx)
+            }
         }
 
     private fun genIf(
@@ -249,17 +287,30 @@ internal class WatCodeEmitter(
 
             is FuncName.Constructor -> {
                 when {
-                    name.data == DataName.Core.TruVal && name.constructor == "true" -> i32Const(1)
-                    name.data == DataName.Core.TruVal && name.constructor == "false" -> i32Const(0)
-                    name.data == DataName.Core.List && name.constructor == "nil" -> i32Const(0)
-                    name.data == DataName.Core.Set && name.constructor == "emptySet" -> i32Const(0)
+                    name.data == DataName.Core.TruVal && name.constructor == "true" -> {
+                        i32Const(1)
+                    }
+
+                    name.data == DataName.Core.TruVal && name.constructor == "false" -> {
+                        i32Const(0)
+                    }
+
+                    name.data == DataName.Core.List && name.constructor == "nil" -> {
+                        i32Const(0)
+                    }
+
+                    name.data == DataName.Core.Set && name.constructor == "emptySet" -> {
+                        i32Const(0)
+                    }
 
                     expr.type !is Type.Arrow -> {
                         val tag = gen.constructorTags[name.data to name.constructor] ?: 0
                         call("\$rt.mk_adt", listOf(i32Const(0), i32Const(tag)))
                     }
 
-                    else -> genClosureRef(gen.wrapperFor(name), emptyList(), ctx)
+                    else -> {
+                        genClosureRef(gen.wrapperFor(name), emptyList(), ctx)
+                    }
                 }
             }
 
@@ -332,11 +383,13 @@ internal class WatCodeEmitter(
                 i32Const(0)
             }
 
-            ctor.data == DataName.Core.List && ctor.constructor == "cons" && args.size == 1 ->
+            ctor.data == DataName.Core.List && ctor.constructor == "cons" && args.size == 1 -> {
                 call("\$rt.mk_cons", listOf(genExpr(args[0], ctx)))
+            }
 
-            ctor.data == DataName.Core.Tuple && args.size == 2 ->
+            ctor.data == DataName.Core.Tuple && args.size == 2 -> {
                 call("\$rt.mk_tuple", listOf(genExpr(args[0], ctx), genExpr(args[1], ctx)))
+            }
 
             ctor.data == DataName.Core.Set && ctor.constructor == "emptySet" -> {
                 i32Const(0)
