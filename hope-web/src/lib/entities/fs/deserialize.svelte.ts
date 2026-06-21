@@ -65,10 +65,21 @@ function createFile(parent: ImaginaryContainer, raw: RawFile): ImaginaryFile {
 	);
 }
 
+const examplesMap = (() => {
+	const orig = import.meta.glob('$lib/assets/examples/*.json');
+
+	return Object.keys(orig).reduce((acc, key) => {
+		const newKey = key.replace(/^.*\/assets\/examples\//, '');
+		if (newKey !== key) {
+			acc[newKey] = orig[key];
+		}
+
+		return acc;
+	}, {});
+})();
+
 export async function exemplarProject(name: string): Promise<RawProject> {
-	return import(/* @vite-ignore */ `../../assets/examples/${name}.json`, {
-		assert: { type: 'json' }
-	});
+	return examplesMap[`${name}.json`]();
 }
 
 export function knownExamples() {
