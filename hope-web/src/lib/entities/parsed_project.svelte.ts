@@ -4,6 +4,7 @@ import { ParsedFile } from './parsed_file.svelte';
 import type { ImaginaryFile } from './fs/file.svelte';
 import type { MonacoEditor } from './editor.svelte';
 import type { ImaginaryProject } from './fs/project.svelte';
+import { stdModules } from './std';
 
 export class ParsedProject {
 	private readonly resources: SvelteMap<ImaginaryFile, ParsedFile> = new SvelteMap();
@@ -11,14 +12,18 @@ export class ParsedProject {
 	constructor(
 		private readonly editor: MonacoEditor,
 		private readonly opened: () => ImaginaryFile | undefined
-	) {}
-
-	createFile(file: ImaginaryFile) {
-		this.resources.set(file, new ParsedFile(this.editor, this.currentText(file)));
+	) {
 	}
 
-	openProject(project: ImaginaryProject) {
-		this.closeProject();
+	createFile(file: ImaginaryFile) {
+		if (!this.resources.get(file)) {
+			const parsed = new ParsedFile(this.editor, this.currentText(file));
+			parsed.parse();
+			this.resources.set(file, parsed);
+		}
+	}
+
+	createAllFiles(project: ImaginaryProject) {
 		project.allFiles().forEach((file) => this.createFile(file));
 	}
 
@@ -52,12 +57,15 @@ export class ParsedProject {
 
 	buildInput(): CompilationInput {
 		return {
-			resources: this.resources
-				.entries()
-				.map(([file, parsed]) => this.translationUnit(file, parsed))
-				.filter((unit) => unit)
-				.map((unit) => unit!)
-				.toArray()
+			resources: [
+				this.resources
+					.entries()
+					.map(([file, parsed]) => this.translationUnit(file, parsed))
+					.filter((unit) => unit)
+					.map((unit) => unit!)
+					.toArray(),
+				stdModules(this.editor)
+			].flat()
 		};
 	}
 

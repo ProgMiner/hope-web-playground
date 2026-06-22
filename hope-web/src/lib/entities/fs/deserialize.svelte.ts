@@ -28,7 +28,7 @@ export async function loadFromFile(handle: FileSystemFileHandle): Promise<Imagin
 
 export async function saveToFile(handle: FileSystemFileHandle, project: ImaginaryProject) {
 	const writable = await handle.createWritable();
-	writable.write(JSON.stringify(project.serialize()));
+	await writable.write(JSON.stringify(project.serialize()));
 	await writable.close();
 }
 
@@ -85,6 +85,8 @@ export async function exemplarProject(name: string): Promise<RawProject> {
 export function knownExamples() {
 	return [
 		{ key: 'syntax', label: 'Basic syntax examples' },
-		{ key: 'binary-tree', label: 'Binary tree' }
+		{ key: 'binary-tree', label: 'Binary tree' },
+		{ key: 'fannkuch-redux', label: 'fannkuch-redux benchmark' },
+		{ key: 'std', label: 'Standard library' }
 	];
 }

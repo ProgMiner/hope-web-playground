@@ -39,6 +39,7 @@ const SYNTAX: string = `
     "then"
     "else"
     "let"
+    "where"
     "in"
     "lambda"
     "dec"

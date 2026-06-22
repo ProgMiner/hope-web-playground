@@ -13,8 +13,12 @@ export class ParsedFile {
 	}
 
 	bind() {
-		this.sitter.parse();
+		this.parse();
 		this.highlight.bind();
+	}
+
+	parse() {
+		this.sitter.parse();
 	}
 
 	unbind() {

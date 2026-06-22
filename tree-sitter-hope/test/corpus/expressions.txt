@@ -1,409 +1,340 @@
 ==================
-Multiple postfixes
+Function application
 ==================
 
-x () [3] (1, 2, 3) . string
+dec eval : num -> num
+--- eval(n) <= other(n)
 
----
+----
 
 (compilation_unit
-  (scope_expression
+  (function_declaration
+    (binding
+      (ident))
+    (type_expression
+      (binary_type_expression
+        (type_expression
+          (ident))
+        (type_expression
+          (ident)))))
+  (function_equation
+    (pattern
+      (ident)
+      (pattern
+        (ident)))
     (expression
-      (postfix_expression
-        (dot_expression
-          (expression
-            (postfix_expression
-              (postfix_expression
-                (postfix_expression
-                  (postfix_expression
-                    (lident)))
-                (expression
-                  (postfix_expression
-                    (decimal))))
-              (expression
-                (postfix_expression
-                  (decimal)))
-              (expression
-                (postfix_expression
-                  (decimal)))
-              (expression
-                (postfix_expression
-                  (decimal)))))
-          (lident))))))
+      (ident)
+      (expression
+        (ident)))))
 
 ==================
-Skip
+List expression
 ==================
 
-skip
+dec eval : list char
+--- eval <= [1, 2, 3]
 
----
+----
 
 (compilation_unit
-  (scope_expression
+  (function_declaration
+    (binding
+      (ident))
+    (type_expression
+      (ident)
+      (ident)))
+  (function_equation
+    (pattern
+      (ident))
     (expression
-      (postfix_expression))))
+      (list_expression
+        (expression
+          (ident))
+        (expression
+          (ident))
+        (expression
+          (ident))))))
 
 ==================
-Let
+Let expression
 ==================
 
-let p = e in b
+dec eval : list char
+--- eval <= let a == [1] in a <> [1, 2, 3]
 
----
+----
 
 (compilation_unit
-  (scope_expression
+  (function_declaration
+    (binding
+      (ident))
+    (type_expression
+      (ident)
+      (ident)))
+  (function_equation
+    (pattern
+      (ident))
     (expression
-      (postfix_expression
-        (let_expression
-          (pattern
-            (simple_pattern
-              (binding
-                (lident))))
-          (expression
-            (postfix_expression
-              (lident)))
-          (expression
-            (postfix_expression
-              (lident))))))))
-
-==================
-Conditional
-==================
-
-if c1 then e1
-elif c2 then e2
-else ek + 1
-fi
-
----
-
-(compilation_unit
-  (scope_expression
-    (expression
-      (postfix_expression
-        (if_expression
-          (expression
-            (postfix_expression
-              (lident)))
-          (scope_expression
+      (local_variable_expression
+        (pattern
+          (ident))
+        (expression
+          (list_expression
             (expression
-              (postfix_expression
-                (lident))))
-          (else_part
-            (expression
-              (postfix_expression
-                (lident)))
-            (scope_expression
-              (expression
-                (postfix_expression
-                  (lident))))
-            (else_part
-              (scope_expression
-                (expression
-                  (binary_expression
-                    (expression
-                      (postfix_expression
-                        (lident)))
-                    (expression
-                      (postfix_expression
-                        (decimal)))))))))))))
+              (ident))))
+        (expression
+          (ident)))
+      (ident)
+      (list_expression
+        (expression
+          (ident))
+        (expression
+          (ident))
+        (expression
+          (ident))))))
 
 ==================
-Conditional nested
+Where expression
 ==================
 
-if c1 then e1
-else if c2 then e2
-else ek + 1
-fi
-fi
+dec eval : list char
+--- eval <= a <> [1, 2, 3] where a == [1]
 
----
+----
 
 (compilation_unit
-  (scope_expression
+  (function_declaration
+    (binding
+      (ident))
+    (type_expression
+      (ident)
+      (ident)))
+  (function_equation
+    (pattern
+      (ident))
     (expression
-      (postfix_expression
-        (if_expression
-          (expression
-            (postfix_expression
-              (lident)))
-          (scope_expression
+      (ident)
+      (ident)
+      (local_variable_expression
+        (expression
+          (list_expression
             (expression
-              (postfix_expression
-                (lident))))
-          (else_part
-            (scope_expression
-              (expression
-                (postfix_expression
-                  (if_expression
-                    (expression
-                      (postfix_expression
-                        (lident)))
-                    (scope_expression
-                      (expression
-                        (postfix_expression
-                          (lident))))
-                    (else_part
-                      (scope_expression
-                        (expression
-                          (binary_expression
-                            (expression
-                              (postfix_expression
-                                (lident)))
-                            (expression
-                              (postfix_expression
-                                (decimal)))))))))))))))))
+              (ident))
+            (expression
+              (ident))
+            (expression
+              (ident))))
+        (pattern
+          (ident))
+        (expression
+          (list_expression
+            (expression
+              (ident))))))))
 
 ==================
-Do while
+Set expression
 ==================
 
-do e while c od
+dec eval : list char
+--- eval <= {1, 2, 3}
 
----
+----
 
 (compilation_unit
-  (scope_expression
+  (function_declaration
+    (binding
+      (ident))
+    (type_expression
+      (ident)
+      (ident)))
+  (function_equation
+    (pattern
+      (ident))
     (expression
-      (postfix_expression
-        (do_while_expression
-          (scope_expression
-            (expression
-              (postfix_expression
-                (lident))))
-          (expression
-            (postfix_expression
-              (lident))))))))
+      (set_expression
+        (expression
+          (ident))
+        (expression
+          (ident))
+        (expression
+          (ident))))))
 
 ==================
-While do equivalent of do while
+Conditional expression
 ==================
 
-e; while c do e od
+dec eval : list char
+--- eval <= a(0) then 0 else 1
 
----
+----
 
 (compilation_unit
-  (scope_expression
+  (function_declaration
+    (binding
+      (ident))
+    (type_expression
+      (ident)
+      (ident)))
+  (function_equation
+    (pattern
+      (ident))
     (expression
-      (postfix_expression
-        (lident)))
-    (expression
-      (postfix_expression
-        (while_do_expression
+      (ident)
+      (conditional_expression
+        (expression
           (expression
-            (postfix_expression
-              (lident)))
-          (scope_expression
-            (expression
-              (postfix_expression
-                (lident)))))))))
+            (ident)))
+        (expression
+          (ident))
+        (expression
+          (ident))))))
 
 ==================
-Do while with declaration
+Inverse conditional expression
 ==================
 
-do var x = read () while x od
+dec eval : list char
+--- eval <= 0 if a(0) else 1
 
----
+----
 
 (compilation_unit
-  (scope_expression
+  (function_declaration
+    (binding
+      (ident))
+    (type_expression
+      (ident)
+      (ident)))
+  (function_equation
+    (pattern
+      (ident))
     (expression
-      (postfix_expression
-        (do_while_expression
-          (scope_expression
-            (definition
-              (variable_definition
-                (variable_definition_item
-                  (binding
-                    (lident))
-                  (expression
-                    (postfix_expression
-                      (postfix_expression
-                        (lident))))))))
+      (conditional_expression
+        (expression
+          (ident))
+        (expression
+          (ident)
           (expression
-            (postfix_expression
-              (lident))))))))
+            (ident)))
+        (expression
+          (ident))))))
 
 ==================
-For loop
+String expression
 ==================
 
-for i, c, s do e od
+dec eval : list char
+--- eval <= "hello"
 
----
+----
 
 (compilation_unit
-  (scope_expression
+  (function_declaration
+    (binding
+      (ident))
+    (type_expression
+      (ident)
+      (ident)))
+  (function_equation
+    (pattern
+      (ident))
     (expression
-      (postfix_expression
-        (for_expression
-          (scope_expression
-            (expression
-              (postfix_expression
-                (lident))))
-          (expression
-            (postfix_expression
-              (lident)))
-          (expression
-            (postfix_expression
-              (lident)))
-          (scope_expression
-            (expression
-              (postfix_expression
-                (lident)))))))))
+      (string))))
 
 ==================
-While do equivalent of for loop
+Char expression
 ==================
 
-i; while c do e; s od
+dec eval : char
+--- eval <= 'h'
 
----
+----
 
 (compilation_unit
-  (scope_expression
+  (function_declaration
+    (binding
+      (ident))
+    (type_expression
+      (ident)))
+  (function_equation
+    (pattern
+      (ident))
     (expression
-      (postfix_expression
-        (lident)))
-    (expression
-      (postfix_expression
-        (while_do_expression
-          (expression
-            (postfix_expression
-              (lident)))
-          (scope_expression
-            (expression
-              (postfix_expression
-                (lident)))
-            (expression
-              (postfix_expression
-                (lident)))))))))
+      (char))))
 
 ==================
-For loop with counter
+Line break expression
 ==================
 
-for var i; i := 0, i < 10, i := i + 1 do write (i) od
+dec eval : char
+--- eval <= '\n'
 
----
+----
 
 (compilation_unit
-  (scope_expression
+  (function_declaration
+    (binding
+      (ident))
+    (type_expression
+      (ident)))
+  (function_equation
+    (pattern
+      (ident))
     (expression
-      (postfix_expression
-        (for_expression
-          (scope_expression
-            (definition
-              (variable_definition
-                (variable_definition_item
-                  (binding
-                    (lident)))))
-            (expression
-              (binary_expression
-                (expression
-                  (postfix_expression
-                    (lident)))
-                (expression
-                  (postfix_expression
-                    (decimal))))))
-          (expression
-            (binary_expression
-              (expression
-                (postfix_expression
-                  (lident)))
-              (expression
-                (postfix_expression
-                  (decimal)))))
-          (expression
-            (binary_expression
-              (expression
-                (postfix_expression
-                  (lident)))
-              (expression
-                (binary_expression
-                  (expression
-                    (postfix_expression
-                      (lident)))
-                  (expression
-                    (postfix_expression
-                      (decimal)))))))
-          (scope_expression
-            (expression
-              (postfix_expression
-                (postfix_expression
-                  (lident))
-                (expression
-                  (postfix_expression
-                    (lident)))))))))))
+      (char))))
 
 ==================
-Pattern match
+Identifier with a dash
 ==================
 
-case x of
-Nil             -> write (0)
-| Cons (_, Nil) -> write (1)
-| _             -> write (4)
-esac
+dec eval' : char
+--- eval' <= 'h'
 
----
+----
 
 (compilation_unit
-  (scope_expression
+  (function_declaration
+    (binding
+      (ident))
+    (type_expression
+      (ident)))
+  (function_equation
+    (pattern
+      (ident))
     (expression
-      (postfix_expression
-        (case_expression
-          (expression
-            (postfix_expression
-              (lident)))
-          (case_branches
-            (case_branch
-              (pattern
-                (simple_pattern
-                  (s_expression_pattern
-                    (uident))))
-              (scope_expression
-                (expression
-                  (postfix_expression
-                    (postfix_expression
-                      (lident))
-                    (expression
-                      (postfix_expression
-                        (decimal)))))))
-            (case_branch
-              (pattern
-                (simple_pattern
-                  (s_expression_pattern
-                    (uident)
-                    (pattern
-                      (simple_pattern
-                        (wildcard_pattern)))
-                    (pattern
-                      (simple_pattern
-                        (s_expression_pattern
-                          (uident)))))))
-              (scope_expression
-                (expression
-                  (postfix_expression
-                    (postfix_expression
-                      (lident))
-                    (expression
-                      (postfix_expression
-                        (decimal)))))))
-            (case_branch
-              (pattern
-                (simple_pattern
-                  (wildcard_pattern)))
-              (scope_expression
-                (expression
-                  (postfix_expression
-                    (postfix_expression
-                      (lident))
-                    (expression
-                      (postfix_expression
-                        (decimal)))))))))))))
+      (char))))
+
+==================
+Literal patterns
+==================
+
+dec eval : char # list char -> char
+--- eval('c', "aaa") <= 'h'
+
+----
+
+(compilation_unit
+  (function_declaration
+    (binding
+      (ident))
+    (type_expression
+      (binary_type_expression
+        (type_expression
+          (binary_type_expression
+            (type_expression
+              (ident))
+            (type_expression
+              (ident)
+              (ident))))
+        (type_expression
+          (ident)))))
+  (function_equation
+    (pattern
+      (ident)
+      (tuple_pattern
+        (pattern
+          (char))
+        (pattern
+          (string))))
+    (expression
+      (char))))

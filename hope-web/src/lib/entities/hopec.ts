@@ -47,8 +47,11 @@ export class Hopec {
 		return (hopec.warningPrefix as () => string)();
 	}
 
-	async instantiateModule(size: number): Promise<WebAssembly.Instance> {
-		const compiled = await WebAssembly.instantiate(memory.buffer.slice(0, size));
+	async instantiateModule(
+		size: number,
+		imports?: WebAssembly.Imports
+	): Promise<WebAssembly.Instance> {
+		const compiled = await WebAssembly.instantiate(memory.buffer.slice(0, size), imports);
 		return compiled.instance;
 	}
 }

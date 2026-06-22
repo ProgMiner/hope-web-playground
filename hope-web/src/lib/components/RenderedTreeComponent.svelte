@@ -2,7 +2,13 @@
 	import type { Range } from '$lib/entities/tree/generic_tree';
 	import { type RenderedTreeRow } from '$lib/entities/tree/rendered_tree';
 
-	let { rows, focus }: { rows: RenderedTreeRow[]; focus: (range: Range) => void } = $props();
+	let {
+		rows,
+		focus
+	}: {
+		rows: RenderedTreeRow[];
+		focus: (range: Range) => void;
+	} = $props();
 
 	function focusRow(row: RenderedTreeRow) {
 		focus({ resource: undefined, from: row.start, to: row.end });
