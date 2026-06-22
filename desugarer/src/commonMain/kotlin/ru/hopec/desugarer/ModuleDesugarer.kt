@@ -18,6 +18,7 @@ open class ModuleDesugarer(
     val globalContext: DesugarerGlobalContext = DesugarerGlobalContext(),
     val moduleContext: DesugarerModuleContext = DesugarerModuleContext(),
     val localContext: DesugarerLocalContext = DesugarerLocalContext(),
+    val localModuleDeclarations: MutableMap<String, ModuleDeclarations> = mutableMapOf(),
 ) {
     val publicFunctionsMap: MutableMap<String, MutableSet<Function.Name>> = mutableMapOf()
     val publicConstructorsMap: MutableMap<String, MutableSet<Constructor>> = mutableMapOf()
@@ -71,6 +72,88 @@ open class ModuleDesugarer(
         }
 
         globalContext.moduleDeclarations[name] =
+            ModuleDeclarations(
+                publicFunctionsMap,
+                publicConstructorsMap,
+                publicDataTypesMap,
+            )
+
+        val publicConstants = uniteSet(publicFunctionsMap, publicConstructorsMap).values.flatten()
+        val publicDataTypes = publicDataTypesMap.values.toSet()
+        val moduleFunctions =
+            moduleContext.moduleFunctions.values
+                .flatten()
+                .toSet()
+        val moduleConstructors =
+            moduleContext.moduleConstructors.values
+                .flatten()
+                .toSet()
+        val privateConstants = ((moduleConstructors + moduleFunctions) - publicConstants.toSet())
+        val privateData =
+            moduleContext.moduleDataTypes
+                .map { it.value }
+                .toSet()
+                .minus(publicDataTypes)
+
+        return DesugaredRepresentation.Module(
+            Declarations(
+                dataTypes.filter { publicDataTypes.contains(it.key) },
+                functions.filter { publicConstants.contains(it.key) },
+            ),
+            Declarations(
+                dataTypes.filter { privateData.contains(it.key) },
+                functions.filter { privateConstants.contains(it.key) },
+            ),
+        )
+    }
+
+    fun resolveModuleLocally(module: AstNode.Module): DesugaredRepresentation.Module {
+        val name = module.name
+        if (localModuleDeclarations.containsKey(name)) {
+            throw IllegalStateException("Module '$name' already defined in this file")
+        }
+        val statements = module.statements
+        val dataTypes: MutableMap<Data.Name.Defined, Data> = mutableMapOf()
+        val functions: MutableMap<Function.Name, Function> = mutableMapOf()
+        statements.forEach { statement ->
+            when (statement) {
+                is AstNode.Error -> {}
+
+                is AstNode.DataDeclaration -> {
+                    val dataType = resolveDataDecl(statement, name)
+                    dataTypes[dataType.first] = dataType.second
+                }
+
+                is AstNode.FunctionDeclaration -> {
+                    val function = resolveFunctionDecl(statement, name)
+                    functions[function.first] = function.second
+                }
+
+                is AstNode.ModuleUseDeclaration -> {
+                    statement.modules.forEach { importModule(it) }
+                }
+
+                is AstNode.ConstantExportDeclaration -> {}
+
+                is AstNode.TypeExportDeclaration -> {}
+            }
+        }
+
+        statements.forEach { statement ->
+            when (statement) {
+                is AstNode.ConstantExportDeclaration -> {
+                    statement.constants.forEach { exportConstant(it) }
+                }
+
+                is AstNode.TypeExportDeclaration -> {
+                    statement.types.forEach { exportDataType(it) }
+                }
+
+                else -> {}
+            }
+        }
+
+        localModuleDeclarations[name] =
             ModuleDeclarations(
                 publicFunctionsMap,
                 publicConstructorsMap,
@@ -437,23 +520,47 @@ open class ModuleDesugarer(
     }
 
     fun importModule(name: String) {
+        val localDecl = localModuleDeclarations[name]
+        if (localDecl != null) {
+            moduleContext.extendGlobalFunctions(localDecl.functions)
+            moduleContext.extendGlobalConstructors(localDecl.constructors)
+            moduleContext.extendGlobalData(localDecl.dataTypes)
+            return
+        }
+
+        val fileDecl = globalContext.fileDeclarations[name]
+        if (fileDecl != null) {
+            moduleContext.extendGlobalFunctions(fileDecl.functions)
+            moduleContext.extendGlobalConstructors(fileDecl.constructors)
+            moduleContext.extendGlobalData(fileDecl.dataTypes)
+            return
+        }
+
         val declarations =
             globalContext.moduleDeclarations[name]
-                ?: throw IllegalStateException("No module found for $name")
+                ?: throw IllegalStateException("No module or file found for '$name'")
         val functions = declarations.functions
         val dataTypes = declarations.dataTypes
         moduleContext.extendGlobalFunctions(functions)
+        moduleContext.extendGlobalConstructors(declarations.constructors)
         moduleContext.extendGlobalData(dataTypes)
     }
 
     fun exportConstant(name: String) {
         val constructorSet = moduleContext.moduleConstructors[name] ?: emptySet()
         val functionsSet = moduleContext.moduleFunctions[name] ?: emptySet()
-        if (constructorSet.isEmpty() && functionsSet.isEmpty()) {
-            throw IllegalArgumentException("No module constant found for $name")
+
+        val globalConstructorSet = moduleContext.globalConstructors[name] ?: emptySet()
+        val globalFunctionsSet = moduleContext.globalFunctions[name] ?: emptySet()
+
+        val allConstructors = constructorSet + globalConstructorSet
+        val allFunctions = functionsSet + globalFunctionsSet
+
+        if (allConstructors.isEmpty() && allFunctions.isEmpty()) {
+            throw IllegalArgumentException("No constant found for '$name' (neither local nor imported)")
         }
-        publicConstructorsMap.getOrPut(name) { mutableSetOf() }.addAll(constructorSet)
-        publicFunctionsMap.getOrPut(name) { mutableSetOf() }.addAll(functionsSet)
+        publicConstructorsMap.getOrPut(name) { mutableSetOf() }.addAll(allConstructors)
+        publicFunctionsMap.getOrPut(name) { mutableSetOf() }.addAll(allFunctions)
     }
 
     fun exportDataType(name: String) {
@@ -473,4 +580,5 @@ open class ModuleDesugarer(
     private fun String.generateNewName() = (this + "_" + identCounter.toString()).also { identCounter++ }
 }
 
-private fun ModuleDesugarer.newScope() = ModuleDesugarer(this.globalContext, this.moduleContext, this.localContext.fork())
+private fun ModuleDesugarer.newScope() =
+    ModuleDesugarer(this.globalContext, this.moduleContext, this.localContext.fork(), this.localModuleDeclarations)
