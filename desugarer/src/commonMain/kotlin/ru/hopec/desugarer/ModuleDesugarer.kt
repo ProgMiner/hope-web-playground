@@ -50,6 +50,14 @@ open class ModuleDesugarer(
                     statement.modules.forEach { importModule(it) }
                 }
 
+                is AstNode.ConstantExportDeclaration -> {}
+
+                is AstNode.TypeExportDeclaration -> {}
+            }
+        }
+
+        statements.forEach { statement ->
+            when (statement) {
                 is AstNode.ConstantExportDeclaration -> {
                     statement.constants.forEach { exportConstant(it) }
                 }
@@ -57,6 +65,8 @@ open class ModuleDesugarer(
                 is AstNode.TypeExportDeclaration -> {
                     statement.types.forEach { exportDataType(it) }
                 }
+
+                else -> {}
             }
         }
 
