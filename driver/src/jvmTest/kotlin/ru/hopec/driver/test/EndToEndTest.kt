@@ -189,6 +189,23 @@ class EndToEndTest {
     }
 
     @Test
+    fun `function signature index notation bug`() {
+        val source =
+            """
+            typevar beta
+            
+            dec badApply : (beta -> beta) # beta -> beta
+            --- badApply(f, acc) <= badApply(f, acc)
+            
+            dec main : num
+            --- main <= 1
+            """.trimIndent()
+        val binary = compile(source) ?: error("compilation failed")
+        assertNotEquals(0, binary.size)
+        Parser.parse(binary)
+    }
+
+    @Test
     fun `compiled module is valid wasm`() {
         val source =
             """
