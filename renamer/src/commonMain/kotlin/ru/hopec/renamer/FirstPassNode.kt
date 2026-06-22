@@ -6,53 +6,66 @@ data class FirstPassProgram(
     val list: List<FirstPassNode.TopLevelNode>,
     val modules: Map<String, Map<String, Infix>>,
     val globalInfixes: Map<String, Infix>,
-    val importedFiles: Set<String>,
+    val imported: Set<String>,
 )
 
-sealed interface FirstPassNode {
-    sealed interface TopLevelNode : AstNode
+sealed class FirstPassNode(
+    open val node: TsSyntaxNode,
+) {
+    sealed class TopLevelNode(
+        override val node: TsSyntaxNode,
+    ) : FirstPassNode(node)
 
     data class Module(
+        override val node: TsSyntaxNode,
         val name: String,
         val statements: List<Statement>,
         val infixes: Map<String, Infix>,
-    ) : TopLevelNode
+    ) : TopLevelNode(node)
 
-    sealed interface Statement : TopLevelNode {
+    sealed class Statement(
+        override val node: TsSyntaxNode,
+    ) : TopLevelNode(node) {
         data class NotParsed(
-            val node: TsSyntaxNode,
-        ) : Statement
+            override val node: TsSyntaxNode,
+        ) : Statement(node)
 
         data class Error(
+            override val node: TsSyntaxNode,
             val error: RenamerException,
-        ) : Statement
+        ) : Statement(node)
 
         data class FunctionDeclaration(
+            override val node: TsSyntaxNode,
             val name: String,
             val boundVars: List<String>,
             val typeExpr: TypeExpr,
-        ) : Statement
+        ) : Statement(node)
 
         data class DataDeclaration(
+            override val node: TsSyntaxNode,
             val name: String,
             val boundVars: List<String>,
             val dataConstructors: List<Pair<String, TypeExpr?>>,
-        ) : Statement
+        ) : Statement(node)
 
         data class InfixDeclaration(
+            override val node: TsSyntaxNode,
             val operators: List<Pair<String, Infix>>,
-        ) : Statement
+        ) : Statement(node)
 
         data class ModuleUseDeclaration(
+            override val node: TsSyntaxNode,
             val modules: List<String>,
-        ) : Statement
+        ) : Statement(node)
 
         data class ConstantExportDeclaration(
+            override val node: TsSyntaxNode,
             val constants: List<String>,
-        ) : Statement
+        ) : Statement(node)
     }
 
-    sealed interface TypeExpr : AstNode {
+    sealed interface TypeExpr {
         data class FunctionalType(
             val premise: TypeExpr,
             val result: TypeExpr,

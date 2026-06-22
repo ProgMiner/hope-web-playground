@@ -6,11 +6,24 @@ import ru.hopec.parser.treesitter.range
 
 class RenamerSecondPass(
     private val from: FirstPassProgram,
+    private val importedOperators: Map<String, Map<String, Infix>>,
 ) {
     val internalOperators =
         mutableMapOf(
+            Pair("div", Infix(6, false)),
+            Pair("mod", Infix(6, false)),
+            Pair("/", Infix(6, false)),
+            Pair("*", Infix(6, false)),
+            Pair("-", Infix(6, false)),
+            Pair("+", Infix(6, false)),
             Pair("::", Infix(5, true)),
-            Pair("<>", Infix(6, true)),
+            Pair("=", Infix(4, false)),
+            Pair("/=", Infix(4, false)),
+            Pair("<=", Infix(4, false)),
+            Pair(">=", Infix(4, false)),
+            Pair("<", Infix(4, false)),
+            Pair(">", Infix(4, false)),
+            Pair("#", Infix(0, true)),
         )
 
     data class ParserState(
@@ -119,6 +132,27 @@ class RenamerSecondPass(
 
             is FirstPassNode.Statement.ConstantExportDeclaration -> {
                 AstNode.ConstantExportDeclaration(node.constants)
+            }
+
+            is FirstPassNode.Statement.ModuleUseDeclaration -> {
+                node.modules.forEach {
+                    if (it.endsWith(".hope")) {
+                        parserState.operators.putAll(
+                            importedOperators[it] ?: throw RenamerException(
+                                "File \"$it\" does not exist",
+                                node.node.range(),
+                            ),
+                        )
+                    } else {
+                        parserState.operators.putAll(
+                            from.modules[it] ?: throw RenamerException(
+                                "Module \"$it\" does not exist",
+                                node.node.range(),
+                            ),
+                        )
+                    }
+                }
+                AstNode.ModuleUseDeclaration(node.modules)
             }
 
             is FirstPassNode.Statement.NotParsed -> {

@@ -20,7 +20,21 @@ object RenamerPass : CompilationPass<TreeSitterRepresentation, RenamedRepresenta
         context: CompilationContext,
     ): RenamedRepresentation {
         val firstPass = RenamerFirstPass(from).parse(context)
-        val secondPass = RenamerSecondPass(firstPass).parse(context)
-        return RenamedRepresentation(secondPass, firstPass.globalInfixes)
+
+        val importedOperators =
+            firstPass.imported
+                .toSet()
+                .filter { it !in firstPass.modules.keys }
+                .associateWith { file ->
+                    val repr = context.resolveModule(file) ?: throw IllegalStateException("File $file does not exist")
+                    val renamer =
+                        repr.runPass(RenamerPass)
+                            ?: throw IllegalStateException("Error while parsing imported file $file")
+                    val global = renamer.globalOperators
+                    val module = renamer.moduleOperators[file] ?: emptyMap()
+                    global + module
+                }
+        val secondPass = RenamerSecondPass(firstPass, importedOperators).parse(context)
+        return RenamedRepresentation(secondPass, firstPass.globalInfixes, firstPass.modules)
     }
 }

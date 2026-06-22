@@ -9,7 +9,7 @@ import ru.hopec.renamer.RenamerSecondPass.TypeDeclarationException
 class RenamerFirstPass(
     val from: TreeSitterRepresentation,
 ) {
-    val importedFiles: MutableSet<String> = mutableSetOf()
+    val imported: MutableSet<String> = mutableSetOf()
 
     data class ParserState(
         val infixes: MutableMap<String, Infix> = mutableMapOf(),
@@ -39,7 +39,7 @@ class RenamerFirstPass(
                     }
                 } catch (e: RenamerException) {
                     context.add(e)
-                    FirstPassNode.Statement.Error(e)
+                    FirstPassNode.Statement.Error(child, e)
                 }
             }).toMutableList()
 
@@ -50,7 +50,7 @@ class RenamerFirstPass(
             ).filter { parserState.exports.contains(it) }
                 .associateWith { parserState.infixes[it]!! }
 
-        return FirstPassProgram(topLevelNodes, modules, infixes, importedFiles)
+        return FirstPassProgram(topLevelNodes, modules, infixes, imported)
     }
 
     private fun parseModule(node: TsSyntaxNode): FirstPassNode.Module {
@@ -60,7 +60,7 @@ class RenamerFirstPass(
             parseMultipleOrError(
                 node,
                 { node -> parseStatement(node, parserState) },
-                { FirstPassNode.Statement.Error(it) },
+                { FirstPassNode.Statement.Error(node, it) },
                 1u,
             ).toMutableList()
 
@@ -71,7 +71,7 @@ class RenamerFirstPass(
             ).filter { parserState.exports.contains(it) }
                 .associateWith { parserState.infixes[it]!! }
 
-        return FirstPassNode.Module(moduleName, statements, infixes)
+        return FirstPassNode.Module(node, moduleName, statements, infixes)
     }
 
     fun parseStatement(
@@ -88,7 +88,7 @@ class RenamerFirstPass(
                         parserState,
                         params.toMutableSet(),
                     )
-                FirstPassNode.Statement.DataDeclaration(name, params, typeNode)
+                FirstPassNode.Statement.DataDeclaration(node, name, params, typeNode)
             }
 
             "function_declaration" -> {
@@ -96,6 +96,7 @@ class RenamerFirstPass(
                 val typeNode = parseType(node.getChildOrThrow(1u), parserState.typeVars)
                 parserState.declarations.add(name)
                 FirstPassNode.Statement.FunctionDeclaration(
+                    node,
                     name,
                     getBoundVars(typeNode).toList(),
                     typeNode,
@@ -105,19 +106,19 @@ class RenamerFirstPass(
             "infix_declaration" -> {
                 val operators = parseInfix(node)!!
                 parserState.infixes.putAll(operators)
-                FirstPassNode.Statement.InfixDeclaration(operators)
+                FirstPassNode.Statement.InfixDeclaration(node, operators)
             }
 
             "module_use_declaration" -> {
                 val names = parseMultipleIdent(node)
-                importedFiles.addAll(names.filter { it.endsWith(".hope") })
-                FirstPassNode.Statement.ModuleUseDeclaration(names)
+                imported.addAll(names)
+                FirstPassNode.Statement.ModuleUseDeclaration(node, names)
             }
 
             "constant_export_declaration" -> {
                 val export = parseMultipleIdent(node)
                 parserState.exports.addAll(export)
-                FirstPassNode.Statement.ConstantExportDeclaration(export)
+                FirstPassNode.Statement.ConstantExportDeclaration(node, export)
             }
 
             else -> {
