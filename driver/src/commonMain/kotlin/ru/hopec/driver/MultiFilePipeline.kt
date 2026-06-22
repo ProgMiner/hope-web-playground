@@ -3,13 +3,11 @@ package ru.hopec.driver
 import ru.hopec.codegen.CodeGenPass
 import ru.hopec.core.GlobalCompilationContext
 import ru.hopec.core.TranslationUnit
-import ru.hopec.core.errorStatus
 import ru.hopec.desugarer.DesugaredRepresentation
 import ru.hopec.desugarer.Desugarer
 import ru.hopec.desugarer.context.DesugarerGlobalContext
 import ru.hopec.parser.TreeSitterRepresentation
 import ru.hopec.renamer.AstNode
-import ru.hopec.renamer.Infix
 import ru.hopec.renamer.Program
 import ru.hopec.renamer.RenamedRepresentation
 import ru.hopec.renamer.RenamerPass
