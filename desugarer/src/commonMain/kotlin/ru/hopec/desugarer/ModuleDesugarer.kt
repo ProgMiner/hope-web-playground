@@ -490,7 +490,7 @@ open class ModuleDesugarer(
             }
 
             is AstNode.VarType -> {
-                Type.Variable(boundVars.size - boundVars.indexOf(type.name))
+                Type.Variable(boundVars.size - boundVars.indexOf(type.name) - 1)
             }
         }
 
