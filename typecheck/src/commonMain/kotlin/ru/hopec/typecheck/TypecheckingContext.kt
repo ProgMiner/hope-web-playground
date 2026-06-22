@@ -2,6 +2,7 @@ package ru.hopec.typecheck
 
 import ru.hopec.desugarer.DesugaredRepresentation
 import ru.hopec.desugarer.DesugaredRepresentation.Type
+import ru.hopec.desugarer.IoBuiltins
 import ru.hopec.typecheck.TypedRepresentation
 import kotlin.math.max
 import kotlin.math.min
@@ -44,7 +45,9 @@ internal class TypecheckingContext private constructor(
         fun runFunction(
             signature: Signature,
             function: DesugaredRepresentation.Declarations.Function,
-        ): TypedRepresentation.Declarations.Function? = TypecheckingContext(signature).runFunction(function)
+            name: DesugaredRepresentation.Declarations.Function.Name =
+                DesugaredRepresentation.Declarations.Function.Name.User(null, "test"),
+        ): TypedRepresentation.Declarations.Function? = TypecheckingContext(signature).runFunction(name, function)
     }
 
     private var substitution: ArrayList<Type> = arrayListOf()
@@ -60,12 +63,21 @@ internal class TypecheckingContext private constructor(
         val functions =
             declarations.functions
                 .toList()
-                .map { (k, v) -> k to (runFunction(v) ?: return null) }
+                .map { (k, v) -> k to (runFunction(k, v) ?: return null) }
                 .toMap()
         return TypedRepresentation.Declarations(declarations.data, functions)
     }
 
-    private fun runFunction(function: DesugaredRepresentation.Declarations.Function): TypedRepresentation.Declarations.Function? {
+    private fun runFunction(
+        name: DesugaredRepresentation.Declarations.Function.Name,
+        function: DesugaredRepresentation.Declarations.Function,
+    ): TypedRepresentation.Declarations.Function? {
+        if (name is DesugaredRepresentation.Declarations.Function.Name.Core &&
+            (name == IoBuiltins.PRINT || name == IoBuiltins.GET_CHAR)
+        ) {
+            return trustedIoBuiltin(function)
+        }
+
         val lambda = infer(function.lambda) ?: return null
         val variableMapping = hashMapOf<Int, Type>()
 
@@ -254,6 +266,41 @@ internal class TypecheckingContext private constructor(
             rename(lambda) as TypedRepresentation.Expr.Lambda,
             function.type.boundTypeVariables,
         )
+    }
+
+    private fun trustedIoBuiltin(
+        function: DesugaredRepresentation.Declarations.Function,
+    ): TypedRepresentation.Declarations.Function {
+        val declared = function.type.type
+        val lambda =
+            if (declared is Type.Arrow) {
+                val body =
+                    if (declared.result == Type.Data.unit) {
+                        TypedRepresentation.Expr.Literal.Num(0)
+                    } else {
+                        TypedRepresentation.Expr.Literal.Char('\u0000')
+                    }
+                TypedRepresentation.Expr.Lambda(
+                    declared,
+                    listOf(
+                        TypedRepresentation.Expr.Lambda.Branch(
+                            TypedRepresentation.Pattern.Wildcard(declared.argument),
+                            body,
+                        ),
+                    ),
+                )
+            } else {
+                TypedRepresentation.Expr.Lambda(
+                    Type.Arrow(Type.Data.num, declared),
+                    listOf(
+                        TypedRepresentation.Expr.Lambda.Branch(
+                            TypedRepresentation.Pattern.Wildcard(Type.Data.num),
+                            TypedRepresentation.Expr.Literal.Char('\u0000'),
+                        ),
+                    ),
+                )
+            }
+        return TypedRepresentation.Declarations.Function(lambda, function.type.boundTypeVariables)
     }
 
     private fun infer(term: DesugaredRepresentation.Expr): TypedRepresentation.Expr? {

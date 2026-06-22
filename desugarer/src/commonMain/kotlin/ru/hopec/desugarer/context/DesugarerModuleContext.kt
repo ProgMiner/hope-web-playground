@@ -12,12 +12,12 @@ data class DesugarerModuleContext(
     val globalFunctions: MutableMap<String, MutableSet<DesugaredRepresentation.Declarations.Function.Name>> = getInternalFunctions(),
     val globalConstructors: MutableMap<String, MutableSet<DesugaredRepresentation.Declarations.Function.Name.Constructor>> =
         getInternalConstructors(),
-    val moduleFunctions: MutableMap<String, MutableSet<DesugaredRepresentation.Declarations.Function.Name.User>> = mutableMapOf(),
+    val moduleFunctions: MutableMap<String, MutableSet<DesugaredRepresentation.Declarations.Function.Name>> = mutableMapOf(),
     val moduleConstructors: MutableMap<String, MutableSet<DesugaredRepresentation.Declarations.Function.Name.Constructor>> = mutableMapOf(),
     val globalDataTypes: MutableMap<String, DesugaredRepresentation.Declarations.Data.Name> = internalData,
     val moduleDataTypes: MutableMap<String, DesugaredRepresentation.Declarations.Data.Name.Defined> = mutableMapOf(),
 ) {
-    fun extendGlobalFunctions(functions: Map<String, Set<DesugaredRepresentation.Declarations.Function.Name.User>>) {
+    fun extendGlobalFunctions(functions: Map<String, Set<DesugaredRepresentation.Declarations.Function.Name>>) {
         functions.forEach { (name, set) ->
             set.forEach { function ->
                 if (globalFunctions.containsKey(name)) {
@@ -31,7 +31,7 @@ data class DesugarerModuleContext(
 
     fun extendModuleFunction(
         name: String,
-        function: DesugaredRepresentation.Declarations.Function.Name.User,
+        function: DesugaredRepresentation.Declarations.Function.Name,
     ) {
         if (moduleFunctions.containsKey(name)) {
             moduleFunctions[name]!!.add(function)

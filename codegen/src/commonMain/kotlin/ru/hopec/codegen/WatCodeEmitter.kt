@@ -1,5 +1,6 @@
 package ru.hopec.codegen
 
+import ru.hopec.codegen.runtime.WatImports
 import ru.hopec.desugarer.DesugaredRepresentation.Type
 import ru.hopec.typecheck.TypedRepresentation.Expr
 import ru.hopec.typecheck.TypedRepresentation.Pattern
@@ -243,6 +244,7 @@ internal class WatCodeEmitter(
                     "true" -> i32Const(1)
                     "false" -> i32Const(0)
                     "emptySet" -> i32Const(0)
+                    "io.getChar" -> call(WatImports.importId(name), emptyList())
                     else -> genClosureRef(gen.wrapperFor(name), emptyList(), ctx)
                 }
             }
@@ -264,7 +266,11 @@ internal class WatCodeEmitter(
             }
 
             is FuncName.User -> {
-                genClosureRef(gen.wrapperFor(name), emptyList(), ctx)
+                if (expr.type !is Type.Arrow) {
+                    call(gen.watId(name), listOf(i32Const(0)))
+                } else {
+                    genClosureRef(gen.wrapperFor(name), emptyList(), ctx)
+                }
             }
         }
 
@@ -288,6 +294,14 @@ internal class WatCodeEmitter(
                     coreBinOp,
                     i32Load(0, localTee(tmp, arg)),
                     i32Load(4, localGet(tmp)),
+                )
+            }
+
+            leftName is FuncName.Core && leftName.name == "io.print" -> {
+                val arg = genExpr(expr.right, ctx)
+                resultBlock(
+                    listOf(call(WatImports.importId(leftName), listOf(arg))),
+                    i32Const(0),
                 )
             }
 
