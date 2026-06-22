@@ -168,6 +168,21 @@ class EndToEndTest {
     }
 
     @Test
+    fun `typevars`() {
+        val source =
+            """
+            typevar beta
+             
+            dec foo : beta -> beta
+            --- foo(x) <= x
+
+            dec main : num
+            --- main <= foo(1)
+            """.trimIndent()
+        assertEquals(1, runMain(source))
+    }
+
+    @Test
     fun `unsupported identifier fails compilation instead of stub`() {
         val source = """write "Hello world"""""
         assertEquals(null, compile(source))

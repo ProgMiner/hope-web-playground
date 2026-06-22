@@ -203,13 +203,6 @@ class RenamerSecondPass(
                         equationList.second.add(equation)
                     }
 
-                    "infix_declaration" -> {
-                    }
-
-                    "type_variable_declaration" -> {
-                        parserState.typeVars.addAll(parseMultipleIdent(node.node))
-                    }
-
                     "line_comment" -> {}
 
                     else -> {

@@ -77,7 +77,7 @@ class RenamerFirstPass(
     fun parseStatement(
         node: TsSyntaxNode,
         parserState: ParserState,
-    ): FirstPassNode.Statement =
+    ): FirstPassNode.Statement? =
         when (node.type) {
             "data_declaration" -> {
                 val name = node.getChildOrThrow(0u).text
@@ -119,6 +119,11 @@ class RenamerFirstPass(
                 val export = parseMultipleIdent(node)
                 parserState.exports.addAll(export)
                 FirstPassNode.Statement.ConstantExportDeclaration(node, export)
+            }
+
+            "type_variable_declaration" -> {
+                parserState.typeVars.addAll(parseMultipleIdent(node))
+                null
             }
 
             else -> {
