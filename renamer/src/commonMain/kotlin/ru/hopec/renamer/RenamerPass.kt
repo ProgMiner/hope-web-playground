@@ -8,18 +8,27 @@ object RenamerPass : CompilationPass<TreeSitterRepresentation, RenamedRepresenta
     override fun run(
         from: TreeSitterRepresentation,
         context: CompilationContext,
-    ) = try {
-        parse(from, context)
-    } catch (e: Exception) {
-        context.add(e)
-        null
-    }
+    ): RenamedRepresentation? = run(from, context, emptyMap())
+
+    fun run(
+        from: TreeSitterRepresentation,
+        context: CompilationContext,
+        externalModuleOperators: Map<String, Map<String, Infix>>,
+    ): RenamedRepresentation? =
+        try {
+            parse(from, context, externalModuleOperators)
+        } catch (e: Exception) {
+            context.add(e)
+            null
+        }
 
     private fun parse(
         from: TreeSitterRepresentation,
         context: CompilationContext,
+        externalModuleOperators: Map<String, Map<String, Infix>>,
     ): RenamedRepresentation {
-        val modulesOperators = runCatching { parseModuleInfix(from) }.getOrElse { mapOf() }
+        val localOperators = runCatching { parseModuleInfix(from) }.getOrElse { emptyMap() }
+        val modulesOperators = externalModuleOperators + localOperators
         val cstParser = CstParser(from, modulesOperators)
         return RenamedRepresentation(cstParser.parse(context))
     }

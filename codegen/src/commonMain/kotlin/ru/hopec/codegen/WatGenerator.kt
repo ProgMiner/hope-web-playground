@@ -1,5 +1,6 @@
 package ru.hopec.codegen
 
+import ru.hopec.codegen.runtime.WatImports
 import ru.hopec.codegen.runtime.WatRuntime
 import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Data
 import ru.hopec.typecheck.TypedRepresentation
@@ -12,6 +13,7 @@ class WatGenerator(
     private val program: TypedRepresentation,
 ) {
     private val moduleChildren = mutableListOf<SExpr>()
+    private val ioImportsUsed = IoImportUsage.collect(program)
 
     private var labelCounter = 0
     private var liftedCounter = 0
@@ -51,6 +53,9 @@ class WatGenerator(
 
     internal fun wrapperFor(name: FuncName): String =
         wrapperIds.getOrPut(name) {
+            if (name is FuncName.Core && WatImports.isBuiltin(name)) {
+                return@getOrPut WatImports.importId(name)
+            }
             val id = "\$wrap.${watId(name).removePrefix("\$")}"
             pendingWrappers.addLast(name to id)
             id
@@ -58,7 +63,12 @@ class WatGenerator(
 
     internal fun watId(name: FuncName): String =
         when (name) {
-            is FuncName.Core -> "\$core.${esc(name.name)}"
+            is FuncName.Core ->
+                if (WatImports.isBuiltin(name)) {
+                    WatImports.importId(name)
+                } else {
+                    "\$core.${esc(name.name)}"
+                }
             is FuncName.User -> "\$fn.${name.module ?: "top"}.${esc(name.name)}"
             is FuncName.Constructor -> "\$ctor.${dataStr(name.data)}.${esc(name.constructor)}"
         }
@@ -85,11 +95,13 @@ class WatGenerator(
             DataName.Core.List -> "List"
             DataName.Core.Set -> "Set"
             DataName.Core.Tuple -> "Tuple"
+            DataName.Core.Unit -> "Unit"
             is DataName.Defined -> "${name.module ?: "top"}.${name.name}"
         }
 
     fun generate(): String {
         assignConstructorTags()
+        emitImports()
         emitMemoryAndGlobals()
         val tableInsertIndex = moduleChildren.size
         emitRuntime()
@@ -121,6 +133,12 @@ class WatGenerator(
         }
     }
 
+    private fun emitImports() {
+        for (snippet in WatImports.snippetsFor(ioImportsUsed)) {
+            moduleChildren.add(SExpr.Raw(snippet))
+        }
+    }
+
     private fun emitMemoryAndGlobals() {
         moduleChildren.add(SExpr.Raw("(memory (export \"memory\") 1)"))
         moduleChildren.add(SExpr.Raw("(global \$heap_ptr (mut i32) (i32.const 4096))"))
@@ -149,7 +167,10 @@ class WatGenerator(
     }
 
     private fun emitDeclFunctions(decls: Declarations) {
-        for ((name, func) in decls.functions) emitFunction(watId(name), func.lambda)
+        for ((name, func) in decls.functions) {
+            if (name is FuncName.Core && WatImports.isBuiltin(name)) continue
+            emitFunction(watId(name), func.lambda)
+        }
     }
 
     private fun emitFunction(

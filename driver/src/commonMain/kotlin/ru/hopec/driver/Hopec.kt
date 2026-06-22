@@ -34,9 +34,11 @@ class Hopec(
         output: Sink,
     ): CompilationStatus {
         input.populate(context)
+        if (context.resolveMain() == null) return noMain()
+
         val watCode =
             try {
-                (context.resolveMain() ?: return noMain()).runPass(makeChain())?.wat
+                MultiFilePipeline(context).compile()
             } catch (_: NotImplementedError) {
                 null
             } ?: return notImplemented()

@@ -88,6 +88,7 @@ export async function exemplarProject(name: string): Promise<RawProject> {
 export function knownExamples() {
 	return [
 		{ key: 'syntax', label: 'Basic syntax examples' },
-		{ key: 'binary-tree', label: 'Binary tree' }
+		{ key: 'binary-tree', label: 'Binary tree' },
+		{ key: 'io-demo', label: 'I/O builtins (print)' }
 	];
 }

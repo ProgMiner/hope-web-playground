@@ -138,14 +138,11 @@ class CstParser(
             "module_use_declaration" -> {
                 val names = parseMultipleIdent(node)
                 names.forEach {
-                    parserState.operators.putAll(
-                        moduleOperators[it] ?: throw RenamerException(
-                            "Module \"$it\" does not exist",
-                            node.range(),
-                        ),
-                    )
+                    moduleOperators[it]?.let { operators ->
+                        parserState.operators.putAll(operators)
+                    }
                 }
-                AstNode.ModuleUseDeclaration(parseMultipleIdent(node))
+                AstNode.ModuleUseDeclaration(names)
             }
 
             else -> {
