@@ -13,10 +13,7 @@ import ru.hopec.parser.treesitter.parseHope
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
-<<<<<<< HEAD
 import kotlin.test.assertNull
-=======
->>>>>>> master
 
 class MultiFileEndToEndTest {
     private fun compile(vararg sources: Pair<String, String>): ByteArray? {
@@ -37,31 +34,6 @@ class MultiFileEndToEndTest {
     }
 
     @Test
-<<<<<<< HEAD
-=======
-    fun `main uses function exported from another file`() {
-        val lib =
-            """
-            module lib
-                pubconst double
-                dec double : num -> num
-                --- double(x) <= +(x, x)
-            end
-            """.trimIndent()
-
-        val main =
-            """
-            uses lib
-
-            dec main : num
-            --- main <= double(21)
-            """.trimIndent()
-
-        assertEquals(42, runMain("lib.hope" to lib, "main.hope" to main))
-    }
-
-    @Test
->>>>>>> master
     fun `auto-wrapped file module is importable by filename`() {
         val helpers =
             """
@@ -83,7 +55,6 @@ class MultiFileEndToEndTest {
     }
 
     @Test
-<<<<<<< HEAD
     fun `file with internal module exports via top-level pubconst`() {
         val lib =
             """
@@ -124,25 +95,6 @@ class MultiFileEndToEndTest {
 
             dec g : num -> num
             --- g(x) <= *(x, 2)
-=======
-    fun `main uses two modules from separate files`() {
-        val moduleA =
-            """
-            module a
-              pubconst f
-              dec f : num -> num
-              --- f(x) <= +(x, 1)
-            end
-            """.trimIndent()
-
-        val moduleB =
-            """
-            module b
-              pubconst g
-              dec g : num -> num
-              --- g(x) <= *(x, 2)
-            end
->>>>>>> master
             """.trimIndent()
 
         val main =
@@ -153,29 +105,17 @@ class MultiFileEndToEndTest {
             --- main <= g(f(20))
             """.trimIndent()
 
-<<<<<<< HEAD
         assertEquals(42, runMain("a.hope" to fileA, "b.hope" to fileB, "main.hope" to main))
-=======
-        assertEquals(42, runMain("a.hope" to moduleA, "b.hope" to moduleB, "main.hope" to main))
->>>>>>> master
     }
 
     @Test
     fun `merged output is a single wat module with one memory export`() {
         val lib =
             """
-<<<<<<< HEAD
             pubconst id
 
             dec id : num -> num
             --- id(x) <= x
-=======
-            module lib
-                pubconst id
-                dec id : num -> num
-                --- id(x) <= x
-            end
->>>>>>> master
             """.trimIndent()
 
         val main =
@@ -189,7 +129,6 @@ class MultiFileEndToEndTest {
         assertFalse(binary.isEmpty())
         Parser.parse(binary)
     }
-<<<<<<< HEAD
 
     @Test
     fun `internal modules are not accessible from other files`() {
@@ -245,6 +184,4 @@ class MultiFileEndToEndTest {
 
         assertEquals(42, runMain("lib.hope" to lib, "main.hope" to main))
     }
-=======
->>>>>>> master
 }
