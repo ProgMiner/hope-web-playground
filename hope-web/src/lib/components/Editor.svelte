@@ -24,6 +24,7 @@
 	import Save from './toolbar/Save.svelte';
 	import Load from './toolbar/Load.svelte';
 	import LoadExample from './toolbar/LoadExample.svelte';
+	import Export from './toolbar/Export.svelte';
 
 	let { editor = $bindable() }: { editor: MonacoEditor | undefined } = $props();
 	let value: string = $state('');
@@ -151,6 +152,7 @@
 		<Load loaded={openProject} />
 		<LoadExample loaded={openProject} current={() => project} />
 		<Run input={() => parsed?.buildInput()} {terminal} {compiler} />
+		<Export project={() => parsed} {compiler} />
 	</div>
 	<div class="flex flex-1 flex-row overflow-auto">
 		<FileTree rows={files} {open} rebuild={rebuildFileTree} />

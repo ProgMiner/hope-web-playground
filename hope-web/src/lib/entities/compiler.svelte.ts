@@ -35,13 +35,31 @@ export class Compiler {
 	}
 
 	async compile(input: CompilationInput): Promise<WebAssembly.Instance | undefined> {
+		const size = this.callCompiler(input);
+		if (size) {
+			return this.hopec.instantiateModule(size);
+		} else {
+			return undefined;
+		}
+	}
+
+	rawModule(input: CompilationInput): ArrayBuffer | undefined {
+		const size = this.callCompiler(input);
+		if (size) {
+			return this.hopec.rawModule(size);
+		} else {
+			return undefined;
+		}
+	}
+
+	private callCompiler(input: CompilationInput): number | undefined {
 		const result = this.hopec.compile(input);
 		this.result = result;
 		this.rebuilt();
 		if (!result || result.size === 0) {
 			return undefined;
 		}
-		return await this.hopec.instantiateModule(result.size);
+		return result.size;
 	}
 
 	currentProblems(): CompilationStatus[] {

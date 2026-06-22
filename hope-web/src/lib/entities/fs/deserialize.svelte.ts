@@ -1,3 +1,5 @@
+import type { Compiler } from '../compiler.svelte';
+import type { CompilationInput } from '../hopec';
 import { ImaginaryFile } from './file.svelte';
 import { ImaginaryFolder } from './folder.svelte';
 import { ImaginaryProject } from './project.svelte';
@@ -30,6 +32,19 @@ export async function saveToFile(handle: FileSystemFileHandle, project: Imaginar
 	const writable = await handle.createWritable();
 	await writable.write(JSON.stringify(project.serialize()));
 	await writable.close();
+}
+
+export async function saveModule(
+	handle: FileSystemFileHandle,
+	compiler: Compiler,
+	input: CompilationInput
+) {
+	const result = compiler.rawModule(input);
+	if (result) {
+		const writable = await handle.createWritable();
+		await writable.write(result);
+		await writable.close();
+	}
 }
 
 export function loadProject(parsed: RawProject): ImaginaryProject {
