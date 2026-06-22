@@ -3,6 +3,11 @@ package ru.hopec.renamer
 import ru.hopec.parser.treesitter.TsSyntaxNode
 import ru.hopec.parser.treesitter.range
 
+data class Infix(
+    val priority: Int,
+    val isRightAssoc: Boolean,
+)
+
 fun <T> parseMultiple(
     node: TsSyntaxNode,
     parseFunc: (TsSyntaxNode) -> T?,
@@ -34,13 +39,6 @@ fun <T, V : T> parseMultipleOrError(
     return list
 }
 
-fun <T> parseMultipleOrNull(
-    node: TsSyntaxNode,
-    parseFunc: (TsSyntaxNode) -> T?,
-    from: UInt = 0u,
-    to: UInt? = null,
-) = parseMultiple(node, { node -> runCatching { parseFunc(node) }.getOrNull() }, from, to)
-
 fun TsSyntaxNode.getChildOrThrow(i: UInt): TsSyntaxNode {
     val child =
         this.namedChild(i) ?: throw RenamerException(
@@ -67,3 +65,39 @@ fun parseMultipleIdent(
     from: UInt = 0u,
     to: UInt? = null,
 ) = parseMultiple(node, { child -> child.text }, from, to)
+
+fun castFuncDecl(node: FirstPassNode.Statement.FunctionDeclaration) =
+    AstNode.FunctionDeclaration(
+        node.name,
+        mutableListOf(),
+        node.boundVars,
+        castTypeExpr(node.typeExpr),
+    )
+
+fun castDataDecl(node: FirstPassNode.Statement.DataDeclaration) =
+    AstNode.DataDeclaration(
+        node.name,
+        node.boundVars,
+        node.dataConstructors.map { (name, type) ->
+            name to type?.let { castTypeExpr(type) }
+        },
+    )
+
+fun castTypeExpr(node: FirstPassNode.TypeExpr): AstNode.TypeExpr =
+    when (node) {
+        is FirstPassNode.TypeExpr.NamedType -> {
+            AstNode.NamedType(node.type, node.arguments.map { castTypeExpr(it) })
+        }
+
+        is FirstPassNode.TypeExpr.FunctionalType -> {
+            AstNode.FunctionalType(castTypeExpr(node.premise), castTypeExpr(node.result))
+        }
+
+        is FirstPassNode.TypeExpr.VarType -> {
+            AstNode.VarType(node.name)
+        }
+
+        is FirstPassNode.TypeExpr.ProductType -> {
+            AstNode.ProductType(castTypeExpr(node.left), castTypeExpr(node.right))
+        }
+    }

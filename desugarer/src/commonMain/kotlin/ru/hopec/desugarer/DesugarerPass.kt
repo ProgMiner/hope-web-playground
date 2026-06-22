@@ -2,6 +2,8 @@ package ru.hopec.desugarer
 
 import ru.hopec.core.CompilationContext
 import ru.hopec.core.CompilationPass
+import ru.hopec.core.errorStatus
+import ru.hopec.core.topography.Range
 import ru.hopec.renamer.RenamedRepresentation
 
 object DesugarerPass : CompilationPass<RenamedRepresentation, DesugaredRepresentation> {
@@ -11,11 +13,10 @@ object DesugarerPass : CompilationPass<RenamedRepresentation, DesugaredRepresent
     ) = try {
         Desugarer().renamedToDesugared(from)
     } catch (e: IllegalStateException) {
-        context.add(e)
+        context.report(errorStatus("Desugarer error: ${e.message}", Range()))
         null
-    }
-
-    private fun CompilationContext.add(exception: Exception) {
-        println("Renaming error: ${exception.message}")
+    } catch (e: IllegalArgumentException) {
+        context.report(errorStatus("Desugarer error: ${e.message}", Range()))
+        null
     }
 }

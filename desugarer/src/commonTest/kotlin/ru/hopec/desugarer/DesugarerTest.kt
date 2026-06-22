@@ -41,6 +41,8 @@ class DesugarerTest {
                             ),
                         ),
                     ),
+                    emptyMap(),
+                    emptyMap(),
                 )
             val desugared = startDesugarer(program)
             assertNotNull(desugared)
@@ -66,6 +68,8 @@ class DesugarerTest {
                             ),
                         ),
                     ),
+                    emptyMap(),
+                    emptyMap(),
                 )
             val desugared = startDesugarer(program) ?: error("desugarer error")
             assertNotNull(
@@ -96,6 +100,8 @@ class DesugarerTest {
                             typeA,
                         ),
                     ),
+                    emptyMap(),
+                    emptyMap(),
                 )
             val desugared = startDesugarer(program)
             assertNotNull(desugared)
@@ -131,6 +137,8 @@ class DesugarerTest {
                             ),
                         ),
                     ),
+                    emptyMap(),
+                    emptyMap(),
                 )
             val desugared = startDesugarer(program) ?: error("desugarer error")
             assertEquals(
@@ -199,6 +207,8 @@ class DesugarerTest {
                             ),
                         ),
                     ),
+                    emptyMap(),
+                    emptyMap(),
                 )
             val desugared = startDesugarer(program) ?: error("desugarer error")
             assertEquals(
@@ -275,6 +285,8 @@ class DesugarerTest {
                             ),
                         ),
                     ),
+                    emptyMap(),
+                    emptyMap(),
                 )
             val desugared = startDesugarer(program) ?: error("desugarer error")
 

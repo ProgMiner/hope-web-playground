@@ -1,6 +1,7 @@
 package ru.hopec.typecheck
 
 import ru.hopec.desugarer.DesugaredRepresentation
+import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Data.Name.Core
 import ru.hopec.desugarer.DesugaredRepresentation.Type
 import ru.hopec.desugarer.IoBuiltins
 import kotlin.math.max
@@ -10,20 +11,32 @@ private typealias LetRange = Pair<Int, Int>
 
 private val nullRage = 0 to 0
 
-internal fun annotate(repr: DesugaredRepresentation): TypedRepresentation? {
+internal fun annotate(
+    repr: DesugaredRepresentation,
+    onError: (String) -> Unit = {},
+): TypedRepresentation? {
     val signature = Signature.core.extendAll(repr.modules.map { it.value })
     val modules =
         repr.modules
             .map { (name, module) ->
-                name to (TypecheckingContext.runModule(signature.extendLocal(module), module) ?: return null)
+                val result = TypecheckingContext.runModule(signature.extendLocal(module), module, onError)
+                if (result == null) {
+                    onError("Type checking failed in module '$name'")
+                    return null
+                }
+                name to result
             }.toMap()
     val topLevel =
-        TypecheckingContext.runDeclarations(signature.extend(repr.topLevel), repr.topLevel) ?: return null
+        TypecheckingContext.runDeclarations(signature.extend(repr.topLevel), repr.topLevel, onError)
+    if (topLevel == null) {
+        return null
+    }
     return TypedRepresentation(modules, topLevel)
 }
 
 internal class TypecheckingContext private constructor(
     val signature: Signature,
+    private val onError: (String) -> Unit = {},
 ) {
     private data class BoundVariable(
         val typeVariable: Int,
@@ -34,12 +47,14 @@ internal class TypecheckingContext private constructor(
         fun runModule(
             signature: Signature,
             module: DesugaredRepresentation.Module,
-        ): TypedRepresentation.Module? = TypecheckingContext(signature).runModule(module)
+            onError: (String) -> Unit = {},
+        ): TypedRepresentation.Module? = TypecheckingContext(signature, onError).runModule(module)
 
         fun runDeclarations(
             signature: Signature,
             declarations: DesugaredRepresentation.Declarations,
-        ): TypedRepresentation.Declarations? = TypecheckingContext(signature).runDeclarations(declarations)
+            onError: (String) -> Unit = {},
+        ): TypedRepresentation.Declarations? = TypecheckingContext(signature, onError).runDeclarations(declarations)
 
         fun runFunction(
             signature: Signature,
@@ -47,11 +62,63 @@ internal class TypecheckingContext private constructor(
             name: DesugaredRepresentation.Declarations.Function.Name =
                 DesugaredRepresentation.Declarations.Function.Name
                     .User(null, "test"),
-        ): TypedRepresentation.Declarations.Function? = TypecheckingContext(signature).runFunction(name, function)
+            onError: (String) -> Unit = {},
+        ): TypedRepresentation.Declarations.Function? = TypecheckingContext(signature, onError).runFunction(name, function)
     }
 
     private var substitution: ArrayList<Type> = arrayListOf()
     private var boundVariables: ArrayList<BoundVariable> = arrayListOf()
+
+    private fun displayType(type: Type): String =
+        when (val walked = walk(type)) {
+            is Type.Variable -> {
+                if (substitution[walked.index] == walked) {
+                    "'t${walked.index}"
+                } else {
+                    displayType(substitution[walked.index])
+                }
+            }
+            is Type.Arrow -> {
+                val arg = displayType(walked.argument)
+                val res = displayType(walked.result)
+                val argStr =
+                    if (walked.argument is Type.Arrow) "($arg)" else arg
+                "$argStr -> $res"
+            }
+            is Type.Data -> {
+                val name = displayDataName(walked.constructor)
+                if (walked.args.isEmpty()) {
+                    name
+                } else if (walked.constructor == Core.Tuple && walked.args.size == 2) {
+                    "(${displayType(walked.args[0])} # ${displayType(walked.args[1])})"
+                } else {
+                    "$name(${walked.args.joinToString(", ") { displayType(it) }})"
+                }
+            }
+        }
+
+    private fun displayDataName(name: DesugaredRepresentation.Declarations.Data.Name): String =
+        when (name) {
+            is Core.Num -> "num"
+            is Core.Char -> "char"
+            is Core.TruVal -> "truval"
+            is Core.List -> "list"
+            is Core.Set -> "set"
+            is Core.Tuple -> "tuple"
+            is Core.Unit -> "unit"
+            is DesugaredRepresentation.Declarations.Data.Name.Defined -> {
+                if (name.module != null) "${name.module}.${name.name}" else name.name
+            }
+        }
+
+    private fun displayFunctionName(name: DesugaredRepresentation.Declarations.Function.Name): String =
+        when (name) {
+            is DesugaredRepresentation.Declarations.Function.Name.Core -> name.name
+            is DesugaredRepresentation.Declarations.Function.Name.User -> {
+                if (name.module != null) "${name.module}.${name.name}" else name.name
+            }
+            is DesugaredRepresentation.Declarations.Function.Name.Constructor -> name.constructor
+        }
 
     private fun runModule(module: DesugaredRepresentation.Module): TypedRepresentation.Module? {
         val public = runDeclarations(module.public) ?: return null
@@ -78,7 +145,14 @@ internal class TypecheckingContext private constructor(
             return trustedIoBuiltin(function)
         }
 
-        val lambda = infer(function.lambda) ?: return null
+        val lambda = infer(function.lambda)
+        if (lambda == null) {
+            onError(
+                "Type error in function '${displayFunctionName(name)}': " +
+                    "could not infer type of function body",
+            )
+            return null
+        }
         val variableMapping = hashMapOf<Int, Type>()
 
         fun fullWalk(type: Type): Type =
@@ -260,7 +334,14 @@ internal class TypecheckingContext private constructor(
                 inferredType
             }
         unify(typeToUnify, declaredType)
-        if (!unifyOk) return null
+        if (!unifyOk) {
+            onError(
+                "Type error in function '${displayFunctionName(name)}': " +
+                    "declared type '${displayType(declaredType)}' " +
+                    "does not match inferred type '${displayType(inferredType)}'",
+            )
+            return null
+        }
 
         return TypedRepresentation.Declarations.Function(
             rename(lambda) as TypedRepresentation.Expr.Lambda,
@@ -305,7 +386,20 @@ internal class TypecheckingContext private constructor(
         return when (term) {
             is DesugaredRepresentation.Expr.Identifier -> {
                 val candidates = term.name.filter { it in signature.functions }
-                if (candidates.size != 1) {
+                if (candidates.isEmpty()) {
+                    onError(
+                        "Unknown identifier: " +
+                            "none of {${term.name.joinToString(", ") { displayFunctionName(it) }}} " +
+                            "is defined in the current scope",
+                    )
+                    return null
+                }
+                if (candidates.size > 1) {
+                    onError(
+                        "Ambiguous identifier: " +
+                            "multiple definitions match " +
+                            "{${candidates.joinToString(", ") { displayFunctionName(it) }}}",
+                    )
                     return null
                 }
                 val name = candidates.single()
@@ -331,8 +425,19 @@ internal class TypecheckingContext private constructor(
                                 withBoundPattern(branchPattern, nullRage) {
                                     infer(branch.body)
                                 } ?: return null
-                            unify(result, Type.Arrow(pattern.type, body?.type ?: return null)) ?: return@map null
-                            TypedRepresentation.Expr.Lambda.Branch(pattern, body)
+                            val bodyExpr = body ?: return@map null
+                            val unified = unify(result, Type.Arrow(pattern.type, bodyExpr.type))
+                            if (unified == null) {
+                                onError(
+                                    "Type error in lambda branch: " +
+                                        "pattern type '${displayType(pattern.type)}' -> " +
+                                        "'${displayType(bodyExpr.type)}' " +
+                                        "does not match expected " +
+                                        "'${displayType(argType)}' -> '${displayType(resultType)}'",
+                                )
+                                return@map null
+                            }
+                            TypedRepresentation.Expr.Lambda.Branch(pattern, bodyExpr)
                         }.sequence()
                         ?.toList() ?: return null
 
@@ -343,7 +448,17 @@ internal class TypecheckingContext private constructor(
                 val (matcher, range) = bindRange { infer(term.matcher) }
                 val (pattern, body) =
                     withBoundPattern(term.pattern, range) { pattern ->
-                        unify(matcher?.type, pattern.type) ?: return@withBoundPattern null
+                        val unified = unify(matcher?.type, pattern.type)
+                        if (unified == null && matcher != null) {
+                            onError(
+                                "Type error in let binding: " +
+                                    "pattern type '${displayType(pattern.type)}' " +
+                                    "does not match expression type " +
+                                    "'${displayType(matcher.type)}'",
+                            )
+                            return@withBoundPattern null
+                        }
+                        if (unified == null) return@withBoundPattern null
                         infer(term.body)
                     } ?: return null
                 TypedRepresentation.Expr.Let(pattern, matcher ?: return null, body ?: return null)
@@ -353,7 +468,17 @@ internal class TypecheckingContext private constructor(
                 term.args.fold(infer(term.function)) { fn, arg ->
                     val right = infer(arg) ?: return@fold null
                     val resultType = bindType()
-                    unify(fn?.type, Type.Arrow(right.type, resultType)) ?: return@fold null
+                    val unified = unify(fn?.type, Type.Arrow(right.type, resultType))
+                    if (unified == null && fn != null) {
+                        onError(
+                            "Type error in function application: " +
+                                "cannot apply argument of type " +
+                                "'${displayType(right.type)}' " +
+                                "to '${displayType(fn.type)}'",
+                        )
+                        return@fold null
+                    }
+                    if (unified == null) return@fold null
                     TypedRepresentation.Expr.Application(resultType, fn ?: return@fold null, right)
                 }
             }
@@ -378,13 +503,23 @@ internal class TypecheckingContext private constructor(
                 val condition = infer(term.condition)
                 val positive = infer(term.positive)
                 val negative = infer(term.negative)
-                (
-                    unify(condition?.type, Type.Data.truval) join
-                        unify(
-                            positive?.type,
-                            negative?.type,
-                        )
-                ) ?: return null
+                val condUnify = unify(condition?.type, Type.Data.truval)
+                val branchUnify = unify(positive?.type, negative?.type)
+                if (condUnify == null && condition != null) {
+                    onError(
+                        "Type error in if-expression: " +
+                            "condition has type '${displayType(condition.type)}' " +
+                            "but expected 'truval'",
+                    )
+                }
+                if (branchUnify == null && positive != null && negative != null) {
+                    onError(
+                        "Type error in if-expression: " +
+                            "then-branch has type '${displayType(positive.type)}' " +
+                            "but else-branch has type '${displayType(negative.type)}'",
+                    )
+                }
+                if ((condUnify join branchUnify) == null) return null
                 TypedRepresentation.Expr.If(
                     condition ?: return null,
                     positive ?: return null,
@@ -421,13 +556,40 @@ internal class TypecheckingContext private constructor(
         return when (pattern) {
             is DesugaredRepresentation.Pattern.Data -> {
                 val candidates = pattern.constructor.filter { it in signature.functions }
-                if (candidates.size != 1) {
+                if (candidates.isEmpty()) {
+                    onError(
+                        "Unknown constructor in pattern: " +
+                            "none of {${pattern.constructor.joinToString(", ") { it.constructor }}} " +
+                            "is defined in the current scope",
+                    )
+                    return null
+                }
+                if (candidates.size > 1) {
+                    onError(
+                        "Ambiguous constructor in pattern: " +
+                            "multiple definitions match " +
+                            "{${candidates.joinToString(", ") { it.constructor }}}",
+                    )
                     return null
                 }
                 val constructor = candidates.single()
                 val func = signature.functions[constructor] ?: return null
-                val (args, type) = func.type.constructorArguments() ?: return null
-                if (pattern.args.size != args.size) return null
+                val ctorArgs = func.type.constructorArguments()
+                if (ctorArgs == null) {
+                    onError(
+                        "Type error in pattern: '${constructor.constructor}' " +
+                            "is not a valid data constructor",
+                    )
+                    return null
+                }
+                val (args, type) = ctorArgs
+                if (pattern.args.size != args.size) {
+                    onError(
+                        "Type error in pattern: constructor '${constructor.constructor}' " +
+                            "expects ${args.size} argument(s) but got ${pattern.args.size}",
+                    )
+                    return null
+                }
                 val shift = shiftValue()
                 val boundArgTypes = bindTypes(func.boundTypeVariables)
 
@@ -435,9 +597,17 @@ internal class TypecheckingContext private constructor(
                     pattern.args
                         .zip(args.map { arg -> arg.shift(shift) })
                         .map { (pat, arg) ->
-                            val pattern = bindPattern(pat, letRange) ?: return@map null
-                            unify(pattern.type, arg) ?: return@map null
-                            pattern
+                            val patResult = bindPattern(pat, letRange) ?: return@map null
+                            val unified = unify(patResult.type, arg)
+                            if (unified == null) {
+                                onError(
+                                    "Type error in pattern: " +
+                                        "expected type '${displayType(arg)}' " +
+                                        "but got '${displayType(patResult.type)}'",
+                                )
+                                return@map null
+                            }
+                            patResult
                         }.sequence() ?: return null
                 TypedRepresentation.Pattern.Data(
                     Type.Data(type.constructor, boundArgTypes),
@@ -447,8 +617,17 @@ internal class TypecheckingContext private constructor(
             }
 
             is DesugaredRepresentation.Pattern.NamedData -> {
-                val typed = (bindPattern(pattern.data, letRange) ?: return null) as TypedRepresentation.Pattern.Data
-                unify(bindVariable(letRange), typed.type) ?: return null
+                val typed =
+                    (bindPattern(pattern.data, letRange) ?: return null) as TypedRepresentation.Pattern.Data
+                val unified = unify(bindVariable(letRange), typed.type)
+                if (unified == null) {
+                    onError(
+                        "Type error in named pattern '${pattern.name}': " +
+                            "could not unify binding type with " +
+                            "'${displayType(typed.type)}'",
+                    )
+                    return null
+                }
                 TypedRepresentation.Pattern.NamedData(pattern.name, typed)
             }
 
@@ -527,8 +706,6 @@ internal class TypecheckingContext private constructor(
                     }
 
                     else -> {
-                        // Без occurs check связывание v := t(v) даёт бесконечный тип
-                        // и зацикливание при полном обходе подстановки.
                         if (occurs(walkedLeft.index, walkedRight)) return null
                         substitution[walkedLeft.index] = walkedRight
                     }

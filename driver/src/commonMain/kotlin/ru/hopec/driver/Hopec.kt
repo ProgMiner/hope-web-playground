@@ -40,15 +40,20 @@ class Hopec(
             try {
                 MultiFilePipeline(context).compile()
             } catch (_: NotImplementedError) {
+                context.report(
+                    errorStatus(
+                        "Compilation failed: unsupported language feature encountered",
+                        Range(),
+                    ),
+                )
                 null
-            } ?: return notImplemented()
+            } ?: return context.result()
 
         val wasmBinary = compileWatToBinary(watCode)
         output.write(Buffer().write(wasmBinary), wasmBinary.size.toLong())
         return context.result()
     }
 
-    private fun noMain(): CompilationStatus = errorStatus("No main module present", Range())
-
-    private fun notImplemented(): CompilationStatus = errorStatus("There are unimplemented parts of pipeline", Range())
+    private fun noMain(): CompilationStatus =
+        errorStatus("No 'main' module found. Define a module named 'main' as the entry point.", Range())
 }
