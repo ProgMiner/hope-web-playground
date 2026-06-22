@@ -19,7 +19,7 @@
 {#snippet renderedRow(row: RenderedTreeRow)}
     <button onclick={() => focusRow(row)} class="rounded-m inline-flex bg-(--editor-background) hover:brightness-(--hover-brightness)">
     <pre class="tree-row">
-{row.indent}{row.displayed}<span class="position-info"> [{row.start.row}, {row.start.column}] - [{row.end.row}, {row.end.column}]</span></pre>
+{row.indent}<span class="keyword">{row.displayed}</span><span class="position-info"> [{row.start.row}, {row.start.column}] - [{row.end.row}, {row.end.column}]</span></pre>
     </button>
 {/snippet}
 

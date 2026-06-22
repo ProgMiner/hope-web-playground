@@ -4,7 +4,7 @@ import ru.hopec.renamer.AstNode
 import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Function.Name.Core as CoreFunction
 
 object IoBuiltins {
-    const val MODULE = "io"
+    val MODULES = listOf("io", "std")
 
     val PRINT = CoreFunction("io.print")
     val GET_CHAR = CoreFunction("io.getChar")

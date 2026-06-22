@@ -103,9 +103,7 @@ export async function exemplarProject(name: string): Promise<RawProject> {
 export function knownExamples() {
 	return [
 		{ key: 'syntax', label: 'Basic syntax examples' },
-		{ key: 'binary-tree', label: 'Binary tree' },
 		{ key: 'fannkuch-redux', label: 'fannkuch-redux benchmark' },
-		{ key: 'std', label: 'Standard library' },
-		{ key: 'io-demo', label: 'I/O builtins (print)' }
+		{ key: 'std', label: 'Standard library' }
 	];
 }

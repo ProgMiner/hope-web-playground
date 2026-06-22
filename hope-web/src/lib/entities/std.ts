@@ -4,7 +4,11 @@ import type { ImaginaryFile } from './fs/file.svelte';
 import type { TranslationUnit } from './hopec';
 import { ParsedFile } from './parsed_file.svelte';
 
-const std = loadProject(await exemplarProject('std'));
+const std = loadProject(await exemplarProject(stdName()));
+
+export function stdName(): string {
+	return 'std';
+}
 
 export function stdModules(editor: MonacoEditor): TranslationUnit[] {
 	return std.allFiles().map((file) => translationUnit(editor, file));

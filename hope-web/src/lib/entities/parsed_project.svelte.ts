@@ -4,7 +4,7 @@ import { ParsedFile } from './parsed_file.svelte';
 import type { ImaginaryFile } from './fs/file.svelte';
 import type { MonacoEditor } from './editor.svelte';
 import type { ImaginaryProject } from './fs/project.svelte';
-import { stdModules } from './std';
+import { stdModules, stdName } from './std';
 
 export class ParsedProject {
 	private readonly resources: SvelteMap<ImaginaryFile, ParsedFile> = new SvelteMap();
@@ -55,17 +55,21 @@ export class ParsedProject {
 	}
 
 	buildInput(): CompilationInput {
-		return {
-			resources: [
-				this.resources
-					.entries()
-					.map(([file, parsed]) => this.translationUnit(file, parsed))
-					.filter((unit) => unit)
-					.map((unit) => unit!)
-					.toArray(),
-				stdModules(this.editor)
-			].flat()
-		};
+		const all = [this.localUnits()];
+		if (this.opened()?.currentName() != stdName()) {
+			all.push(stdModules(this.editor));
+		}
+    console.log(all);
+		return { resources: all.flat() };
+	}
+
+	private localUnits() {
+		return this.resources
+			.entries()
+			.map(([file, parsed]) => this.translationUnit(file, parsed))
+			.filter((unit) => unit)
+			.map((unit) => unit!)
+			.toArray();
 	}
 
 	private translationUnit(file: ImaginaryFile, parsed: ParsedFile): TranslationUnit | undefined {

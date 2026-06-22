@@ -238,7 +238,7 @@ open class ModuleDesugarer(
         function: AstNode.FunctionDeclaration,
         module: String?,
     ): Pair<Function.Name, Function> {
-        if (module == IoBuiltins.MODULE && IoBuiltins.isBuiltinName(function.name)) {
+        if (module in IoBuiltins.MODULES && IoBuiltins.isBuiltinName(function.name)) {
             val builtin = IoBuiltins.coreName(function.name)
             extendModuleFunction(function.name, builtin)
             val type = PolymorphicType(resolveType(function.typeExpr, function.boundVars), function.boundVars.size)
@@ -569,7 +569,8 @@ open class ModuleDesugarer(
     }
 
     fun resolveExpr(name: String) =
-        localContext.getLocalVar(name) ?: moduleContext.resolveExpr(name) ?: throw IllegalArgumentException("$name not found")
+        localContext.getLocalVar(name) ?: moduleContext.resolveExpr(name)
+            ?: throw IllegalArgumentException("$name not found")
 
     fun resolvePattern(name: String) = moduleContext.resolvePattern(name) ?: throw IllegalArgumentException("$name not found")
 
