@@ -66,7 +66,9 @@ export class MonacoEditor {
 	}
 
 	onCursorChange(e: editor.ICursorPositionChangedEvent) {
-		this.listeners.cursor.forEach((listener) => listener(e));
+		if (e.reason == 3) {
+			this.listeners.cursor.forEach((listener) => listener(e));
+		}
 	}
 
 	positionAt(offset: number): Position | undefined {

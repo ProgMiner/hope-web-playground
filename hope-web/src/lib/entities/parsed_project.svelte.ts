@@ -12,8 +12,7 @@ export class ParsedProject {
 	constructor(
 		private readonly editor: MonacoEditor,
 		private readonly opened: () => ImaginaryFile | undefined
-	) {
-	}
+	) {}
 
 	createFile(file: ImaginaryFile) {
 		if (!this.resources.get(file)) {
