@@ -168,9 +168,41 @@ class EndToEndTest {
     }
 
     @Test
+    fun `typevars`() {
+        val source =
+            """
+            typevar beta
+             
+            dec foo : beta -> beta
+            --- foo(x) <= x
+
+            dec main : num
+            --- main <= foo(1)
+            """.trimIndent()
+        assertEquals(1, runMain(source))
+    }
+
+    @Test
     fun `unsupported identifier fails compilation instead of stub`() {
         val source = """write "Hello world"""""
         assertEquals(null, compile(source))
+    }
+
+    @Test
+    fun `function signature index notation bug`() {
+        val source =
+            """
+            typevar beta
+            
+            dec badApply : (beta -> beta) # beta -> beta
+            --- badApply(f, acc) <= badApply(f, acc)
+            
+            dec main : num
+            --- main <= 1
+            """.trimIndent()
+        val binary = compile(source) ?: error("compilation failed")
+        assertNotEquals(0, binary.size)
+        Parser.parse(binary)
     }
 
     @Test
