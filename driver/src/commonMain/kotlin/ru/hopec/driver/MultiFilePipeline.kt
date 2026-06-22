@@ -49,7 +49,6 @@ class MultiFilePipeline(
         val tree = unit.representation<TreeSitterRepresentation>() ?: return null
         val renamed = RenamerPass.run(tree, unit.context, moduleOperators) ?: return null
         unit.representations.add(renamed)
-<<<<<<< HEAD
 
         val fileScopeName = if (unit.isMain()) null else unit.moduleName()
         val wrapped = wrapFileModule(renamed.program, unit.moduleName(), unit.isMain())
@@ -60,13 +59,6 @@ class MultiFilePipeline(
                     importedContext = globalDesugarerContext,
                     fileScopeName = fileScopeName,
                 ).renamedToDesugared(RenamedRepresentation(wrapped))
-=======
-        val wrapped = wrapFileModule(renamed.program, unit.moduleName(), unit.isMain())
-        val desugared =
-            try {
-                Desugarer(importedContext = globalDesugarerContext)
-                    .renamedToDesugared(RenamedRepresentation(wrapped))
->>>>>>> master
             } catch (e: RuntimeException) {
                 if (e is IllegalStateException || e is IllegalArgumentException) {
                     unit.context.report(
@@ -102,7 +94,6 @@ class MultiFilePipeline(
 
             val statements = program.list
             if (statements.isEmpty()) return program
-<<<<<<< HEAD
 
             val hasModules = statements.any { it is AstNode.Module }
 
@@ -113,11 +104,6 @@ class MultiFilePipeline(
             }
 
             return program
-=======
-            if (statements.any { it is AstNode.Module }) return program
-
-            return Program(listOf(AstNode.Module(moduleName, statements.filterIsInstance<AstNode.Statement>())))
->>>>>>> master
         }
 
         fun mergeForCodegen(
