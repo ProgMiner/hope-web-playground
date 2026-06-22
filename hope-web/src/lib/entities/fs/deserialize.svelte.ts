@@ -66,16 +66,19 @@ function createFile(parent: ImaginaryContainer, raw: RawFile): ImaginaryFile {
 }
 
 const examplesMap = (() => {
-	const orig = import.meta.glob('$lib/assets/examples/*.json');
+	const orig = import.meta.glob<RawProject>('$lib/assets/examples/*.json');
 
-	return Object.keys(orig).reduce((acc, key) => {
-		const newKey = key.replace(/^.*\/assets\/examples\//, '');
-		if (newKey !== key) {
-			acc[newKey] = orig[key];
-		}
+	return Object.keys(orig).reduce(
+		(acc, key) => {
+			const newKey = key.replace(/^.*\/assets\/examples\//, '');
+			if (newKey !== key) {
+				acc[newKey] = orig[key];
+			}
 
-		return acc;
-	}, {});
+			return acc;
+		},
+		{} as Record<string, () => Promise<RawProject>>
+	);
 })();
 
 export async function exemplarProject(name: string): Promise<RawProject> {
