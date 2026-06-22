@@ -1,13 +1,11 @@
 package ru.hopec.renamer
 
 import ru.hopec.core.CompilationContext
-import ru.hopec.parser.TreeSitterRepresentation
 import ru.hopec.parser.treesitter.TsSyntaxNode
 import ru.hopec.parser.treesitter.range
 
-class CstParser(
-    private val from: TreeSitterRepresentation,
-    private val moduleOperators: Map<String, Map<String, Infix>>,
+class RenamerSecondPass(
+    private val from: FirstPassProgram,
 ) {
     val internalOperators =
         mutableMapOf(
@@ -34,20 +32,26 @@ class CstParser(
     }
 
     fun parse(context: CompilationContext): Program {
-        val rootNode = from.tree.rootNode
+        val rootNode = from.list
         val globalParserState = ParserState(operators = internalOperators)
         val topLevelNodes =
-            parseMultiple(rootNode, { child ->
-                try {
-                    when (child.type) {
-                        "module" -> parseModule(child, globalParserState)
-                        else -> parseStatementOrInternal(child, globalParserState)
+            rootNode
+                .mapNotNull {
+                    try {
+                        when (it) {
+                            is FirstPassNode.Module -> {
+                                parseModule(it, globalParserState)
+                            }
+
+                            is FirstPassNode.Statement -> {
+                                parseStatementOrInternal(it, globalParserState)
+                            }
+                        }
+                    } catch (e: RenamerException) {
+                        context.add(e)
+                        AstNode.Error(e)
                     }
-                } catch (e: RenamerException) {
-                    context.add(e)
-                    AstNode.Error(e)
-                }
-            }).toMutableList()
+                }.toMutableList()
 
         addEquations(topLevelNodes, globalParserState.equations)
 
@@ -55,20 +59,22 @@ class CstParser(
     }
 
     private fun parseModule(
-        node: TsSyntaxNode,
+        node: FirstPassNode.Module,
         globalParserState: ParserState,
     ): AstNode.Module {
-        val moduleName = node.getChildOrThrow(0u).text
+        val moduleName = node.name
         val moduleOperators = internalOperators
         moduleOperators.putAll(globalParserState.localOperators)
         val parserState = ParserState(operators = moduleOperators)
         val statements =
-            parseMultipleOrError(
-                node,
-                { node -> parseStatementOrInternal(node, parserState) },
-                { AstNode.Error(it) },
-                1u,
-            ).toMutableList()
+            node.statements
+                .mapNotNull {
+                    try {
+                        parseStatementOrInternal(it, parserState)
+                    } catch (e: RenamerException) {
+                        AstNode.Error(e)
+                    }
+                }.toMutableList()
 
         @Suppress("UNCHECKED_CAST")
         addEquations(statements as MutableList<AstNode.TopLevelNode>, parserState.equations)
@@ -89,7 +95,7 @@ class CstParser(
     }
 
     private fun parseStatementOrInternal(
-        node: TsSyntaxNode,
+        node: FirstPassNode.Statement,
         parserState: ParserState,
     ): AstNode.Statement? =
         parseStatement(
@@ -98,51 +104,46 @@ class CstParser(
         ).also { if (it == null) parseInternal(node, parserState) }
 
     private fun parseStatement(
-        node: TsSyntaxNode,
+        node: FirstPassNode.Statement,
         parserState: ParserState,
     ): AstNode.Statement? =
-        when (node.type) {
-            "data_declaration" -> {
-                val name = node.getChildOrThrow(0u).text
-                val params = parseMultiple(node, { it.text }, 1u, node.namedChildCount - 1u)
-                val typeNode =
-                    parseTypeDeclaration(
-                        node.getChildOrThrow(node.namedChildCount - 1u),
-                        parserState.operators,
-                        params.toMutableSet(),
-                    )
-                AstNode.DataDeclaration(name, params, typeNode)
+        when (node) {
+            is FirstPassNode.Statement.DataDeclaration -> {
+                castDataDecl(node)
             }
 
-            "function_declaration" -> {
-                val name = node.getChildOrThrow(0u).text
-                val typeNode = parseType(node.getChildOrThrow(1u), parserState.typeVars)
-
-                parserState.equations.add(Pair(name, mutableListOf()))
-                AstNode.FunctionDeclaration(
-                    name,
-                    mutableListOf(),
-                    getBoundVars(typeNode).toList(),
-                    typeNode,
-                )
+            is FirstPassNode.Statement.FunctionDeclaration -> {
+                parserState.equations.add(Pair(node.name, mutableListOf()))
+                castFuncDecl(node)
             }
 
-            "type_export_declaration" -> {
-                AstNode.TypeExportDeclaration(parseMultipleIdent(node))
+            is FirstPassNode.Statement.ConstantExportDeclaration -> {
+                AstNode.ConstantExportDeclaration(node.constants)
             }
 
-            "constant_export_declaration" -> {
-                AstNode.ConstantExportDeclaration(parseMultipleIdent(node))
-            }
+            is FirstPassNode.Statement.NotParsed -> {
+                when (node.node.type) {
+                    "type_export_declaration" -> {
+                        AstNode.TypeExportDeclaration(parseMultipleIdent(node.node))
+                    }
 
-            "module_use_declaration" -> {
-                val names = parseMultipleIdent(node)
-                names.forEach {
-                    moduleOperators[it]?.let { operators ->
-                        parserState.operators.putAll(operators)
+                    "module_use_declaration" -> {
+                        val names = parseMultipleIdent(node.node)
+                        names.forEach {
+                            parserState.operators.putAll(
+                                from.modules[it] ?: throw RenamerException(
+                                    "Module \"$it\" does not exist",
+                                    node.node.range(),
+                                ),
+                            )
+                        }
+                        AstNode.ModuleUseDeclaration(parseMultipleIdent(node.node))
+                    }
+
+                    else -> {
+                        null
                     }
                 }
-                AstNode.ModuleUseDeclaration(names)
             }
 
             else -> {
@@ -151,149 +152,55 @@ class CstParser(
         }
 
     private fun parseInternal(
-        node: TsSyntaxNode,
+        node: FirstPassNode.Statement,
         parserState: ParserState,
     ) {
-        when (node.type) {
-            "function_equation" -> {
-                val (functionName, pattern) = parseFunctionPattern(node.getChildOrThrow(0u), parserState.operators)
-                val expr = parseExpression(node.getChildOrThrow(1u), parserState.operators)
-                val equation = AstNode.FunctionEquation(pattern, expr)
-                val equationList =
-                    parserState.equations.findLast { (name, _) -> name == functionName }
-                        ?: throw RenamerException(
-                            "Equations without declaration",
-                            node.range(),
-                        )
-                equationList.second.add(equation)
+        when (node) {
+            is FirstPassNode.Statement.InfixDeclaration -> {
+                parserState.operators.putAll(node.operators)
+                parserState.localOperators.putAll(node.operators)
             }
 
-            "infix_declaration" -> {
-                parserState.operators.putAll(parseInfix(node)!!)
-                parserState.localOperators.putAll(parseInfix(node)!!)
-            }
+            is FirstPassNode.Statement.NotParsed -> {
+                when (node.node.type) {
+                    "function_equation" -> {
+                        val (functionName, pattern) = parseFunctionPattern(node.node.getChildOrThrow(0u), parserState.operators)
+                        val expr = parseExpression(node.node.getChildOrThrow(1u), parserState.operators)
+                        val equation = AstNode.FunctionEquation(pattern, expr)
+                        val equationList =
+                            parserState.equations.findLast { (name, _) -> name == functionName }
+                                ?: throw RenamerException(
+                                    "Equations without declaration",
+                                    node.node.range(),
+                                )
+                        equationList.second.add(equation)
+                    }
 
-            "type_variable_declaration" -> {
-                parserState.typeVars.addAll(parseMultipleIdent(node))
-            }
+                    "infix_declaration" -> {
+                    }
 
-            "line_comment" -> {}
+                    "type_variable_declaration" -> {
+                        parserState.typeVars.addAll(parseMultipleIdent(node.node))
+                    }
 
-            else -> {
-                throw RenamerException("Unknown statement: ${node.type} in node $node", node.range(), fatal = true)
-            }
-        }
-    }
+                    "line_comment" -> {}
 
-    private fun parseTypeDeclaration(
-        node: TsSyntaxNode,
-        operators: MutableMap<String, Infix>,
-        typeVars: MutableSet<String>,
-    ): List<Pair<String, AstNode.TypeExpr?>> {
-        if (node.type != "type_expression") {
-            throw TypeDeclarationException(node)
-        }
-
-        val typeNode = node.getChildOrThrow(0u)
-        return when (typeNode.type) {
-            "binary_type_expression" -> {
-                val op = typeNode.child(1u)!!
-                if (op.type == "++") {
-                    parseTypeDeclaration(typeNode.getChildOrThrow(0u), operators, typeVars) +
-                        parseTypeDeclaration(typeNode.getChildOrThrow(1u), operators, typeVars)
-                } else {
-                    throw TypeDeclarationException(node)
+                    else -> {
+                        throw RenamerException("Unknown statement: ${node.node.type} in node $node", node.node.range(), fatal = true)
+                    }
                 }
+            }
+
+            is FirstPassNode.Statement.Error -> {
+                throw node.error
             }
 
             else -> {
-                if (node.namedChildCount == 1u) {
-                    val constructor = node.getChildOrThrow(0u).text
-                    listOf(Pair(constructor, null))
-                } else if (node.namedChildCount == 2u) {
-                    val constructor = node.getChildOrThrow(0u).text
-                    listOf(Pair(constructor, parseType(node.getChildOrThrow(1u), typeVars)))
-                } else {
-                    val operatorIndex =
-                        node.namedChildren.indexOfFirst { operators.contains(it.text) }.toUInt()
-                    val operator =
-                        node.namedChild(operatorIndex) ?: throw RenamerException(
-                            "Unknown operator",
-                            node.range(),
-                        )
-
-                    val left = parseFunctionalType(node, typeVars, 0u, operatorIndex)
-                    val right =
-                        parseFunctionalType(node, typeVars, operatorIndex + 1u, node.namedChildCount)
-
-                    listOf(Pair(operator.text, AstNode.ProductType(left, right)))
-                }
+                //  эта ошибка никогда не кидается
+                throw IllegalStateException()
             }
         }
     }
-
-    private fun parseType(
-        node: TsSyntaxNode,
-        typeVars: MutableSet<String>,
-    ): AstNode.TypeExpr =
-        when (node.type) {
-            "type_expression" -> {
-                parseFunctionalType(node, typeVars, 0u, node.namedChildCount)
-            }
-
-            "binary_type_expression" -> {
-                val type1 = parseType(node.getChildOrThrow(0u), typeVars)
-                val type2 = parseType(node.getChildOrThrow(1u), typeVars)
-                when (node.children[1].text) {
-                    "->" -> AstNode.FunctionalType(type1, type2)
-
-                    "#" -> AstNode.ProductType(type1, type2)
-
-                    else -> throw RenamerException(
-                        "Unknown ADT: ${node.children[1].text}",
-                        node.children[1].range(),
-                        fatal = true,
-                    )
-                }
-            }
-
-            "ident" -> {
-                if (typeVars.contains(node.text)) {
-                    AstNode.VarType(node.text)
-                } else {
-                    AstNode.NamedType(node.text, emptyList())
-                }
-            }
-
-            else -> {
-                throw RenamerException(
-                    "Unknown type: ${node.type} in node $node",
-                    node.range(),
-                    fatal = true,
-                )
-            }
-        }
-
-    private fun parseFunctionalType(
-        node: TsSyntaxNode,
-        typeVars: MutableSet<String>,
-        from: UInt,
-        to: UInt,
-    ) = if (node.namedChildCount == 1u) {
-        parseType(node.getChildOrThrow(from), typeVars)
-    } else {
-        val func = node.getChildOrThrow(from).text
-        val args = parseMultiple(node, { parseType(it, typeVars) }, from + 1u, to)
-        AstNode.NamedType(func, args)
-    }
-
-    private fun getBoundVars(type: AstNode.TypeExpr): Set<String> =
-        when (type) {
-            is AstNode.VarType -> setOf(type.name)
-            is AstNode.NamedType -> type.arguments.flatMap { getBoundVars(it) }.toSet()
-            is AstNode.FunctionalType -> getBoundVars(type.premise) + getBoundVars(type.result)
-            is AstNode.ProductType -> getBoundVars(type.left) + getBoundVars(type.right)
-        }
 
     private fun parseExpression(
         node: TsSyntaxNode,

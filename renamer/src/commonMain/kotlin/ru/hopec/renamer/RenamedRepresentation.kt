@@ -4,4 +4,5 @@ import ru.hopec.core.Representation
 
 data class RenamedRepresentation(
     val program: Program,
+    val globalOperators: Map<String, Infix>,
 ) : Representation
