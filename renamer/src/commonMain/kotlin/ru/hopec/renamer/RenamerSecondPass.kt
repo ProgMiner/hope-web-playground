@@ -63,7 +63,6 @@ class RenamerSecondPass(
                     } catch (e: RenamerException) {
                         context.add(e)
                         AstNode.Error(e)
-                        throw e
                     }
                 }.toMutableList()
 

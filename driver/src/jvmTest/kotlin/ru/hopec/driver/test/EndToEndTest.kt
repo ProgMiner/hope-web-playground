@@ -42,7 +42,7 @@ class EndToEndTest {
         val source =
             """
             dec main : num
-            --- main <= +(2, 3)
+            --- main <= 2 + 3
             """.trimIndent()
         assertEquals(5, runMain(source))
     }
@@ -52,7 +52,7 @@ class EndToEndTest {
         val source =
             """
             dec main : num
-            --- main <= *(+(2, 3), -(10, 6))
+            --- main <= (2 + 3) * (10 - 6)
             """.trimIndent()
         assertEquals(20, runMain(source))
     }
@@ -62,7 +62,7 @@ class EndToEndTest {
         val source =
             """
             dec double : num -> num
-            --- double(x) <= +(x, x)
+            --- double(x) <= x + x
 
             dec main : num
             --- main <= double(21)
@@ -75,7 +75,7 @@ class EndToEndTest {
         val source =
             """
             dec f : num -> num
-            --- f(x) <= let x == 7 in (+(x, x))
+            --- f(x) <= let x == 7 in (x + x)
 
             dec main : num
             --- main <= f(100)
@@ -88,7 +88,7 @@ class EndToEndTest {
         val source =
             """
             dec f : num -> num
-            --- f(x) <= (+(y, y)) where y == 5
+            --- f(x) <= (y + y) where y == 5
 
             dec main : num
             --- main <= f(0)
@@ -118,7 +118,7 @@ class EndToEndTest {
             --- f(_) <= 2
 
             dec main : num
-            --- main <= +(f(0), f(5))
+            --- main <= f(0) + f(5)
             """.trimIndent()
         assertEquals(3, runMain(source))
     }
@@ -148,7 +148,7 @@ class EndToEndTest {
             --- tonum(blue) <= 2
 
             dec main : num
-            --- main <= +(tonum(blue), tonum(red))
+            --- main <= tonum(blue) + tonum(red)
             """.trimIndent()
         assertEquals(3, runMain(source))
     }
@@ -159,7 +159,7 @@ class EndToEndTest {
             """
             dec sum : num -> num
             --- sum(0) <= 0
-            --- sum(n) <= +(n, sum(-(n, 1)))
+            --- sum(n) <= n + sum(n - 1)
 
             dec main : num
             --- main <= sum(10)

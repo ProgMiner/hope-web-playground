@@ -61,7 +61,7 @@ class MultiFileEndToEndTest {
             module internal
                 pubconst double
                 dec double : num -> num
-                --- double(x) <= +(x, x)
+                --- double(x) <= x + x
             end
 
             uses internal
@@ -86,7 +86,7 @@ class MultiFileEndToEndTest {
             pubconst f
 
             dec f : num -> num
-            --- f(x) <= +(x, 1)
+            --- f(x) <= x + 1
             """.trimIndent()
 
         val fileB =
@@ -94,7 +94,7 @@ class MultiFileEndToEndTest {
             pubconst g
 
             dec g : num -> num
-            --- g(x) <= *(x, 2)
+            --- g(x) <= x * 2
             """.trimIndent()
 
         val main =
@@ -137,7 +137,7 @@ class MultiFileEndToEndTest {
             module secret
                 pubconst hidden
                 dec hidden : num -> num
-                --- hidden(x) <= +(x, 1)
+                --- hidden(x) <= x + 1
             end
             """.trimIndent()
 
@@ -160,7 +160,7 @@ class MultiFileEndToEndTest {
             module helpers
                 pubconst inc
                 dec inc : num -> num
-                --- inc(x) <= +(x, 1)
+                --- inc(x) <= x + 1
             end
 
             module logic
