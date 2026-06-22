@@ -2,10 +2,10 @@ package ru.hopec.codegen.test
 
 import ru.hopec.desugarer.DesugaredRepresentation.Type
 import ru.hopec.typecheck.TypedRepresentation.Expr
-import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Function.Name as FunName
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertFalse
+import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Function.Name as FunName
 
 class IoImportsTest {
     private val printCore = FunName.Core("io.print")

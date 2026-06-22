@@ -3,7 +3,6 @@ package ru.hopec.typecheck
 import ru.hopec.desugarer.DesugaredRepresentation
 import ru.hopec.desugarer.DesugaredRepresentation.Type
 import ru.hopec.desugarer.IoBuiltins
-import ru.hopec.typecheck.TypedRepresentation
 import kotlin.math.max
 import kotlin.math.min
 
@@ -46,7 +45,8 @@ internal class TypecheckingContext private constructor(
             signature: Signature,
             function: DesugaredRepresentation.Declarations.Function,
             name: DesugaredRepresentation.Declarations.Function.Name =
-                DesugaredRepresentation.Declarations.Function.Name.User(null, "test"),
+                DesugaredRepresentation.Declarations.Function.Name
+                    .User(null, "test"),
         ): TypedRepresentation.Declarations.Function? = TypecheckingContext(signature).runFunction(name, function)
     }
 
@@ -268,9 +268,7 @@ internal class TypecheckingContext private constructor(
         )
     }
 
-    private fun trustedIoBuiltin(
-        function: DesugaredRepresentation.Declarations.Function,
-    ): TypedRepresentation.Declarations.Function {
+    private fun trustedIoBuiltin(function: DesugaredRepresentation.Declarations.Function): TypedRepresentation.Declarations.Function {
         val declared = function.type.type
         val lambda =
             if (declared is Type.Arrow) {

@@ -1,7 +1,7 @@
 package ru.hopec.desugarer
 
-import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Function.Name.Core as CoreFunction
 import ru.hopec.renamer.AstNode
+import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Function.Name.Core as CoreFunction
 
 object IoBuiltins {
     const val MODULE = "io"
@@ -17,12 +17,8 @@ object IoBuiltins {
 
     fun isBuiltinName(name: String): Boolean = name in bySourceName
 
-    fun coreName(sourceName: String): CoreFunction =
-        bySourceName[sourceName] ?: error("Unknown io builtin: $sourceName")
+    fun coreName(sourceName: String): CoreFunction = bySourceName[sourceName] ?: error("Unknown io builtin: $sourceName")
 
-    /**
-     * Stdlib stubs use `--- name <= 0` with an optional `! builtin` line comment.
-     */
     fun isBuiltinStub(function: AstNode.FunctionDeclaration): Boolean {
         val equation = function.equations.singleOrNull() ?: return false
         val body = equation.body

@@ -1,7 +1,7 @@
 package ru.hopec.codegen
 
-import ru.hopec.codegen.runtime.WatRuntime
 import ru.hopec.codegen.runtime.WatImports
+import ru.hopec.codegen.runtime.WatRuntime
 import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Data
 import ru.hopec.typecheck.TypedRepresentation
 import ru.hopec.typecheck.TypedRepresentation.Declarations
