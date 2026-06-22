@@ -8,12 +8,11 @@ object RenamerPass : CompilationPass<TreeSitterRepresentation, RenamedRepresenta
     override fun run(
         from: TreeSitterRepresentation,
         context: CompilationContext,
-    ) = try {
-        parse(from, context)
-    } catch (e: Exception) {
-        context.add(e)
-        null
-    }
+    ) = parse(from, context)
+//    } catch (e: Exception) {
+//        context.add(e)
+//        null
+//    }
 
     private fun parse(
         from: TreeSitterRepresentation,

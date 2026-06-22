@@ -63,6 +63,7 @@ class RenamerSecondPass(
                     } catch (e: RenamerException) {
                         context.add(e)
                         AstNode.Error(e)
+                        throw e
                     }
                 }.toMutableList()
 
@@ -136,21 +137,14 @@ class RenamerSecondPass(
 
             is FirstPassNode.Statement.ModuleUseDeclaration -> {
                 node.modules.forEach {
-                    if (it.endsWith(".hope")) {
-                        parserState.operators.putAll(
-                            importedOperators[it] ?: throw RenamerException(
-                                "File \"$it\" does not exist",
-                                node.node.range(),
-                            ),
-                        )
-                    } else {
-                        parserState.operators.putAll(
-                            from.modules[it] ?: throw RenamerException(
+                    val operators =
+                        from.modules[it]
+                            ?: importedOperators[it]
+                            ?: throw RenamerException(
                                 "Module \"$it\" does not exist",
                                 node.node.range(),
-                            ),
-                        )
-                    }
+                            )
+                    parserState.operators.putAll(operators)
                 }
                 AstNode.ModuleUseDeclaration(node.modules)
             }

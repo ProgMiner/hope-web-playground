@@ -40,7 +40,7 @@ class MultiFileEndToEndTest {
             pubconst triple
 
             dec triple : num -> num
-            --- triple(x) <= *(x, 3)
+            --- triple(x) <= x * 3
             """.trimIndent()
 
         val main =

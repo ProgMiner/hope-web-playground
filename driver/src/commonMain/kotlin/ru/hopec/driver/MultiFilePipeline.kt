@@ -13,7 +13,6 @@ import ru.hopec.renamer.Infix
 import ru.hopec.renamer.Program
 import ru.hopec.renamer.RenamedRepresentation
 import ru.hopec.renamer.RenamerPass
-import ru.hopec.renamer.parseModuleInfix
 import ru.hopec.typecheck.TypeCheckPass
 
 class MultiFilePipeline(
@@ -26,14 +25,13 @@ class MultiFilePipeline(
     fun compile(): String? {
         val units = context.translationUnits()
         val mainUnit = context.resolveMain() ?: return null
-        val moduleOperators = collectModuleOperators(units)
 
         val libraryDesugared =
             units
                 .filter { !it.isMain() }
-                .mapNotNull { processUnit(it, moduleOperators) }
+                .mapNotNull { processUnit(it) }
 
-        val mainDesugared = processUnit(mainUnit, moduleOperators) ?: return null
+        val mainDesugared = processUnit(mainUnit) ?: return null
         val merged = mergeForCodegen(mainDesugared, libraryDesugared)
 
         val typed = typeCheckPass.run(merged, mainUnit.context) ?: return null
@@ -42,49 +40,24 @@ class MultiFilePipeline(
         return codeGenPass.run(typed, mainUnit.context).wat
     }
 
-    private fun processUnit(
-        unit: TranslationUnit,
-        moduleOperators: Map<String, Map<String, Infix>>,
-    ): DesugaredRepresentation? {
+    private fun processUnit(unit: TranslationUnit): DesugaredRepresentation? {
         val tree = unit.representation<TreeSitterRepresentation>() ?: return null
-        val renamed = RenamerPass.run(tree, unit.context, moduleOperators) ?: return null
+        val renamed = RenamerPass.run(tree, unit.context) ?: return null
         unit.representations.add(renamed)
 
         val fileScopeName = if (unit.isMain()) null else unit.moduleName()
         val wrapped = wrapFileModule(renamed.program, unit.moduleName(), unit.isMain())
 
         val desugared =
-            try {
-                Desugarer(
-                    importedContext = globalDesugarerContext,
-                    fileScopeName = fileScopeName,
-                ).renamedToDesugared(RenamedRepresentation(wrapped))
-            } catch (e: RuntimeException) {
-                if (e is IllegalStateException || e is IllegalArgumentException) {
-                    unit.context.report(
-                        errorStatus(
-                            e.message ?: "Desugarer error",
-                            unit.range(null, null),
-                        ),
-                    )
-                    return null
-                }
-                throw e
-            }
+            Desugarer(
+                importedContext = globalDesugarerContext,
+                fileScopeName = fileScopeName,
+            ).renamedToDesugared(RenamedRepresentation(wrapped, renamed.globalOperators, renamed.moduleOperators))
         unit.representations.add(desugared)
         return desugared
     }
 
     companion object {
-        fun collectModuleOperators(units: List<TranslationUnit>): Map<String, Map<String, Infix>> {
-            val merged = mutableMapOf<String, Map<String, Infix>>()
-            for (unit in units) {
-                val tree = unit.representation<TreeSitterRepresentation>() ?: continue
-                merged.putAll(runCatching { parseModuleInfix(tree) }.getOrElse { emptyMap() })
-            }
-            return merged
-        }
-
         fun wrapFileModule(
             program: Program,
             moduleName: String,
