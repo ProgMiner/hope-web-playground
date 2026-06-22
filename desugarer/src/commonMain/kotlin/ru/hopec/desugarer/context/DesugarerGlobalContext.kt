@@ -11,4 +11,5 @@ data class ModuleDeclarations(
 
 data class DesugarerGlobalContext(
     val moduleDeclarations: MutableMap<String, ModuleDeclarations> = mutableMapOf(),
+    val fileDeclarations: MutableMap<String, ModuleDeclarations> = mutableMapOf(),
 )

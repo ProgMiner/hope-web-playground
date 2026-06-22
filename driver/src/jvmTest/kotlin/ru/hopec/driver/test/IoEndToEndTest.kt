@@ -16,15 +16,14 @@ import kotlin.test.assertTrue
 class IoEndToEndTest {
     private val ioSource =
         """
-        module io
-            pubconst print, getChar
+        pubconst print, getChar
 
-            dec print : list char -> unit
-            --- print(text) <= 0
+        dec print : list char -> unit
+        --- print(text) <= 0
 
-            dec getChar : char
-            --- getChar <= 0
-        end
+        dec getChar : char
+        --- getChar <= 0
+
         """.trimIndent()
 
     @Test

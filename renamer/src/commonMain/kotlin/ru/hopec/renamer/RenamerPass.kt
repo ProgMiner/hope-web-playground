@@ -8,28 +8,33 @@ object RenamerPass : CompilationPass<TreeSitterRepresentation, RenamedRepresenta
     override fun run(
         from: TreeSitterRepresentation,
         context: CompilationContext,
-    ): RenamedRepresentation? = run(from, context, emptyMap())
-
-    fun run(
-        from: TreeSitterRepresentation,
-        context: CompilationContext,
-        externalModuleOperators: Map<String, Map<String, Infix>>,
-    ): RenamedRepresentation? =
-        try {
-            parse(from, context, externalModuleOperators)
-        } catch (e: Exception) {
-            context.add(e)
-            null
-        }
+    ) = try {
+        parse(from, context)
+    } catch (e: Exception) {
+        context.add(e)
+        null
+    }
 
     private fun parse(
         from: TreeSitterRepresentation,
         context: CompilationContext,
-        externalModuleOperators: Map<String, Map<String, Infix>>,
     ): RenamedRepresentation {
-        val localOperators = runCatching { parseModuleInfix(from) }.getOrElse { emptyMap() }
-        val modulesOperators = externalModuleOperators + localOperators
-        val cstParser = CstParser(from, modulesOperators)
-        return RenamedRepresentation(cstParser.parse(context))
+        val firstPass = RenamerFirstPass(from).parse(context)
+
+        val importedOperators =
+            firstPass.imported
+                .toSet()
+                .filter { it !in firstPass.modules.keys }
+                .associateWith { file ->
+                    val repr = context.resolveModule(file) ?: throw IllegalStateException("File $file does not exist")
+                    val renamer =
+                        repr.runPass(RenamerPass)
+                            ?: throw IllegalStateException("Error while parsing imported file $file")
+                    val global = renamer.globalOperators
+                    val module = renamer.moduleOperators[file] ?: emptyMap()
+                    global + module
+                }
+        val secondPass = RenamerSecondPass(firstPass, importedOperators).parse(context)
+        return RenamedRepresentation(secondPass, firstPass.globalInfixes, firstPass.modules)
     }
 }
