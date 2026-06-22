@@ -19,6 +19,8 @@ class GlobalCompilationContext(
 
     fun resolveMain() = units.resolveMain()
 
+    fun translationUnits(): List<TranslationUnit> = units.all()
+
     fun newTranslationUnit(
         resource: Resource,
         vararg initial: Representation,

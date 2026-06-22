@@ -369,7 +369,7 @@ class DesugarerTest {
                     ?.first()
                     ?.body as DesugaredRepresentation.Expr.Identifier
             assertEquals(
-                2,
+                3,
                 ident.name.size,
             )
         }

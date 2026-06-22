@@ -65,6 +65,8 @@ data class DesugaredRepresentation(
                     data object Set : Core
 
                     data object Tuple : Core
+
+                    data object Unit : Core
                 }
 
                 /** User-defined types*/
@@ -186,6 +188,8 @@ data class DesugaredRepresentation(
                 val truval = Data(Declarations.Data.Name.Core.TruVal, arrayListOf())
                 val num = Data(Declarations.Data.Name.Core.Num, arrayListOf())
                 val string = Data(Declarations.Data.Name.Core.List, arrayListOf(char))
+
+                val unit = Data(Declarations.Data.Name.Core.Unit, arrayListOf())
 
                 fun list(arg: Type) = Data(Declarations.Data.Name.Core.List, arrayListOf(arg))
 

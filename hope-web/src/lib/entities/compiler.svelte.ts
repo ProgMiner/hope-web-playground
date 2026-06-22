@@ -12,6 +12,8 @@ import {
 	type CompilationResult,
 	type TranslationUnitRepresentations
 } from './hopec';
+import { createTerminalIoHost, createWasmImports } from './wasm_imports';
+import type { Terminal } from './terminal.svelte';
 
 export type StatusSeverity = 'info' | 'warning' | 'error';
 
@@ -28,7 +30,10 @@ export class Compiler {
 	readonly rebuild: (input: CompilationInput) => void;
 	private result: CompilationResult | undefined;
 
-	constructor(private readonly rebuilt: () => void) {
+	constructor(
+		private readonly rebuilt: () => void,
+		private readonly terminal: Terminal
+	) {
 		this.hopec = new Hopec();
 		this.rebuild = debounced((input) => this.compile(input));
 		this.result = $state();
@@ -36,11 +41,16 @@ export class Compiler {
 
 	async compile(input: CompilationInput): Promise<WebAssembly.Instance | undefined> {
 		const size = this.callCompiler(input);
-		if (size) {
-			return this.hopec.instantiateModule(size);
-		} else {
+		if (!size) {
 			return undefined;
 		}
+		const { imports, bindMemory } = createWasmImports(createTerminalIoHost(this.terminal));
+		const instance = await this.hopec.instantiateModule(size, imports);
+		const programMemory = instance.exports.memory;
+		if (programMemory instanceof WebAssembly.Memory) {
+			bindMemory(programMemory);
+		}
+		return instance;
 	}
 
 	rawModule(input: CompilationInput): ArrayBuffer | undefined {

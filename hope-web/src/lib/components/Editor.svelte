@@ -29,8 +29,8 @@
 	let { editor = $bindable() }: { editor: MonacoEditor | undefined } = $props();
 	let value: string = $state('');
 	let view: HTMLDivElement | undefined = $state();
-	let compiler = new Compiler(rebuilt);
 	let terminal = new Terminal();
+	let compiler = new Compiler(rebuilt, terminal);
 	let files: RenderedResourceRow[] = $state([]);
 	let project: ImaginaryProject | undefined = $state();
 	let opened: ImaginaryFile | undefined = $state();

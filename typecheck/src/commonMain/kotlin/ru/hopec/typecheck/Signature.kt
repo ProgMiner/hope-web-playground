@@ -112,10 +112,18 @@ internal data class Signature(
                             ),
                             1,
                         ),
+                    Declarations.Function.Name.Core("io.print") to
+                        PolymorphicType(
+                            Type.Arrow(Type.Data.string, Type.Data.unit),
+                            0,
+                        ),
+                    Declarations.Function.Name.Core("io.getChar") to
+                        PolymorphicType(Type.Data.char, 0),
                 ),
                 mapOf(
                     Core.Num to Declarations.Data(mapOf(), 0),
                     Core.Char to Declarations.Data(mapOf(), 0),
+                    Core.Unit to Declarations.Data(mapOf(), 0),
                     Core.TruVal to
                         Declarations.Data(
                             mapOf(

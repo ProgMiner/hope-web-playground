@@ -64,6 +64,7 @@ val internalData =
         "truval" to Core.TruVal as Data.Name,
         "char" to Core.Char as Data.Name,
         "tuple" to Core.Tuple as Data.Name,
+        "unit" to Core.Unit as Data.Name,
     ).toMutableMap()
 
 fun getInternalConstructors() =

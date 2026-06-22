@@ -19,7 +19,7 @@ open class ModuleDesugarer(
     val moduleContext: DesugarerModuleContext = DesugarerModuleContext(),
     val localContext: DesugarerLocalContext = DesugarerLocalContext(),
 ) {
-    val publicFunctionsMap: MutableMap<String, MutableSet<Function.Name.User>> = mutableMapOf()
+    val publicFunctionsMap: MutableMap<String, MutableSet<Function.Name>> = mutableMapOf()
     val publicConstructorsMap: MutableMap<String, MutableSet<Constructor>> = mutableMapOf()
     val publicDataTypesMap: MutableMap<String, Data.Name.Defined> = mutableMapOf()
     private var identCounter = 0
@@ -50,6 +50,14 @@ open class ModuleDesugarer(
                     statement.modules.forEach { importModule(it) }
                 }
 
+                is AstNode.ConstantExportDeclaration -> {}
+
+                is AstNode.TypeExportDeclaration -> {}
+            }
+        }
+
+        statements.forEach { statement ->
+            when (statement) {
                 is AstNode.ConstantExportDeclaration -> {
                     statement.constants.forEach { exportConstant(it) }
                 }
@@ -57,6 +65,8 @@ open class ModuleDesugarer(
                 is AstNode.TypeExportDeclaration -> {
                     statement.types.forEach { exportDataType(it) }
                 }
+
+                else -> {}
             }
         }
 
@@ -145,6 +155,18 @@ open class ModuleDesugarer(
         function: AstNode.FunctionDeclaration,
         module: String?,
     ): Pair<Function.Name, Function> {
+        if (module == IoBuiltins.MODULE && IoBuiltins.isBuiltinName(function.name)) {
+            val builtin = IoBuiltins.coreName(function.name)
+            extendModuleFunction(function.name, builtin)
+            val type = PolymorphicType(resolveType(function.typeExpr, function.boundVars), function.boundVars.size)
+            val stubBody = DesugaredRepresentation.Literal.Num(0)
+            return builtin to
+                Function(
+                    Expr.Lambda(listOf(Expr.Lambda.Branch(null, stubBody))),
+                    type,
+                )
+        }
+
         val newName =
             if (module == null && function.name == "main") {
                 function.name
@@ -376,6 +398,7 @@ open class ModuleDesugarer(
                     "char" -> Type.Data.char
                     "truval" -> Type.Data.truval
                     "num" -> Type.Data.num
+                    "unit" -> Type.Data.unit
                     "string" -> Type.Data.string
                     "list" -> Type.Data.list(resolveType(type.arguments[0], boundVars))
                     "set" -> Type.Data.set(resolveType(type.arguments[0], boundVars))
@@ -394,7 +417,7 @@ open class ModuleDesugarer(
 
     fun extendModuleFunction(
         name: String,
-        function: Function.Name.User,
+        function: Function.Name,
     ) {
         moduleContext.extendModuleFunction(name, function)
     }

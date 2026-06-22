@@ -14,7 +14,6 @@ env:
   TREE_SITTER_CLI_VERSION: 0.26.6
   JAVA_VERSION: "21"
   NODE_VERSION: "22"
-  KTLINT_VERSION: "1.5.0"
 
 jobs:
   # =========================================================================
@@ -228,10 +227,8 @@ jobs:
         run: npm run lint
 
   # =========================================================================
-  # LINT: Kotlin via standalone ktlint CLI. Non-blocking.
-  # Uses the official ktlint shadowed jar from
-  # https://github.com/pinterest/ktlint/releases — no Gradle plugin required,
-  # so the project's build.gradle.kts files stay untouched.
+  # LINT: Kotlin via Gradle ktlint task. Non-blocking.
+  # Uses the Gradle ktlint plugin configured in build.gradle.kts.
   # Lints the Kotlin sources of every multiplatform module in the repo.
   # =========================================================================
   lint-kotlin:
@@ -241,40 +238,14 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+      - run: chmod +x ./gradlew
 
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: ${{ env.JAVA_VERSION }}
 
-      - name: Cache ktlint jar
-        id: ktlint-cache
-        uses: actions/cache@v4
-        with:
-          path: ~/.ktlint
-          key: ktlint-${{ env.KTLINT_VERSION }}
-
-      - name: Download ktlint
-        if: steps.ktlint-cache.outputs.cache-hit != 'true'
-        run: |
-          mkdir -p ~/.ktlint
-          curl -sSLo ~/.ktlint/ktlint \
-            https://github.com/pinterest/ktlint/releases/download/${{ env.KTLINT_VERSION }}/ktlint
-          chmod +x ~/.ktlint/ktlint
+      - uses: gradle/actions/setup-gradle@v4
 
       - name: "ktlint: check Kotlin sources"
-        run: |
-          set +e
-          ~/.ktlint/ktlint --reporter=plain "**/src/**/*.kt" "**/src/**/*.kts" \
-            | tee ktlint-report.txt
-          status=${PIPESTATUS[0]}
-          # Convert "path:line:col: message" lines into ::error annotations.
-          awk -F: '
-            /^[^[:space:]].*:[0-9]+:[0-9]+:/ {
-              file=$1; line=$2; col=$3;
-              msg=$0;
-              sub(/^[^:]+:[0-9]+:[0-9]+:[[:space:]]*/, "", msg);
-              printf "::error file=%s,line=%s,col=%s::%s\n", file, line, col, msg
-            }
-          ' ktlint-report.txt
-          exit "$status"
+        run: ./gradlew ktlintCheck --stacktrace

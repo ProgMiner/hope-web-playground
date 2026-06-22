@@ -1,0 +1,27 @@
+package ru.hopec.desugarer
+
+import ru.hopec.renamer.AstNode
+import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Function.Name.Core as CoreFunction
+
+object IoBuiltins {
+    const val MODULE = "io"
+
+    val PRINT = CoreFunction("io.print")
+    val GET_CHAR = CoreFunction("io.getChar")
+
+    private val bySourceName =
+        mapOf(
+            "print" to PRINT,
+            "getChar" to GET_CHAR,
+        )
+
+    fun isBuiltinName(name: String): Boolean = name in bySourceName
+
+    fun coreName(sourceName: String): CoreFunction = bySourceName[sourceName] ?: error("Unknown io builtin: $sourceName")
+
+    fun isBuiltinStub(function: AstNode.FunctionDeclaration): Boolean {
+        val equation = function.equations.singleOrNull() ?: return false
+        val body = equation.body
+        return body is AstNode.DecimalLiteral && body.value == 0L
+    }
+}

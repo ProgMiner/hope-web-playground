@@ -105,6 +105,7 @@ export function knownExamples() {
 		{ key: 'syntax', label: 'Basic syntax examples' },
 		{ key: 'binary-tree', label: 'Binary tree' },
 		{ key: 'fannkuch-redux', label: 'fannkuch-redux benchmark' },
-		{ key: 'std', label: 'Standard library' }
+		{ key: 'std', label: 'Standard library' },
+		{ key: 'io-demo', label: 'I/O builtins (print)' }
 	];
 }

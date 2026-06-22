@@ -30,7 +30,8 @@
 			terminal.writeln('No main function found');
 			return;
 		}
-		terminal.writeln(`${exports['main']()}`);
+		const result = exports['main']();
+		terminal.writeln(`main returned ${result}`);
 	}
 </script>
 
