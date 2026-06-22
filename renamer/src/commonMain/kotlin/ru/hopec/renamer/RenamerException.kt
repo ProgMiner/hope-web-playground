@@ -15,8 +15,7 @@ open class RenamerException : IllegalStateException {
 }
 
 fun CompilationContext.add(exception: Exception) {
-    report(errorStatus(exception.message ?: "", exception.range()))
-    println("Syntax error: ${exception.message}")
+    report(errorStatus(exception.message ?: "Unknown error", exception.range()))
 }
 
 private fun Exception.range(): Range =
