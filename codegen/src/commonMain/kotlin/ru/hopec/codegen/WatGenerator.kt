@@ -140,7 +140,7 @@ class WatGenerator(
     }
 
     private fun emitMemoryAndGlobals() {
-        moduleChildren.add(SExpr.Raw("(memory (export \"memory\") 1)"))
+        moduleChildren.add(SExpr.Raw("(memory (export \"memory\") 100)"))
         moduleChildren.add(SExpr.Raw("(global \$heap_ptr (mut i32) (i32.const 4096))"))
     }
 
