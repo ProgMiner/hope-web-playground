@@ -4,6 +4,7 @@ import { ParsedFile } from './parsed_file.svelte';
 import type { ImaginaryFile } from './fs/file.svelte';
 import type { MonacoEditor } from './editor.svelte';
 import type { ImaginaryProject } from './fs/project.svelte';
+import { stdModules, stdName } from './std';
 
 export class ParsedProject {
 	private readonly resources: SvelteMap<ImaginaryFile, ParsedFile> = new SvelteMap();
@@ -14,11 +15,14 @@ export class ParsedProject {
 	) {}
 
 	createFile(file: ImaginaryFile) {
-		this.resources.set(file, new ParsedFile(this.editor, this.currentText(file)));
+		if (!this.resources.get(file)) {
+			const parsed = new ParsedFile(this.editor, this.currentText(file));
+			parsed.parse();
+			this.resources.set(file, parsed);
+		}
 	}
 
-	openProject(project: ImaginaryProject) {
-		this.closeProject();
+	createAllFiles(project: ImaginaryProject) {
 		project.allFiles().forEach((file) => this.createFile(file));
 	}
 
@@ -51,14 +55,20 @@ export class ParsedProject {
 	}
 
 	buildInput(): CompilationInput {
-		return {
-			resources: this.resources
-				.entries()
-				.map(([file, parsed]) => this.translationUnit(file, parsed))
-				.filter((unit) => unit)
-				.map((unit) => unit!)
-				.toArray()
-		};
+		const all = [this.localUnits()];
+		if (this.opened()?.currentName() != stdName()) {
+			all.push(stdModules(this.editor));
+		}
+		return { resources: all.flat() };
+	}
+
+	private localUnits() {
+		return this.resources
+			.entries()
+			.map(([file, parsed]) => this.translationUnit(file, parsed))
+			.filter((unit) => unit)
+			.map((unit) => unit!)
+			.toArray();
 	}
 
 	private translationUnit(file: ImaginaryFile, parsed: ParsedFile): TranslationUnit | undefined {

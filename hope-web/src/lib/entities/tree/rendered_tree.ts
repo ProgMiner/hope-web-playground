@@ -6,6 +6,8 @@ export interface RenderedTreeRow {
 	start: Point;
 	end: Point;
 	displayed: string;
+	node: GenericNode;
+	index: number;
 }
 
 export class RenderedTree {
@@ -20,22 +22,28 @@ export class RenderedTree {
 		return rows;
 	}
 
+	rootNode(): GenericNode {
+		return this.tree.root;
+	}
+
 	private maybeRenderRow(cursor: GenericNode, rows: RenderedTreeRow[]) {
 		if (cursor.text) {
-			rows.push(this.renderRow(cursor, cursor.text));
+			rows.push(this.renderRow(cursor, cursor.text, rows.length));
 		}
 		this.level++;
 		cursor.children.forEach((child) => this.maybeRenderRow(child, rows));
 		this.level--;
 	}
 
-	private renderRow(cursor: GenericNode, displayed: string): RenderedTreeRow {
+	private renderRow(cursor: GenericNode, displayed: string, index: number): RenderedTreeRow {
 		return {
 			indent: this.indent(),
 			id: `${this.level}-${cursor.range.from?.index}-${cursor.range.to?.index}-${cursor.text}`,
 			start: cursor.range.from ?? zeroPoint(),
 			end: cursor.range.to ?? zeroPoint(),
-			displayed: displayed
+			displayed: displayed,
+			index: index,
+			node: cursor
 		};
 	}
 

@@ -49,9 +49,13 @@ export class Hopec {
 
 	async instantiateModule(
 		size: number,
-		imports: WebAssembly.Imports = {}
+		imports?: WebAssembly.Imports
 	): Promise<WebAssembly.Instance> {
-		const compiled = await WebAssembly.instantiate(memory.buffer.slice(0, size), imports);
+		const compiled = await WebAssembly.instantiate(this.rawModule(size), imports);
 		return compiled.instance;
+	}
+
+	rawModule(size: number) {
+		return memory.buffer.slice(0, size);
 	}
 }

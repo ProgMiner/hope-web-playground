@@ -12,5 +12,7 @@ class HopecInput(
     constructor(tree: TsTree) : this(listOf(Resource(mainModuleName()) to tree))
 
     fun populate(context: GlobalCompilationContext) =
-        resources.forEach { context.newTranslationUnit(it.first, TreeSitterRepresentation(it.second)) }
+        resources.forEach {
+            context.newTranslationUnit(it.first, TreeSitterRepresentation(it.second))
+        }
 }

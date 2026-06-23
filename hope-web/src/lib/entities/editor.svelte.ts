@@ -5,6 +5,7 @@ import type { Range } from './tree/generic_tree';
 
 class Listeners {
 	readonly content: ((e: editor.IModelContentChangedEvent) => void)[] = [];
+	readonly cursor: ((e: editor.ICursorPositionChangedEvent) => void)[] = [];
 }
 
 export class MonacoEditor {
@@ -29,8 +30,10 @@ export class MonacoEditor {
 		});
 		this.decorations = this.standalone.createDecorationsCollection();
 		const content = this.standalone.onDidChangeModelContent(this.onContentChange.bind(this));
+		const cursor = this.standalone.onDidChangeCursorPosition(this.onCursorChange.bind(this));
 		this.dispose = () => {
 			content?.dispose();
+			cursor?.dispose();
 			this.standalone.dispose();
 		};
 	}
@@ -54,8 +57,18 @@ export class MonacoEditor {
 		}
 	}
 
+	addCursorListener(listener: (e: editor.ICursorPositionChangedEvent) => void) {
+		this.listeners.cursor.push(listener);
+	}
+
 	onContentChange(e: editor.IModelContentChangedEvent) {
 		this.listeners.content.forEach((listener) => listener(e));
+	}
+
+	onCursorChange(e: editor.ICursorPositionChangedEvent) {
+		if (e.reason == 3) {
+			this.listeners.cursor.forEach((listener) => listener(e));
+		}
 	}
 
 	positionAt(offset: number): Position | undefined {

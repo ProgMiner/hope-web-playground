@@ -31,6 +31,7 @@
 			return;
 		}
 		const result = exports['main']();
+		terminal.writeln('');
 		terminal.writeln(`main returned ${result}`);
 	}
 </script>

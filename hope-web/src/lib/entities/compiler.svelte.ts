@@ -40,19 +40,36 @@ export class Compiler {
 	}
 
 	async compile(input: CompilationInput): Promise<WebAssembly.Instance | undefined> {
+		const size = this.callCompiler(input);
+		if (!size) {
+			return undefined;
+		}
+		const { imports, bindMemory } = createWasmImports(createTerminalIoHost(this.terminal));
+		const instance = await this.hopec.instantiateModule(size, imports);
+		const programMemory = instance.exports.memory;
+		if (programMemory instanceof WebAssembly.Memory) {
+			bindMemory(programMemory);
+		}
+		return instance;
+	}
+
+	rawModule(input: CompilationInput): ArrayBuffer | undefined {
+		const size = this.callCompiler(input);
+		if (size) {
+			return this.hopec.rawModule(size);
+		} else {
+			return undefined;
+		}
+	}
+
+	private callCompiler(input: CompilationInput): number | undefined {
 		const result = this.hopec.compile(input);
 		this.result = result;
 		this.rebuilt();
 		if (!result || result.size === 0) {
 			return undefined;
 		}
-		const { imports, bindMemory } = createWasmImports(createTerminalIoHost(this.terminal));
-		const instance = await this.hopec.instantiateModule(result.size, imports);
-		const programMemory = instance.exports.memory;
-		if (programMemory instanceof WebAssembly.Memory) {
-			bindMemory(programMemory);
-		}
-		return instance;
+		return result.size;
 	}
 
 	currentProblems(): CompilationStatus[] {
@@ -97,6 +114,6 @@ function debounced(callback: (input: CompilationInput) => void) {
 	let timeout: number;
 	return (input: CompilationInput) => {
 		window.clearTimeout(timeout);
-		timeout = window.setTimeout(() => callback(input), 300);
+		timeout = window.setTimeout(() => callback(input), 1000);
 	};
 }

@@ -2,161 +2,134 @@
 Imports
 ==================
 
-import List;
-import State;
+uses list
+uses io
 
----
+----
 
 (compilation_unit
-  (import_statement
-    (uident))
-  (import_statement
-    (uident)))
+  (module_use_declaration
+    (ident))
+  (module_use_declaration
+    (ident)))
 
 ==================
 Function
 ==================
 
-public fun evalExpr (st, expr) {
-}
+dec evalExpr : num -> num
+--- evalExpr(n) <= 0
 
----
+----
 
 (compilation_unit
-  (scope_expression
-    (definition
-      (function_definition
-        (binding
-          (lident))
-        (function_arguments
-          (lident)
-          (lident))
-        (function_body)))))
+  (function_declaration
+    (binding
+      (ident))
+    (type_expression
+      (binary_type_expression
+        (type_expression
+          (ident))
+        (type_expression
+          (ident)))))
+  (function_equation
+    (pattern
+      (ident)
+      (pattern
+        (ident)))
+    (expression
+      (ident))))
 
 ==================
 Comments
 ==================
 
--- Comments
--- Comments
-(* --
--- comm
-*)
-import List;
-(* --
--****- comm
-*)
+! Comments
 
----
+----
 
 (compilation_unit
-  (line_comment)
-  (line_comment)
-  (block_comment)
-  (import_statement
-    (uident))
-  (block_comment))
+  (line_comment))
 
 ==================
-Single variable
+Single exported type
 ==================
 
-var x;
+pubtype x
 
----
+----
 
 (compilation_unit
-  (scope_expression
-    (definition
-      (variable_definition
-        (variable_definition_item
-          (binding
-            (lident)))))))
+  (type_export_declaration
+    (ident)))
 
 ==================
-Multiple variables
+Multiple exported types
 ==================
 
-var x, y, z;
+pubtype x, y, z
 
----
+----
 
 (compilation_unit
-  (scope_expression
-    (definition
-      (variable_definition
-        (variable_definition_item
-          (binding
-            (lident)))
-        (variable_definition_item
-          (binding
-            (lident)))
-        (variable_definition_item
-          (binding
-            (lident)))))))
+  (type_export_declaration
+    (ident)
+    (ident)
+    (ident)))
 
 ==================
-Single variable assignment
+Single exported function
 ==================
 
-var x = y;
+pubconst f
 
----
+----
 
 (compilation_unit
-  (scope_expression
-    (definition
-      (variable_definition
-        (variable_definition_item
-          (binding
-            (lident))
-          (expression
-            (postfix_expression
-              (lident))))))))
+  (constant_export_declaration
+    (ident)))
 
 ==================
-Variable assignment + declaration
+Multiple exported functions
 ==================
 
-var x = a, z;
+pubconst f, g, h
 
----
+----
 
 (compilation_unit
-  (scope_expression
-    (definition
-      (variable_definition
-        (variable_definition_item
-          (binding
-            (lident))
-          (expression
-            (postfix_expression
-              (lident))))
-        (variable_definition_item
-          (binding
-            (lident)))))))
+  (constant_export_declaration
+    (ident)
+    (ident)
+    (ident)))
 
 ==================
-Multiple variables assignments
+Infix function
 ==================
 
-var x = a, z = b;
+infix <> : 6
 
----
+----
 
 (compilation_unit
-  (scope_expression
-    (definition
-      (variable_definition
-        (variable_definition_item
-          (binding
-            (lident))
-          (expression
-            (postfix_expression
-              (lident))))
-        (variable_definition_item
-          (binding
-            (lident))
-          (expression
-            (postfix_expression
-              (lident))))))))
+  (infix_declaration
+    (binding
+      (ident))
+    (decimal)))
+
+==================
+Module declaration
+==================
+
+module test
+    pubconst x
+end
+
+----
+
+(compilation_unit
+  (module
+    (binding
+      (ident))
+    (constant_export_declaration
+      (ident))))

@@ -420,6 +420,10 @@
           "named": true
         },
         {
+          "type": "char",
+          "named": true
+        },
+        {
           "type": "ident",
           "named": true
         },
@@ -433,6 +437,10 @@
         },
         {
           "type": "set_pattern",
+          "named": true
+        },
+        {
+          "type": "string",
           "named": true
         },
         {

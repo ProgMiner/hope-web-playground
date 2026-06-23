@@ -1,3 +1,5 @@
+import type { Compiler } from '../compiler.svelte';
+import type { CompilationInput } from '../hopec';
 import { ImaginaryFile } from './file.svelte';
 import { ImaginaryFolder } from './folder.svelte';
 import { ImaginaryProject } from './project.svelte';
@@ -28,8 +30,21 @@ export async function loadFromFile(handle: FileSystemFileHandle): Promise<Imagin
 
 export async function saveToFile(handle: FileSystemFileHandle, project: ImaginaryProject) {
 	const writable = await handle.createWritable();
-	writable.write(JSON.stringify(project.serialize()));
+	await writable.write(JSON.stringify(project.serialize()));
 	await writable.close();
+}
+
+export async function saveModule(
+	handle: FileSystemFileHandle,
+	compiler: Compiler,
+	input: CompilationInput
+) {
+	const result = compiler.rawModule(input);
+	if (result) {
+		const writable = await handle.createWritable();
+		await writable.write(result);
+		await writable.close();
+	}
 }
 
 export function loadProject(parsed: RawProject): ImaginaryProject {
@@ -88,7 +103,7 @@ export async function exemplarProject(name: string): Promise<RawProject> {
 export function knownExamples() {
 	return [
 		{ key: 'syntax', label: 'Basic syntax examples' },
-		{ key: 'binary-tree', label: 'Binary tree' },
-		{ key: 'io-demo', label: 'I/O builtins (print)' }
+		{ key: 'fannkuch-redux', label: 'fannkuch-redux benchmark' },
+		{ key: 'std', label: 'Standard library' }
 	];
 }

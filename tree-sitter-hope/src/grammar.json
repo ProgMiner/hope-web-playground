@@ -255,20 +255,11 @@
       "type": "PREC_LEFT",
       "value": 4,
       "content": {
-        "type": "CHOICE",
-        "members": [
-          {
-            "type": "SYMBOL",
-            "name": "conditional_expression"
-          },
-          {
-            "type": "REPEAT1",
-            "content": {
-              "type": "SYMBOL",
-              "name": "_primary_expression"
-            }
-          }
-        ]
+        "type": "REPEAT1",
+        "content": {
+          "type": "SYMBOL",
+          "name": "_primary_expression"
+        }
       }
     },
     "_primary_expression": {
@@ -321,6 +312,10 @@
           {
             "type": "SYMBOL",
             "name": "set_expression"
+          },
+          {
+            "type": "SYMBOL",
+            "name": "conditional_expression"
           },
           {
             "type": "SYMBOL",
@@ -967,6 +962,14 @@
           {
             "type": "SYMBOL",
             "name": "ident"
+          },
+          {
+            "type": "SYMBOL",
+            "name": "string"
+          },
+          {
+            "type": "SYMBOL",
+            "name": "char"
           }
         ]
       }
@@ -1139,8 +1142,20 @@
       }
     },
     "ident": {
-      "type": "PATTERN",
-      "value": "[a-zA-Z0-9+*/%$#@!|&^?<>:=\\-_']+"
+      "type": "TOKEN",
+      "content": {
+        "type": "SEQ",
+        "members": [
+          {
+            "type": "PATTERN",
+            "value": "[a-zA-Z0-9+*/%$#@!|&^?<>:=\\-_]"
+          },
+          {
+            "type": "PATTERN",
+            "value": "[a-zA-Z0-9+*/%$#@!|&^?<>:=\\-_']*"
+          }
+        ]
+      }
     },
     "decimal": {
       "type": "PATTERN",
@@ -1152,7 +1167,7 @@
     },
     "char": {
       "type": "PATTERN",
-      "value": "’([^’]|’’|\\n|\\t)’"
+      "value": "'([^']|''|\\\\n|\\\\t)'"
     },
     "line_comment": {
       "type": "TOKEN",

@@ -140,7 +140,7 @@ internal class TypecheckingContext private constructor(
         function: DesugaredRepresentation.Declarations.Function,
     ): TypedRepresentation.Declarations.Function? {
         if (name is DesugaredRepresentation.Declarations.Function.Name.Core &&
-            (name == IoBuiltins.PRINT || name == IoBuiltins.GET_CHAR)
+            IoBuiltins.isBuiltinName(name.name.split('.').last())
         ) {
             return trustedIoBuiltin(function)
         }

@@ -247,9 +247,7 @@ class RenamerSecondPass(
             }
 
             "ident" -> {
-                if (node.text.startsWith("\'") && node.text.endsWith("\'") && node.text.length == 3) {
-                    AstNode.CharLiteral(node.text[1])
-                } else if (Regex("-?\\d+").matches(node.text)) {
+                if (Regex("-?\\d+").matches(node.text)) {
                     AstNode.DecimalLiteral(
                         node.text.toLongOrNull() ?: throw RenamerException(
                             "Can't parse decimal literal",
@@ -269,11 +267,11 @@ class RenamerSecondPass(
             }
 
             "string" -> {
-                AstNode.StringLiteral(node.text.substring(1, node.text.length - 1))
+                AstNode.StringLiteral(node.innerText())
             }
 
             "char" -> {
-                AstNode.CharLiteral(node.text.first())
+                parseChar(node.innerText())
             }
 
             "truval" -> {
@@ -481,9 +479,9 @@ class RenamerSecondPass(
 
             "ident" -> {
                 if (node.text.startsWith("\'") && node.text.endsWith("\'") && node.text.length == 3) {
-                    AstNode.CharLiteral(node.text[1])
+                    parseChar(node.innerText())
                 } else if (node.text.startsWith("\"") && node.text.endsWith("\"")) {
-                    AstNode.StringLiteral(node.text.substring(1, node.text.length - 1))
+                    AstNode.StringLiteral(node.innerText())
                 } else if (Regex("-?\\d+").matches(node.text)) {
                     AstNode.DecimalLiteral(
                         node.text.toLongOrNull() ?: throw RenamerException(
@@ -497,6 +495,14 @@ class RenamerSecondPass(
                 } else {
                     AstNode.VariablePattern(node.text)
                 }
+            }
+
+            "string" -> {
+                AstNode.StringLiteral(node.innerText())
+            }
+
+            "char" -> {
+                parseChar(node.innerText())
             }
 
             "binding_pattern" -> {
@@ -525,6 +531,17 @@ class RenamerSecondPass(
                 throw RenamerException("Unknown pattern: ${node.type} in node $node", node.range(), fatal = true)
             }
         }
+
+    private fun TsSyntaxNode.innerText(): String = text.substring(1, text.length - 1)
+
+    private fun parseChar(inner: String): AstNode.Literal =
+        AstNode.CharLiteral(
+            when (inner) {
+                "\\n" -> '\n'
+                "\\t" -> '\t'
+                else -> inner[0]
+            },
+        )
 
     class TypeDeclarationException(
         node: TsSyntaxNode,

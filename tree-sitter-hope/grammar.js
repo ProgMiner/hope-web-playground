@@ -19,6 +19,11 @@ const PREC = {
   MULT: 8,
 };
 
+const identifier = {
+  start: /[a-zA-Z0-9+*/%$#@!|&^?<>:=\-_]/,
+  continuation: /[a-zA-Z0-9+*/%$#@!|&^?<>:=\-_']*/,
+};
+
 // @ts-ignore
 function enumeration(rule) {
   return seq(rule, repeat(seq(",", rule)));
@@ -84,12 +89,7 @@ export default grammar({
       ),
 
     expression: ($) =>
-      prec.left(
-        PREC.ARGUMENTS,
-        choice(
-          $.conditional_expression ,repeat1($._primary_expression)
-        )
-      ),
+      prec.left(PREC.ARGUMENTS, repeat1($._primary_expression)),
 
     _primary_expression: ($) =>
       prec(
@@ -103,6 +103,7 @@ export default grammar({
           $.tuple,
           $.list_expression,
           $.set_expression,
+          $.conditional_expression,
           $.local_variable_expression,
           $.lambda_expression,
         ),
@@ -175,7 +176,9 @@ export default grammar({
           seq("(", $.pattern, ")"),
           $.tuple_pattern,
           $.ident,
-        )
+          $.string,
+          $.char,
+        ),
       ),
 
     binding_pattern: ($) => seq($.binding, "@", $.pattern),
@@ -186,10 +189,10 @@ export default grammar({
 
     binding: ($) => field("name", $.ident),
 
-    ident: (_) => /[a-zA-Z0-9+*/%$#@!|&^?<>:=\-_']+/,
+    ident: (_) => token(seq(identifier.start, identifier.continuation)),
     decimal: (_) => /-?\d+/,
     string: (_) => /"([^\"]|"")*"/,
-    char: (_) => /’([^’]|’’|\n|\t)’/,
+    char: (_) => /'([^']|''|\\n|\\t)'/,
 
     line_comment: (_) => token(prec(PREC.BLOCK, seq("!", /[^\n]*/))),
   },

@@ -7,10 +7,7 @@
 	import { Terminal } from '$lib/entities/terminal.svelte';
 	import TerminalComponent from './TerminalComponent.svelte';
 	import type { ImaginaryProject } from '$lib/entities/fs/project.svelte';
-	import {
-		exemplarProject as examplarProject,
-		loadProject
-	} from '$lib/entities/fs/deserialize.svelte';
+	import { exemplarProject, loadProject } from '$lib/entities/fs/deserialize.svelte';
 	import type { ImaginaryFile } from '$lib/entities/fs/file.svelte';
 	import {
 		RenderedFileTree,
@@ -20,13 +17,14 @@
 	import { Compiler, type CompilationStatus } from '$lib/entities/compiler.svelte';
 	import { TsToTree } from '$lib/entities/tree/tree_sitter';
 	import { SvelteMap } from 'svelte/reactivity';
-	import type { GenericTree, Range, Resource } from '$lib/entities/tree/generic_tree';
+	import type { GenericTree, Point, Range, Resource } from '$lib/entities/tree/generic_tree';
 	import TreesView from './TreesView.svelte';
 	import { ParsedProject } from '$lib/entities/parsed_project.svelte';
 	import type { TranslationUnitRepresentations } from '$lib/entities/hopec';
 	import Save from './toolbar/Save.svelte';
 	import Load from './toolbar/Load.svelte';
 	import LoadExample from './toolbar/LoadExample.svelte';
+	import Export from './toolbar/Export.svelte';
 
 	let { editor = $bindable() }: { editor: MonacoEditor | undefined } = $props();
 	let value: string = $state('');
@@ -38,11 +36,12 @@
 	let opened: ImaginaryFile | undefined = $state();
 	let parsed: ParsedProject | undefined = $state();
 	let trees: SvelteMap<string, SvelteMap<string, GenericTree>> = new SvelteMap();
+	let scroll: (point: Point) => void = $state(() => {});
 
 	onMount(async () => {
 		await initEditor();
 		parsed = new ParsedProject(editor!, () => opened);
-		openProject(loadProject(await examplarProject('syntax')));
+		openProject(loadProject(await exemplarProject('syntax')));
 	});
 
 	onDestroy(() => {
@@ -52,16 +51,19 @@
 
 	function openProject(fresh: ImaginaryProject) {
 		closeFile();
+		parsed?.closeProject();
 		opened = undefined;
 		editor?.installContent('');
 		project = fresh;
-		parsed?.openProject(project);
 		rebuildFileTree();
 	}
 
 	async function initEditor() {
 		editor = new MonacoEditor(view!, value);
 		await editor.init();
+		editor.addCursorListener((e) =>
+			scroll({ row: e.position.lineNumber - 1, column: e.position.column - 1, index: 0 })
+		);
 	}
 
 	function updateTree(t: Tree) {
@@ -132,6 +134,9 @@
 	}
 
 	function rebuildFileTree() {
+		if (project) {
+			parsed?.createAllFiles(project);
+		}
 		files = new RenderedFileTree(project).build();
 	}
 
@@ -147,6 +152,7 @@
 		<Load loaded={openProject} />
 		<LoadExample loaded={openProject} current={() => project} />
 		<Run input={() => parsed?.buildInput()} {terminal} {compiler} />
+		<Export project={() => parsed} {compiler} />
 	</div>
 	<div class="flex flex-1 flex-row overflow-auto">
 		<FileTree rows={files} {open} rebuild={rebuildFileTree} />
@@ -154,8 +160,6 @@
 			<div bind:this={view} id="editor" class="flex flex-2 flex-col"></div>
 			<TerminalComponent {terminal} />
 		</div>
-		<div class="flex flex-2 flex-col overflow-auto p-1">
-			<TreesView trees={currentTrees()} {focus} />
-		</div>
+		<TreesView trees={currentTrees()} {focus} bind:scroll />
 	</div>
 </div>

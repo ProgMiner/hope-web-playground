@@ -78,3 +78,18 @@ function dfs(stack: GenericNode[], leaves: GenericNode[]) {
 		next.children.forEach((child) => stack.push(child));
 	}
 }
+
+export function findNode(node: GenericNode, point: Point): GenericNode {
+	const child = node.children.findLast((child) => before(child.range.from, point));
+	if (!child) return node;
+	if (before(point, child.range.to)) {
+		return findNode(child, point);
+	} else {
+		return child;
+	}
+}
+
+function before(point: Point | undefined, other: Point | undefined): boolean {
+	if (!point || !other) return false;
+	return point.row < other.row || (point.row == other.row && point.column <= other.column);
+}
