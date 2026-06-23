@@ -59,7 +59,6 @@ export class ParsedProject {
 		if (this.opened()?.currentName() != stdName()) {
 			all.push(stdModules(this.editor));
 		}
-    console.log(all);
 		return { resources: all.flat() };
 	}
 
