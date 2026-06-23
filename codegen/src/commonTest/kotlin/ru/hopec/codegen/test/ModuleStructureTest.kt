@@ -39,7 +39,7 @@ class ModuleStructureTest {
         val w = wat(emptyProgram())
         assertContains(w, "memory")
         assertContains(w, "\$heap_ptr")
-        assertContains(w, "(memory (export \"memory\") 1)")
+        assertContains(w, "(memory (export \"memory\") 100)")
         assertContains(w, "(global \$heap_ptr (mut i32) (i32.const 4096))")
     }
 }

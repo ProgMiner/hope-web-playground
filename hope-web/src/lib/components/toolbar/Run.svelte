@@ -30,6 +30,9 @@
 			terminal.writeln('No main function found');
 			return;
 		}
+		if (typeof exports['rt.reset'] === 'function') {
+			(exports['rt.reset'] as () => void)();
+		}
 		const result = exports['main']();
 		terminal.writeln('');
 		terminal.writeln(`main returned ${result}`);

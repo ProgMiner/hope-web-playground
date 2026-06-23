@@ -144,9 +144,17 @@ internal object WatRuntime {
           (local.get ${'$'}ptr))
         """.trimIndent()
 
+    val RESET: String =
+        """
+        (func ${'$'}rt.reset (export "rt.reset")
+          (global.set ${'$'}heap_ptr
+            (i32.const 4096)))
+        """.trimIndent()
+
     val ALL: List<String> =
         listOf(
             MALLOC,
+            RESET,
             MK_TUPLE,
             MK_CONS,
             CLOSURE_TYPE,
