@@ -1,0 +1,54 @@
+package ru.hopec.codegen.test
+
+import ru.hopec.desugarer.DesugaredRepresentation.Type
+import ru.hopec.typecheck.TypedRepresentation
+import ru.hopec.typecheck.TypedRepresentation.Declarations
+import ru.hopec.typecheck.TypedRepresentation.Declarations.Function
+import ru.hopec.typecheck.TypedRepresentation.Expr
+import ru.hopec.typecheck.TypedRepresentation.Pattern
+import kotlin.test.Test
+import kotlin.test.assertContains
+import kotlin.test.assertFalse
+import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Function.Name as FunName
+
+class TailCallTest {
+    @Test
+    fun `self tail call rewrites to loop`() {
+        val self = FunName.User(null, "sum_acc")
+        val selfType = Type.Arrow(numType, numType)
+        val tailCall =
+            Expr.Application(
+                numType,
+                Expr.Identifier(selfType, self),
+                Expr.Literal.Num(1),
+            )
+        val program =
+            TypedRepresentation(
+                emptyMap(),
+                Declarations(
+                    emptyMap(),
+                    mapOf(
+                        self to
+                            Function(
+                                Expr.Lambda(
+                                    selfType,
+                                    listOf(
+                                        Expr.Lambda.Branch(Pattern.Wildcard(numType), Expr.Literal.Num(0)),
+                                        Expr.Lambda.Branch(Pattern.Wildcard(numType), tailCall),
+                                    ),
+                                ),
+                                0,
+                            ),
+                    ),
+                ),
+            )
+        val w = wat(program)
+        val body = region(w, "(func \$fn.top.sum_acc")
+
+        assertContains(body, "loop \$tail_loop")
+        assertContains(body, "local.set \$arg")
+        assertContains(body, "br \$tail_loop")
+        assertFalse(body.contains("(call \$fn.top.sum_acc"))
+        assertFalse(body.contains("return_call"))
+    }
+}

@@ -30,6 +30,8 @@ internal class WatCodeEmitter(
         branches: List<Expr.Lambda.Branch>,
         argLocal: String,
         ctx: WatFunctionContext,
+        selfLoopLabel: String? = null,
+        selfFunc: FuncName.User? = null,
     ): SExpr {
         if (branches.isEmpty()) return unreachable()
 
@@ -39,12 +41,29 @@ internal class WatCodeEmitter(
             val skip = gen.freshLabel("skip")
             ctx.pushScope()
             val stmts = emitPatternCheck(branch.pattern, argLocal, skip, ctx)
-            val body = genExpr(branch.body, ctx)
+            val tailArg = selfFunc?.let { unwrapSelfTailArg(branch.body, it) }
+            val branchEnd =
+                if (tailArg != null && selfLoopLabel != null) {
+                    listOf(localSet(argLocal, genExpr(tailArg, ctx)), br(selfLoopLabel))
+                } else {
+                    listOf(brValue(matchEnd, genExpr(branch.body, ctx)))
+                }
             ctx.popScope()
-            blocks.add(block(skip, null, stmts + brValue(matchEnd, body)))
+            blocks.add(block(skip, null, stmts + branchEnd))
         }
         blocks.add(unreachable())
         return block(matchEnd, "i32", blocks)
+    }
+
+    private fun unwrapSelfTailArg(
+        expr: Expr,
+        self: FuncName.User,
+    ): Expr? {
+        if (expr !is Expr.Application) return null
+        val callee = expr.left as? Expr.Identifier ?: return null
+        val name = callee.name as? FuncName.User ?: return null
+        if (name != self) return null
+        return expr.right
     }
 
     fun emitPatternCheck(

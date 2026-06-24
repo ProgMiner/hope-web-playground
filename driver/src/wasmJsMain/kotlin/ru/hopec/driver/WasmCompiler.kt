@@ -5,7 +5,7 @@ package ru.hopec.driver
 @JsModule("binaryen")
 external val binaryen: JsAny
 
-@JsFun("(binaryen, wat) => binaryen.parseText(wat)")
+@JsFun("(binaryenModule, wat) => (binaryenModule.default ?? binaryenModule).parseText(wat)")
 private external fun parseWat(
     binaryen: JsAny,
     wat: String,
