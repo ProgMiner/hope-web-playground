@@ -2,7 +2,7 @@ name: GitHub Pages
 
 on:
   push:
-    branches: [ master ]
+    branches: [master]
 
 env:
   TREE_SITTER_CLI_VERSION: 0.26.6
@@ -58,7 +58,7 @@ jobs:
       - name: "hope-web: upload pages"
         uses: actions/upload-pages-artifact@v5
         with:
-          path: 'hope-web/build/'
+          path: "hope-web/build/"
 
   deploy:
     needs: build_site
