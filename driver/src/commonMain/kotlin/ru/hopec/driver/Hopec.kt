@@ -48,7 +48,6 @@ class Hopec(
                 )
                 null
             } ?: return context.result()
-
         val wasmBinary = compileWatToBinary(watCode)
         output.write(Buffer().write(wasmBinary), wasmBinary.size.toLong())
         return context.result()
