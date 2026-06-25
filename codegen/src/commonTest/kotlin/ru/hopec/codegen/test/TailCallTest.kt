@@ -102,4 +102,63 @@ class TailCallTest {
         assertContains(body, "(i32.const 2)")
         assertContains(body, "(i32.const 3)")
     }
+
+    @Test
+    fun `self tail call through if rewrites to loop`() {
+        val self = FunName.User(null, "loop_if")
+        val argType = Type.Data.tuple(numType, numType)
+        val selfType = Type.Arrow(argType, numType)
+        val thenTail =
+            Expr.Application(
+                numType,
+                Expr.Application(
+                    numType,
+                    Expr.Identifier(selfType, self),
+                    Expr.Literal.Num(1),
+                ),
+                Expr.Literal.Num(2),
+            )
+        val elseTail =
+            Expr.Application(
+                numType,
+                Expr.Application(
+                    numType,
+                    Expr.Identifier(selfType, self),
+                    Expr.Literal.Num(3),
+                ),
+                Expr.Literal.Num(4),
+            )
+        val program =
+            TypedRepresentation(
+                emptyMap(),
+                Declarations(
+                    emptyMap(),
+                    mapOf(
+                        self to
+                            Function(
+                                Expr.Lambda(
+                                    selfType,
+                                    listOf(
+                                        Expr.Lambda.Branch(
+                                            Pattern.Wildcard(argType),
+                                            Expr.If(
+                                                Expr.Literal.TruVal(true),
+                                                thenTail,
+                                                elseTail,
+                                            ),
+                                        ),
+                                    ),
+                                ),
+                                0,
+                            ),
+                    ),
+                ),
+            )
+        val w = wat(program)
+        val body = region(w, "(func \$fn.top.loop_if")
+
+        assertContains(body, "loop \$tail_loop")
+        assertContains(body, "br \$tail_loop")
+        assertFalse(body.contains("(call \$fn.top.loop_if"))
+    }
 }

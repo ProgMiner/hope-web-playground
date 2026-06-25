@@ -63,6 +63,22 @@ class FannkuchTest {
     }
 
     @Test
+    fun `fannkuch n equals 8 runs without stack overflow`() {
+        val result = WasmJvmRunner.compileAndRun(FannkuchBenchmark.sources(n = 8))
+        assertEquals(0, result.returnValue)
+        assertFalse(result.printedOutput.isBlank())
+    }
+
+    @Test
+    fun `fannkuch n equals 12 compiles`() {
+        val binary =
+            WasmJvmRunner
+                .compile(FannkuchBenchmark.sources(n = 12))
+                .first
+        Parser.parse(binary)
+    }
+
+    @Test
     fun `fannkuch redux compiles to valid wasm`() {
         val binary =
             WasmJvmRunner

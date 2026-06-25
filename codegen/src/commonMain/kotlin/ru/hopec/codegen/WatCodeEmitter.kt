@@ -42,11 +42,50 @@ internal class WatCodeEmitter(
             ctx.pushScope()
             val stmts = emitPatternCheck(branch.pattern, argLocal, skip, ctx)
             val tailArgs = selfFunc?.let { collectSelfTailArgs(branch.body, it) }
+            val tailIf = selfFunc?.let { collectSelfTailIf(branch.body, it) }
+            val tailElse = selfFunc?.let { collectSelfTailElse(branch.body, it) }
             val branchEnd =
-                if (tailArgs != null && selfLoopLabel != null) {
-                    listOf(localSet(argLocal, nestedTailArg(tailArgs, ctx)), br(selfLoopLabel))
-                } else {
-                    listOf(brValue(matchEnd, genExpr(branch.body, ctx)))
+                when {
+                    tailArgs != null && selfLoopLabel != null ->
+                        listOf(localSet(argLocal, nestedTailArg(tailArgs, ctx)), br(selfLoopLabel))
+
+                    tailIf != null && selfLoopLabel != null -> {
+                        val cond = genExpr(tailIf.condition, ctx)
+                        listOf(
+                            inst(
+                                "if",
+                                cond,
+                                inst("then", localSet(argLocal, nestedTailArg(tailIf.thenArgs, ctx))),
+                                inst("else", localSet(argLocal, nestedTailArg(tailIf.elseArgs, ctx))),
+                            ),
+                            br(selfLoopLabel),
+                        )
+                    }
+
+                    tailElse != null && selfLoopLabel != null -> {
+                        val outerCond = genExpr(tailElse.condition, ctx)
+                        val baseValue = genExpr(tailElse.nonTail, ctx)
+                        val innerCond = genExpr(tailElse.tailIf.condition, ctx)
+                        listOf(
+                            inst(
+                                "if",
+                                outerCond,
+                                inst("then", brValue(matchEnd, baseValue)),
+                                inst(
+                                    "else",
+                                    inst(
+                                        "if",
+                                        innerCond,
+                                        inst("then", localSet(argLocal, nestedTailArg(tailElse.tailIf.thenArgs, ctx))),
+                                        inst("else", localSet(argLocal, nestedTailArg(tailElse.tailIf.elseArgs, ctx))),
+                                    ),
+                                    br(selfLoopLabel),
+                                ),
+                            ),
+                        )
+                    }
+
+                    else -> listOf(brValue(matchEnd, genExpr(branch.body, ctx)))
                 }
             ctx.popScope()
             blocks.add(block(skip, null, stmts + branchEnd))

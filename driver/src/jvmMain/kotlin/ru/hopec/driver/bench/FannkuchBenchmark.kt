@@ -26,7 +26,7 @@ object FannkuchBenchmark {
         val main =
             ExampleAssets
                 .load("fannkuch-redux")
-                .replace(Regex("""let n == \d+ in"""), "let n == $n in")
+                .replace(Regex("""mainFor\(\d+\)"""), "mainFor($n)")
         return listOf(
             "std.hope" to std,
             "main.hope" to main,
