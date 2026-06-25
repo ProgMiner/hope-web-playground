@@ -39,14 +39,26 @@ class FannkuchTest {
     @Test
     fun `fannkuch n equals 6 matches reference`() {
         val result = WasmJvmRunner.compileAndRun(FannkuchBenchmark.sources(n = 6))
-        assertEquals("49", result.printedOutput.lines().first().trim())
+        assertEquals(
+            "49",
+            result.printedOutput
+                .lines()
+                .first()
+                .trim(),
+        )
         assertContains(result.printedOutput, "Pfannkuchen(6) = 10")
     }
 
     @Test
     fun `fannkuch n equals 7 matches reference`() {
         val result = WasmJvmRunner.compileAndRun(FannkuchBenchmark.sources(n = 7))
-        assertEquals("228", result.printedOutput.lines().first().trim())
+        assertEquals(
+            "228",
+            result.printedOutput
+                .lines()
+                .first()
+                .trim(),
+        )
         assertContains(result.printedOutput, "Pfannkuchen(7) = 16")
     }
 
