@@ -51,4 +51,55 @@ class TailCallTest {
         assertFalse(body.contains("(call \$fn.top.sum_acc"))
         assertFalse(body.contains("return_call"))
     }
+
+    @Test
+    fun `self tail call with multiple args nests tuple left`() {
+        val self = FunName.User(null, "foldl")
+        val pairType = Type.Data.tuple(numType, numType)
+        val argType = Type.Data.tuple(pairType, numType)
+        val fnType = Type.Arrow(argType, numType)
+        val tailCall =
+            Expr.Application(
+                numType,
+                Expr.Application(
+                    numType,
+                    Expr.Application(
+                        numType,
+                        Expr.Identifier(Type.Arrow(numType, numType), self),
+                        Expr.Literal.Num(1),
+                    ),
+                    Expr.Literal.Num(2),
+                ),
+                Expr.Literal.Num(3),
+            )
+        val program =
+            TypedRepresentation(
+                emptyMap(),
+                Declarations(
+                    emptyMap(),
+                    mapOf(
+                        self to
+                            Function(
+                                Expr.Lambda(
+                                    fnType,
+                                    listOf(
+                                        Expr.Lambda.Branch(Pattern.Wildcard(argType), Expr.Literal.Num(0)),
+                                        Expr.Lambda.Branch(Pattern.Wildcard(argType), tailCall),
+                                    ),
+                                ),
+                                0,
+                            ),
+                    ),
+                ),
+            )
+        val w = wat(program)
+        val body = region(w, "(func \$fn.top.foldl")
+
+        assertContains(body, "loop \$tail_loop")
+        assertContains(body, "(local.set \$arg")
+        assertContains(body, "(call \$rt.mk_tuple")
+        assertContains(body, "(i32.const 1)")
+        assertContains(body, "(i32.const 2)")
+        assertContains(body, "(i32.const 3)")
+    }
 }

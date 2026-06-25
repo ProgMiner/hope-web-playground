@@ -41,10 +41,10 @@ internal class WatCodeEmitter(
             val skip = gen.freshLabel("skip")
             ctx.pushScope()
             val stmts = emitPatternCheck(branch.pattern, argLocal, skip, ctx)
-            val tailArg = selfFunc?.let { unwrapSelfTailArg(branch.body, it) }
+            val tailArgs = selfFunc?.let { collectSelfTailArgs(branch.body, it) }
             val branchEnd =
-                if (tailArg != null && selfLoopLabel != null) {
-                    listOf(localSet(argLocal, genExpr(tailArg, ctx)), br(selfLoopLabel))
+                if (tailArgs != null && selfLoopLabel != null) {
+                    listOf(localSet(argLocal, nestedTailArg(tailArgs, ctx)), br(selfLoopLabel))
                 } else {
                     listOf(brValue(matchEnd, genExpr(branch.body, ctx)))
                 }
@@ -55,15 +55,19 @@ internal class WatCodeEmitter(
         return block(matchEnd, "i32", blocks)
     }
 
-    private fun unwrapSelfTailArg(
-        expr: Expr,
-        self: FuncName.User,
-    ): Expr? {
-        if (expr !is Expr.Application) return null
-        val callee = expr.left as? Expr.Identifier ?: return null
-        val name = callee.name as? FuncName.User ?: return null
-        if (name != self) return null
-        return expr.right
+    private fun nestedTailArg(
+        args: List<Expr>,
+        ctx: WatFunctionContext,
+    ): SExpr {
+        require(args.isNotEmpty())
+        if (args.size == 1) return genExpr(args[0], ctx)
+        return call(
+            "\$rt.mk_tuple",
+            listOf(
+                nestedTailArg(args.dropLast(1), ctx),
+                genExpr(args.last(), ctx),
+            ),
+        )
     }
 
     fun emitPatternCheck(

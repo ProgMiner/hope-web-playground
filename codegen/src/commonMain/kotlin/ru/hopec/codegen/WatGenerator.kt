@@ -140,7 +140,7 @@ class WatGenerator(
     }
 
     private fun emitMemoryAndGlobals() {
-        moduleChildren.add(SExpr.Raw("(memory (export \"memory\") 256)"))
+        moduleChildren.add(SExpr.Raw("(memory (export \"memory\") 256 8192)"))
         moduleChildren.add(SExpr.Raw("(global \$heap_ptr (mut i32) (i32.const 4096))"))
     }
 
@@ -200,15 +200,6 @@ class WatGenerator(
         lambda: Expr.Lambda,
         selfFunc: FuncName.User,
     ): Boolean = lambda.branches.any { isSelfTailCall(it.body, selfFunc) }
-
-    private fun isSelfTailCall(
-        expr: Expr,
-        selfFunc: FuncName.User,
-    ): Boolean {
-        val application = expr as? Expr.Application ?: return false
-        val callee = application.left as? Expr.Identifier ?: return false
-        return callee.name == selfFunc
-    }
 
     private fun emitLiftedLambda(lifted: LiftedLambda) {
         val ctx = WatFunctionContext(::esc)

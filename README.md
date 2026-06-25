@@ -50,3 +50,22 @@ Click "Run"
 
 There is also a JVM-based CLI application which can be used to compile HOPE.
 You can run it like a regular Kotlin app if you have JDK 21+.
+
+```bash
+./gradlew :driver:jvmJar
+# then run compile / bench subcommands via the driver main class
+```
+
+### JVM WASM benchmark
+
+The fannkuch-redux example can be compiled to WASM and executed on the JVM
+interpreter (Chicory) with timing output. This is useful for measuring compile
+and run time without opening the browser.
+
+```bash
+# CLI (default n=5)
+./gradlew :driver:fannkuchBench -Pfannkuch.n=7
+
+# JUnit
+./gradlew :driver:fannkuchBenchmark -Dfannkuch.bench=true -Pfannkuch.n=6
+```

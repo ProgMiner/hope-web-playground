@@ -373,14 +373,10 @@ open class ModuleDesugarer(
             is AstNode.ApplicationExpr -> {
                 val args = expr.arguments.map { newScope().resolveExpression(it) }
                 val packed =
-                    if (args.size > 1) {
-                        listOf(
-                            args.reduceRight { left, right ->
-                                Expr.Application(Expr.Identifier(setOf(tupleConstr)), listOf(left, right))
-                            },
-                        )
-                    } else {
-                        args
+                    when (args.size) {
+                        0 -> emptyList()
+                        1 -> args
+                        else -> listOf(packLeftExpr(args))
                     }
                 Expr.Application(
                     newScope().resolveExpression(expr.function),
@@ -418,10 +414,11 @@ open class ModuleDesugarer(
             }
 
             is AstNode.TuplePattern -> {
-                Pattern.Data(
-                    setOf(tupleConstr),
-                    args = pattern.tuple.map { resolvePattern(it) },
-                )
+                when (pattern.tuple.size) {
+                    0 -> Pattern.Data(setOf(tupleConstr), emptyList())
+                    1 -> resolvePattern(pattern.tuple.single())
+                    else -> packLeftPattern(pattern.tuple.map { resolvePattern(it) })
+                }
             }
 
             is AstNode.WildcardPattern -> {
@@ -447,14 +444,10 @@ open class ModuleDesugarer(
             is AstNode.ConstructorPattern -> {
                 val args = pattern.arguments.map { resolvePattern(it) }
                 val packed =
-                    if (args.size > 1) {
-                        listOf(
-                            args.reduceRight { left, right ->
-                                Pattern.Data(setOf(tupleConstr), listOf(left, right)) as Pattern
-                            },
-                        )
-                    } else {
-                        args
+                    when (args.size) {
+                        0 -> emptyList()
+                        1 -> args
+                        else -> listOf(packLeftPattern(args))
                     }
                 Pattern.Data(
                     resolvePattern(pattern.constructor).idents,
@@ -579,6 +572,16 @@ open class ModuleDesugarer(
     fun resolveData(name: String) = moduleContext.resolveData(name) ?: throw IllegalArgumentException("$name not found")
 
     private fun String.generateNewName() = (this + "_" + identCounter.toString()).also { identCounter++ }
+
+    private fun packLeftExpr(args: List<Expr>): Expr =
+        args.reduce { left, right ->
+            Expr.Application(Expr.Identifier(setOf(tupleConstr)), listOf(left, right))
+        }
+
+    private fun packLeftPattern(args: List<Pattern>): Pattern =
+        args.reduce { left, right ->
+            Pattern.Data(setOf(tupleConstr), listOf(left, right))
+        }
 }
 
 private fun ModuleDesugarer.newScope() =
