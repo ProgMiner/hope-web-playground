@@ -252,15 +252,24 @@
       ]
     },
     "expression": {
-      "type": "PREC_LEFT",
-      "value": 4,
-      "content": {
-        "type": "REPEAT1",
-        "content": {
+      "type": "CHOICE",
+      "members": [
+        {
           "type": "SYMBOL",
-          "name": "_primary_expression"
+          "name": "conditional_expression"
+        },
+        {
+          "type": "PREC_LEFT",
+          "value": 4,
+          "content": {
+            "type": "REPEAT1",
+            "content": {
+              "type": "SYMBOL",
+              "name": "_primary_expression"
+            }
+          }
         }
-      }
+      ]
     },
     "_primary_expression": {
       "type": "PREC",
@@ -312,10 +321,6 @@
           {
             "type": "SYMBOL",
             "name": "set_expression"
-          },
-          {
-            "type": "SYMBOL",
-            "name": "conditional_expression"
           },
           {
             "type": "SYMBOL",
