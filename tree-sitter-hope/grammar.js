@@ -89,7 +89,10 @@ export default grammar({
       ),
 
     expression: ($) =>
-      prec.left(PREC.ARGUMENTS, repeat1($._primary_expression)),
+      choice(
+        $.conditional_expression,
+        prec.left(PREC.ARGUMENTS, repeat1($._primary_expression)),
+      ),
 
     _primary_expression: ($) =>
       prec(
@@ -103,7 +106,6 @@ export default grammar({
           $.tuple,
           $.list_expression,
           $.set_expression,
-          $.conditional_expression,
           $.local_variable_expression,
           $.lambda_expression,
         ),
