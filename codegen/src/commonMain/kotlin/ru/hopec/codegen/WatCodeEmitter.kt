@@ -367,6 +367,13 @@ internal class WatCodeEmitter(
                 )
             }
 
+            leftName is FuncName.Core && leftName.name == "io.resetHeap" -> {
+                resultBlock(
+                    listOf(call("\$rt.reset", emptyList())),
+                    i32Const(0),
+                )
+            }
+
             leftName is FuncName.User -> {
                 val arg = genExpr(expr.right, ctx)
                 call(gen.watId(leftName), listOf(arg))

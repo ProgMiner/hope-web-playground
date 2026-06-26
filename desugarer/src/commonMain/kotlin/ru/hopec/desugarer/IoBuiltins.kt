@@ -8,11 +8,13 @@ object IoBuiltins {
 
     val PRINT = CoreFunction("io.print")
     val GET_CHAR = CoreFunction("io.getChar")
+    val RESET_HEAP = CoreFunction("io.resetHeap")
 
     private val bySourceName =
         mapOf(
             "print" to PRINT,
             "getChar" to GET_CHAR,
+            "resetHeap" to RESET_HEAP,
         )
 
     fun isBuiltinName(name: String): Boolean = name in bySourceName

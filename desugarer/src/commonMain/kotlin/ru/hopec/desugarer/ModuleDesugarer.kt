@@ -335,7 +335,7 @@ open class ModuleDesugarer(
 
             is AstNode.LetExpr -> {
                 newScope().let { scope ->
-                    val matcher = newScope().resolveExpression(expr.value)
+                    val matcher = scope.resolveExpression(expr.value)
                     val pattern = scope.resolvePattern(expr.pattern)
                     val body = scope.resolveExpression(expr.body)
                     Expr.Let(pattern, matcher, body)
@@ -371,7 +371,7 @@ open class ModuleDesugarer(
             }
 
             is AstNode.ApplicationExpr -> {
-                val args = expr.arguments.map { newScope().resolveExpression(it) }
+                val args = expr.arguments.map { resolveExpression(it) }
                 val packed =
                     when (args.size) {
                         0 -> emptyList()
@@ -379,7 +379,7 @@ open class ModuleDesugarer(
                         else -> listOf(packLeftExpr(args))
                     }
                 Expr.Application(
-                    newScope().resolveExpression(expr.function),
+                    resolveExpression(expr.function),
                     packed,
                 )
             }

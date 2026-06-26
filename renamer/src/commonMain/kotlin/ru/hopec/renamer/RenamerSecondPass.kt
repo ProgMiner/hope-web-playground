@@ -247,7 +247,11 @@ class RenamerSecondPass(
             }
 
             "ident" -> {
-                if (Regex("-?\\d+").matches(node.text)) {
+                if (node.text.startsWith("\'") && node.text.endsWith("\'") && node.text.length == 3) {
+                    parseChar(node.innerText())
+                } else if (node.text.startsWith("\"") && node.text.endsWith("\"")) {
+                    AstNode.StringLiteral(parseString(node.innerText()))
+                } else if (Regex("-?\\d+").matches(node.text)) {
                     AstNode.DecimalLiteral(
                         node.text.toLongOrNull() ?: throw RenamerException(
                             "Can't parse decimal literal",

@@ -119,6 +119,8 @@ internal data class Signature(
                         ),
                     Declarations.Function.Name.Core("io.getChar") to
                         PolymorphicType(Type.Data.char, 0),
+                    Declarations.Function.Name.Core("io.resetHeap") to
+                        PolymorphicType(Type.Data.unit, 0),
                 ),
                 mapOf(
                     Core.Num to Declarations.Data(mapOf(), 0),

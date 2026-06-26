@@ -53,6 +53,9 @@ class WatGenerator(
 
     internal fun wrapperFor(name: FuncName): String =
         wrapperIds.getOrPut(name) {
+            if (name is FuncName.Core && WatImports.isRuntimeBuiltin(name)) {
+                return@getOrPut "\$rt.reset"
+            }
             if (name is FuncName.Core && WatImports.isBuiltin(name)) {
                 return@getOrPut WatImports.importId(name)
             }
@@ -64,10 +67,10 @@ class WatGenerator(
     internal fun watId(name: FuncName): String =
         when (name) {
             is FuncName.Core ->
-                if (WatImports.isBuiltin(name)) {
-                    WatImports.importId(name)
-                } else {
-                    "\$core.${esc(name.name)}"
+                when {
+                    WatImports.isRuntimeBuiltin(name) -> "\$rt.reset"
+                    WatImports.isBuiltin(name) -> WatImports.importId(name)
+                    else -> "\$core.${esc(name.name)}"
                 }
             is FuncName.User -> "\$fn.${name.module ?: "top"}.${esc(name.name)}"
             is FuncName.Constructor -> "\$ctor.${dataStr(name.data)}.${esc(name.constructor)}"
@@ -140,7 +143,7 @@ class WatGenerator(
     }
 
     private fun emitMemoryAndGlobals() {
-        moduleChildren.add(SExpr.Raw("(memory (export \"memory\") 1024 8192)"))
+        moduleChildren.add(SExpr.Raw("(memory (export \"memory\") 2048 65536)"))
         moduleChildren.add(SExpr.Raw("(global \$heap_ptr (mut i32) (i32.const 4096))"))
     }
 

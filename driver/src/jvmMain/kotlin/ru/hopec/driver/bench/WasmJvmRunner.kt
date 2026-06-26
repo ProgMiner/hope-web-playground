@@ -9,6 +9,7 @@ import com.dylibso.chicory.wasm.types.ValType
 import kotlinx.coroutines.runBlocking
 import okio.Buffer
 import ru.hopec.core.GlobalCompilationContext
+import ru.hopec.core.MultiStatus
 import ru.hopec.core.isError
 import ru.hopec.core.topography.Resource
 import ru.hopec.driver.Hopec
@@ -38,7 +39,7 @@ object WasmJvmRunner {
         val compileStart = System.nanoTime()
         val status = Hopec(context).run(HopecInput(resources), buffer)
         val compileNanos = System.nanoTime() - compileStart
-        check(!status.isError()) { context.result().message }
+        check(!status.isError()) { formatCompilationErrors(context.result()) }
         val binary = buffer.readByteArray()
         return binary to compileNanos
     }
@@ -74,6 +75,19 @@ object WasmJvmRunner {
             timings = result.timings.copy(compileNanos = compileNanos),
             wasmBytes = binary.size,
         )
+    }
+
+    private fun formatCompilationErrors(status: ru.hopec.core.CompilationStatus): String {
+        fun walk(s: ru.hopec.core.CompilationStatus): List<String> =
+            if (s is MultiStatus) {
+                s.children().flatMap { walk(it) }
+            } else if (s.severity == ru.hopec.core.StatusSeverity.ERROR) {
+                listOf(s.message)
+            } else {
+                emptyList()
+            }
+        val errors = walk(status)
+        return if (errors.isEmpty()) status.message else errors.joinToString("\n")
     }
 }
 
