@@ -22,7 +22,17 @@
 			terminal.writeln('Compilation failed');
 			return;
 		}
-		callMain(compiled.exports as Record<string, unknown>);
+		terminal.writeln('Running...');
+		const started = performance.now();
+		await new Promise<void>((resolve) => setTimeout(resolve, 0));
+		try {
+			callMain(compiled.exports as Record<string, unknown>);
+			const elapsed = performance.now() - started;
+			terminal.writeln(`finished in ${elapsed.toFixed(0)} ms`);
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			terminal.writeln(`runtime error: ${message}`);
+		}
 	}
 
 	function callMain(exports: Record<string, unknown>) {

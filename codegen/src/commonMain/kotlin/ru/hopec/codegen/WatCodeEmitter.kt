@@ -30,6 +30,8 @@ internal class WatCodeEmitter(
         branches: List<Expr.Lambda.Branch>,
         argLocal: String,
         ctx: WatFunctionContext,
+        selfLoopLabel: String? = null,
+        selfFunc: FuncName.User? = null,
     ): SExpr {
         if (branches.isEmpty()) return unreachable()
 
@@ -39,12 +41,72 @@ internal class WatCodeEmitter(
             val skip = gen.freshLabel("skip")
             ctx.pushScope()
             val stmts = emitPatternCheck(branch.pattern, argLocal, skip, ctx)
-            val body = genExpr(branch.body, ctx)
+            val tailArgs = selfFunc?.let { collectSelfTailArgs(branch.body, it) }
+            val tailIf = selfFunc?.let { collectSelfTailIf(branch.body, it) }
+            val tailElse = selfFunc?.let { collectSelfTailElse(branch.body, it) }
+            val branchEnd =
+                when {
+                    tailArgs != null && selfLoopLabel != null ->
+                        listOf(localSet(argLocal, nestedTailArg(tailArgs, ctx)), br(selfLoopLabel))
+
+                    tailIf != null && selfLoopLabel != null -> {
+                        val cond = genExpr(tailIf.condition, ctx)
+                        listOf(
+                            inst(
+                                "if",
+                                cond,
+                                inst("then", localSet(argLocal, nestedTailArg(tailIf.thenArgs, ctx))),
+                                inst("else", localSet(argLocal, nestedTailArg(tailIf.elseArgs, ctx))),
+                            ),
+                            br(selfLoopLabel),
+                        )
+                    }
+
+                    tailElse != null && selfLoopLabel != null -> {
+                        val outerCond = genExpr(tailElse.condition, ctx)
+                        val baseValue = genExpr(tailElse.nonTail, ctx)
+                        val innerCond = genExpr(tailElse.tailIf.condition, ctx)
+                        listOf(
+                            inst(
+                                "if",
+                                outerCond,
+                                inst("then", brValue(matchEnd, baseValue)),
+                                inst(
+                                    "else",
+                                    inst(
+                                        "if",
+                                        innerCond,
+                                        inst("then", localSet(argLocal, nestedTailArg(tailElse.tailIf.thenArgs, ctx))),
+                                        inst("else", localSet(argLocal, nestedTailArg(tailElse.tailIf.elseArgs, ctx))),
+                                    ),
+                                    br(selfLoopLabel),
+                                ),
+                            ),
+                        )
+                    }
+
+                    else -> listOf(brValue(matchEnd, genExpr(branch.body, ctx)))
+                }
             ctx.popScope()
-            blocks.add(block(skip, null, stmts + brValue(matchEnd, body)))
+            blocks.add(block(skip, null, stmts + branchEnd))
         }
         blocks.add(unreachable())
         return block(matchEnd, "i32", blocks)
+    }
+
+    private fun nestedTailArg(
+        args: List<Expr>,
+        ctx: WatFunctionContext,
+    ): SExpr {
+        require(args.isNotEmpty())
+        if (args.size == 1) return genExpr(args[0], ctx)
+        return call(
+            "\$rt.mk_tuple",
+            listOf(
+                nestedTailArg(args.dropLast(1), ctx),
+                genExpr(args.last(), ctx),
+            ),
+        )
     }
 
     fun emitPatternCheck(
@@ -301,6 +363,13 @@ internal class WatCodeEmitter(
                 val arg = genExpr(expr.right, ctx)
                 resultBlock(
                     listOf(call(WatImports.importId(leftName), listOf(arg))),
+                    i32Const(0),
+                )
+            }
+
+            leftName is FuncName.Core && leftName.name == "io.resetHeap" -> {
+                resultBlock(
+                    listOf(call("\$rt.reset", emptyList())),
                     i32Const(0),
                 )
             }

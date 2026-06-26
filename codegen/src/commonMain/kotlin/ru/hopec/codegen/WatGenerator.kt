@@ -53,6 +53,9 @@ class WatGenerator(
 
     internal fun wrapperFor(name: FuncName): String =
         wrapperIds.getOrPut(name) {
+            if (name is FuncName.Core && WatImports.isRuntimeBuiltin(name)) {
+                return@getOrPut "\$rt.reset"
+            }
             if (name is FuncName.Core && WatImports.isBuiltin(name)) {
                 return@getOrPut WatImports.importId(name)
             }
@@ -64,10 +67,10 @@ class WatGenerator(
     internal fun watId(name: FuncName): String =
         when (name) {
             is FuncName.Core ->
-                if (WatImports.isBuiltin(name)) {
-                    WatImports.importId(name)
-                } else {
-                    "\$core.${esc(name.name)}"
+                when {
+                    WatImports.isRuntimeBuiltin(name) -> "\$rt.reset"
+                    WatImports.isBuiltin(name) -> WatImports.importId(name)
+                    else -> "\$core.${esc(name.name)}"
                 }
             is FuncName.User -> "\$fn.${name.module ?: "top"}.${esc(name.name)}"
             is FuncName.Constructor -> "\$ctor.${dataStr(name.data)}.${esc(name.constructor)}"
@@ -140,7 +143,7 @@ class WatGenerator(
     }
 
     private fun emitMemoryAndGlobals() {
-        moduleChildren.add(SExpr.Raw("(memory (export \"memory\") 100)"))
+        moduleChildren.add(SExpr.Raw("(memory (export \"memory\") 2048 65536)"))
         moduleChildren.add(SExpr.Raw("(global \$heap_ptr (mut i32) (i32.const 4096))"))
     }
 
@@ -169,17 +172,25 @@ class WatGenerator(
     private fun emitDeclFunctions(decls: Declarations) {
         for ((name, func) in decls.functions) {
             if (name is FuncName.Core && WatImports.isBuiltin(name)) continue
-            emitFunction(watId(name), func.lambda)
+            emitFunction(watId(name), func.lambda, name as? FuncName.User)
         }
     }
 
     private fun emitFunction(
         watName: String,
         lambda: Expr.Lambda,
+        selfFunc: FuncName.User? = null,
     ) {
         val ctx = WatFunctionContext(::esc)
+        val loopLabel = selfFunc?.takeIf { hasSelfTailCall(lambda, it) }?.let { freshLabel("tail_loop") }
 
-        val body = code.emitBranchMatch(lambda.branches, "\$arg", ctx)
+        val match = code.emitBranchMatch(lambda.branches, "\$arg", ctx, loopLabel, selfFunc)
+        val body =
+            if (loopLabel != null) {
+                loop(loopLabel, "i32", listOf(match))
+            } else {
+                match
+            }
 
         val children = mutableListOf<SExpr>()
         for (local in ctx.allLocals()) children.add(atom("local $local i32"))
@@ -187,6 +198,11 @@ class WatGenerator(
 
         moduleChildren.add(SExpr.Inst("func $watName (param \$arg i32) (result i32)", children))
     }
+
+    private fun hasSelfTailCall(
+        lambda: Expr.Lambda,
+        selfFunc: FuncName.User,
+    ): Boolean = lambda.branches.any { isSelfTailCall(it.body, selfFunc) }
 
     private fun emitLiftedLambda(lifted: LiftedLambda) {
         val ctx = WatFunctionContext(::esc)

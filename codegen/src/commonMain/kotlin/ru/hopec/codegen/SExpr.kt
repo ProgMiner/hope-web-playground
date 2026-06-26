@@ -146,6 +146,15 @@ internal fun block(
     return SExpr.Inst(head, body)
 }
 
+internal fun loop(
+    label: String,
+    result: String?,
+    body: List<SExpr>,
+): SExpr {
+    val head = if (result != null) "loop $label (result $result)" else "loop $label"
+    return SExpr.Inst(head, body)
+}
+
 internal fun resultBlock(
     stmts: List<SExpr>,
     value: SExpr,

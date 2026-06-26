@@ -55,3 +55,42 @@ kotlin {
         }
     }
 }
+
+tasks.register<JavaExec>("fannkuchBench") {
+    group = "benchmark"
+    description = "Run fannkuch-redux WASM benchmark on JVM (override n with -Pfannkuch.n=7)"
+    dependsOn("jvmJar")
+    classpath(
+        kotlin
+            .jvm()
+            .compilations
+            .getByName("main")
+            .runtimeDependencyFiles,
+        kotlin
+            .jvm()
+            .compilations
+            .getByName("main")
+            .output.allOutputs,
+    )
+    mainClass.set("ru.hopec.driver.HopecCliKt")
+    val n = project.findProperty("fannkuch.n")?.toString() ?: "5"
+    args("bench", "--n", n)
+    jvmArgs("-Xmx4g", "-Xss64m")
+}
+
+tasks.register<Test>("fannkuchBenchmark") {
+    group = "benchmark"
+    description = "Run fannkuch WASM benchmark JUnit test (override n with -Pfannkuch.n=7)"
+    dependsOn("jvmTestClasses")
+    testClassesDirs = sourceSets["jvmTest"].output.classesDirs
+    classpath = sourceSets["jvmTest"].runtimeClasspath
+    maxHeapSize = "4g"
+    systemProperty("fannkuch.bench", "true")
+    systemProperty("fannkuch.n", project.findProperty("fannkuch.n")?.toString() ?: "5")
+    filter { includeTestsMatching("ru.hopec.driver.test.FannkuchBenchmarkTest") }
+}
+
+tasks.named<Test>("jvmTest") {
+    maxHeapSize = "4g"
+    jvmArgs("-Xss64m")
+}

@@ -9,11 +9,40 @@ internal object WatRuntime {
     val MALLOC: String =
         """
         (func ${'$'}rt.malloc (param ${'$'}bytes i32) (result i32)
-          (global.get ${'$'}heap_ptr)
-          (global.set ${'$'}heap_ptr
+          (local ${'$'}ptr i32)
+          (local ${'$'}end i32)
+          (local ${'$'}cur_bytes i32)
+          (local.set ${'$'}ptr
+            (global.get ${'$'}heap_ptr))
+          (local.set ${'$'}end
             (i32.add
-              (global.get ${'$'}heap_ptr)
-              (local.get ${'$'}bytes))))
+              (local.get ${'$'}ptr)
+              (local.get ${'$'}bytes)))
+          (block ${'$'}done
+            (loop ${'$'}grow
+              (local.set ${'$'}cur_bytes
+                (i32.shl
+                  (memory.size)
+                  (i32.const 16)))
+              (if
+                (i32.le_u
+                  (local.get ${'$'}end)
+                  (local.get ${'$'}cur_bytes))
+                (then
+                  (br ${'$'}done))
+                (else
+                  (if
+                    (i32.lt_s
+                      (memory.grow
+                        (i32.const 1))
+                      (i32.const 0))
+                    (then
+                      (unreachable))
+                    (else
+                      (br ${'$'}grow)))))))
+          (global.set ${'$'}heap_ptr
+            (local.get ${'$'}end))
+          (local.get ${'$'}ptr))
         """.trimIndent()
 
     val MK_TUPLE: String =

@@ -168,6 +168,20 @@ class EndToEndTest {
     }
 
     @Test
+    fun `tail recursive accumulator sums first n numbers`() {
+        val source =
+            """
+            dec sum_acc : num # num -> num
+            --- sum_acc(0, acc) <= acc
+            --- sum_acc(n, acc) <= sum_acc(n - 1, n + acc)
+
+            dec main : num
+            --- main <= sum_acc(10, 0)
+            """.trimIndent()
+        assertEquals(55, runMain(source))
+    }
+
+    @Test
     fun `typevars`() {
         val source =
             """

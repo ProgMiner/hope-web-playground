@@ -10,10 +10,17 @@ export interface IoHost {
  */
 export function decodeHopeString(memory: WebAssembly.Memory, listPtr: number): string {
 	const view = new DataView(memory.buffer);
+	const limit = memory.buffer.byteLength;
 	let cur = listPtr;
 	let result = '';
 	while (cur !== 0) {
+		if (cur < 0 || cur + 4 > limit) {
+			return result + ' [invalid string pointer]';
+		}
 		const tuplePtr = view.getUint32(cur, true);
+		if (tuplePtr < 0 || tuplePtr + 8 > limit) {
+			return result + ' [invalid string pointer]';
+		}
 		const charCode = view.getUint32(tuplePtr, true);
 		const restPtr = view.getUint32(tuplePtr + 4, true);
 		result += String.fromCharCode(charCode);

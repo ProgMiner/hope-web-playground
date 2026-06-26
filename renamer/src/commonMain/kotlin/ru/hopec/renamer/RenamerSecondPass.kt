@@ -247,7 +247,11 @@ class RenamerSecondPass(
             }
 
             "ident" -> {
-                if (Regex("-?\\d+").matches(node.text)) {
+                if (node.text.startsWith("\'") && node.text.endsWith("\'") && node.text.length == 3) {
+                    parseChar(node.innerText())
+                } else if (node.text.startsWith("\"") && node.text.endsWith("\"")) {
+                    AstNode.StringLiteral(parseString(node.innerText()))
+                } else if (Regex("-?\\d+").matches(node.text)) {
                     AstNode.DecimalLiteral(
                         node.text.toLongOrNull() ?: throw RenamerException(
                             "Can't parse decimal literal",
@@ -267,7 +271,7 @@ class RenamerSecondPass(
             }
 
             "string" -> {
-                AstNode.StringLiteral(node.innerText())
+                AstNode.StringLiteral(parseString(node.innerText()))
             }
 
             "char" -> {
@@ -481,7 +485,7 @@ class RenamerSecondPass(
                 if (node.text.startsWith("\'") && node.text.endsWith("\'") && node.text.length == 3) {
                     parseChar(node.innerText())
                 } else if (node.text.startsWith("\"") && node.text.endsWith("\"")) {
-                    AstNode.StringLiteral(node.innerText())
+                    AstNode.StringLiteral(parseString(node.innerText()))
                 } else if (Regex("-?\\d+").matches(node.text)) {
                     AstNode.DecimalLiteral(
                         node.text.toLongOrNull() ?: throw RenamerException(
@@ -498,7 +502,7 @@ class RenamerSecondPass(
             }
 
             "string" -> {
-                AstNode.StringLiteral(node.innerText())
+                AstNode.StringLiteral(parseString(node.innerText()))
             }
 
             "char" -> {
@@ -533,6 +537,27 @@ class RenamerSecondPass(
         }
 
     private fun TsSyntaxNode.innerText(): String = text.substring(1, text.length - 1)
+
+    private fun parseString(inner: String): String {
+        val out = StringBuilder()
+        var i = 0
+        while (i < inner.length) {
+            if (inner[i] == '\\' && i + 1 < inner.length) {
+                when (inner[i + 1]) {
+                    'n' -> out.append('\n')
+                    't' -> out.append('\t')
+                    '\\' -> out.append('\\')
+                    '"' -> out.append('"')
+                    else -> out.append(inner[i])
+                }
+                i += 2
+            } else {
+                out.append(inner[i])
+                i++
+            }
+        }
+        return out.toString()
+    }
 
     private fun parseChar(inner: String): AstNode.Literal =
         AstNode.CharLiteral(

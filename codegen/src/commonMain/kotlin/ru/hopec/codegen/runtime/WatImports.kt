@@ -20,7 +20,7 @@ internal object WatImports {
             }
         }
 
-    fun isBuiltin(name: FuncName.Core): Boolean = name.name == "io.print" || name.name == "io.getChar"
+    fun isBuiltin(name: FuncName.Core): Boolean = name.name == "io.print" || name.name == "io.getChar" || name.name == "io.resetHeap"
 
     fun importId(name: FuncName.Core): String =
         when (name.name) {
@@ -28,4 +28,6 @@ internal object WatImports {
             "io.getChar" -> "\$import.io.getChar"
             else -> error("Not an io import: ${name.name}")
         }
+
+    fun isRuntimeBuiltin(name: FuncName.Core): Boolean = name.name == "io.resetHeap"
 }
