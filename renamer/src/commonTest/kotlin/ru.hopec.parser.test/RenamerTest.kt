@@ -494,4 +494,78 @@ class RenamerTest {
                 """.trimIndent(),
             )
         }
+
+    @Test
+    fun `class and instance declarations`() =
+        runTest {
+            val program =
+                startRenamer(
+                    """
+                    typevar alpha
+                    class Eq alpha with
+                      dec eq : alpha # alpha -> truval
+                    end
+
+                    instance Eq (list alpha) given Eq alpha with
+                      --- eq(nil, nil) <= true
+                      --- eq(_, _) <= false
+                    end
+
+                    dec member : alpha # list alpha -> truval given Eq alpha
+                    --- member(_, nil) <= false
+                    """.trimIndent(),
+                ).program
+
+            val cls = program.list.filterIsInstance<AstNode.ClassDeclaration>().single()
+            assertEquals("Eq", cls.name)
+            assertEquals("alpha", cls.typeVar)
+            assertEquals(listOf("eq"), cls.methods.map { it.name })
+
+            val instance = program.list.filterIsInstance<AstNode.InstanceDeclaration>().single()
+            assertEquals("Eq", instance.cls)
+            assertEquals("list", instance.head)
+            assertEquals(listOf("alpha"), instance.boundVars)
+            assertEquals(listOf(AstNode.Constraint("Eq", "alpha")), instance.context)
+            assertEquals(2, instance.methods.getValue("eq").size)
+
+            val member = program.list.filterIsInstance<FunctionDeclaration>().single()
+            assertEquals(listOf(AstNode.Constraint("Eq", "alpha")), member.context)
+            assertEquals(1, member.equations.size)
+        }
+
+    @Test
+    fun `infix method in instance`() =
+        runTest {
+            val program =
+                startRenamer(
+                    """
+                    typevar alpha
+                    class Eq alpha with
+                      dec == : alpha # alpha -> truval
+                    end
+                    infix == : 4
+
+                    instance Eq num with
+                      --- x == y <= x = y
+                    end
+                    """.trimIndent(),
+                ).program
+            val instance = program.list.filterIsInstance<AstNode.InstanceDeclaration>().single()
+            val equation = instance.methods.getValue("==").single()
+            assertIs<AstNode.TuplePattern>(equation.pattern)
+        }
+
+    @Test
+    fun `constraint on unknown type variable is an error`() =
+        runTest {
+            val context =
+                contextAfterPass(
+                    """
+                    typevar alpha, beta
+                    dec f : alpha -> alpha given Eq beta
+                    --- f(x) <= x
+                    """.trimIndent(),
+                )
+            assertEquals(StatusSeverity.ERROR, context.result().severity)
+        }
 }

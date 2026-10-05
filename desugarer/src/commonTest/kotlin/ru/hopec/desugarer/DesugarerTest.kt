@@ -385,4 +385,61 @@ class DesugarerTest {
                 ident.name.size,
             )
         }
+
+    @Test
+    fun `classes, instances and contexts`() =
+        runTest {
+            val alpha = AstNode.VarType("alpha")
+            val eqType = AstNode.FunctionalType(AstNode.ProductType(alpha, alpha), AstNode.NamedType("truval", emptyList()))
+            val program =
+                RenamedRepresentation(
+                    Program(
+                        listOf(
+                            AstNode.FunctionDeclaration(
+                                "f",
+                                listOf(AstNode.FunctionEquation(null, AstNode.IdentExpr("eq"))),
+                                listOf("alpha"),
+                                eqType,
+                                listOf(AstNode.Constraint("Eq", "alpha")),
+                            ),
+                            AstNode.ClassDeclaration(
+                                "Eq",
+                                "alpha",
+                                listOf(AstNode.FunctionDeclaration("eq", emptyList(), listOf("alpha"), eqType)),
+                            ),
+                            AstNode.InstanceDeclaration(
+                                "Eq",
+                                "list",
+                                listOf("alpha"),
+                                listOf(AstNode.Constraint("Eq", "alpha")),
+                                mapOf("eq" to listOf(AstNode.FunctionEquation(null, AstNode.IdentExpr("eq")))),
+                            ),
+                        ),
+                    ),
+                    emptyMap(),
+                    emptyMap(),
+                )
+            val desugared = assertNotNull(startDesugarer(program))
+            val declarations = desugared.topLevel
+            val eqClass =
+                DesugaredRepresentation.Declarations.Class.Name
+                    .Defined(null, "Eq")
+            val cls = assertNotNull(declarations.classes[eqClass])
+            val method = cls.methods.keys.single()
+
+            val f = declarations.functions.values.single()
+            assertEquals(listOf(DesugaredRepresentation.Predicate(eqClass, 0)), f.type.context)
+            assertEquals(
+                DesugaredRepresentation.Expr.Identifier(setOf(method)),
+                f.lambda.branches
+                    .single()
+                    .body,
+            )
+
+            val instance = declarations.instances.single()
+            assertEquals(eqClass, instance.cls)
+            assertEquals(DesugaredRepresentation.Type.Data.list(DesugaredRepresentation.Type.Variable(0)), instance.head)
+            assertEquals(listOf(DesugaredRepresentation.Predicate(eqClass, 0)), instance.context)
+            assertEquals(setOf(method), instance.methods.keys)
+        }
 }

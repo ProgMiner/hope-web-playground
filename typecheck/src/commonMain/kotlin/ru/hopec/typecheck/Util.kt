@@ -48,6 +48,20 @@ internal fun Type.shift(value: Int): Type =
         is Type.Variable -> Type.Variable(value + index)
     }
 
+internal fun Type.substitute(args: List<Type>): Type =
+    when (this) {
+        is Type.Data -> Type.Data(constructor, this.args.map { it.substitute(args) })
+        is Type.Arrow -> Type.Arrow(argument.substitute(args), result.substitute(args))
+        is Type.Variable -> args[index]
+    }
+
+internal fun Type.freeVariables(): Set<Int> =
+    when (this) {
+        is Type.Data -> args.flatMap { it.freeVariables() }.toSet()
+        is Type.Arrow -> argument.freeVariables() + result.freeVariables()
+        is Type.Variable -> setOf(index)
+    }
+
 internal fun <T> Collection<T?>.sequence(): List<T>? =
     fold(mutableListOf<T>() as MutableList<T>?) { acc, cur ->
         if (acc == null) {

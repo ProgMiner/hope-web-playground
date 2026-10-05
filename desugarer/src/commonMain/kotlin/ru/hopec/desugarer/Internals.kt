@@ -3,6 +3,7 @@ package ru.hopec.desugarer
 import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Data
 import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Data.Name.Core
 import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Function.Name.Constructor
+import ru.hopec.desugarer.context.ClassInfo
 import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Function.Name.Core as CoreFunction
 
 val plus = CoreFunction("+")
@@ -81,3 +82,9 @@ fun getInternalFunctions() =
         .associate {
             it.name to mutableSetOf(it as DesugaredRepresentation.Declarations.Function.Name)
         }.toMutableMap()
+
+val eqClass =
+    DesugaredRepresentation.Declarations.Class.Name
+        .Core("Eq")
+
+fun getInternalClasses(): MutableMap<String, ClassInfo> = mutableMapOf("Eq" to ClassInfo(eqClass, mapOf("=" to equal)))

@@ -40,6 +40,22 @@ sealed class FirstPassNode(
             val name: String,
             val boundVars: List<String>,
             val typeExpr: TypeExpr,
+            val context: List<AstNode.Constraint> = emptyList(),
+        ) : Statement(node)
+
+        data class ClassDeclaration(
+            override val node: TsSyntaxNode,
+            val name: String,
+            val typeVar: String,
+            val methods: List<FunctionDeclaration>,
+        ) : Statement(node)
+
+        data class InstanceDeclaration(
+            override val node: TsSyntaxNode,
+            val cls: String,
+            val head: TypeExpr,
+            val context: List<AstNode.Constraint>,
+            val equations: List<TsSyntaxNode>,
         ) : Statement(node)
 
         data class DataDeclaration(

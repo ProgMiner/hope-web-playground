@@ -17,7 +17,65 @@ data class DesugaredRepresentation(
     data class Declarations(
         val data: Map<Data.Name.Defined, Data>,
         val functions: Map<Function.Name, Function>,
+        val classes: Map<Class.Name, Class> = emptyMap(),
+        val instances: List<Instance> = emptyList(),
     ) {
+        /**
+         * Type class with a single type parameter
+         *
+         * Dictionary of a class with a single method is the method itself,
+         * otherwise it is a tuple `(m1, (m2, .. mn))` of methods in declaration order
+         *
+         * @param methods -- method types, the class parameter is `Type.Variable(0)`
+         */
+        data class Class(
+            val methods: Map<Function.Name, Type>,
+        ) {
+            sealed interface Name {
+                val name: String
+
+                /** Built-in classes like Eq */
+                data class Core(
+                    override val name: String,
+                ) : Name
+
+                data class Defined(
+                    val module: String?,
+                    override val name: String,
+                ) : Name
+            }
+        }
+
+        /**
+         * Instance `class (head a1 .. an) given context`
+         *
+         * @param head -- `Type.Data` applied to distinct type variables bound by the instance
+         *
+         * @param methods -- implementations of class methods, their types are derived from the class
+         */
+        data class Instance(
+            val cls: Class.Name,
+            val head: Type.Data,
+            val boundTypeVariables: Int,
+            val context: List<Predicate>,
+            val methods: Map<Function.Name, Expr.Lambda>,
+        ) {
+            /** Name of the function computing dictionary of this instance */
+            val dictionary: Function.Name.User
+                get() = instanceDictionaryName(cls, head.constructor)
+
+            /** Name of the function implementing [method] in a class with several methods */
+            fun method(method: Function.Name): Function.Name.User {
+                val methodName =
+                    when (method) {
+                        is Function.Name.Core -> method.name
+                        is Function.Name.User -> method.name
+                        is Function.Name.Constructor -> method.constructor
+                    }
+                return Function.Name.User(null, "${dictionary.name}.$methodName")
+            }
+        }
+
         data class Function(
             val lambda: Expr.Lambda,
             val type: PolymorphicType,
@@ -163,9 +221,23 @@ data class DesugaredRepresentation(
         ) : Literal
     }
 
+    /**
+     * Qualified type scheme `forall a1 .. an. context => type`
+     */
     data class PolymorphicType(
         val type: Type,
         val boundTypeVariables: Int,
+        val context: List<Predicate> = emptyList(),
+    )
+
+    /**
+     * Class constraint `cls a`
+     *
+     * @param variable -- De Brujin index of the constrained type variable
+     */
+    data class Predicate(
+        val cls: Declarations.Class.Name,
+        val variable: Int,
     )
 
     sealed interface Type {
@@ -202,4 +274,27 @@ data class DesugaredRepresentation(
             }
         }
     }
+}
+
+/**
+ * Name of the generated function which builds dictionary for an instance
+ *
+ * Contains dots, so it never clashes with user identifiers
+ */
+fun instanceDictionaryName(
+    cls: DesugaredRepresentation.Declarations.Class.Name,
+    head: DesugaredRepresentation.Declarations.Data.Name,
+): DesugaredRepresentation.Declarations.Function.Name.User {
+    val clsName =
+        when (cls) {
+            is DesugaredRepresentation.Declarations.Class.Name.Core -> cls.name
+            is DesugaredRepresentation.Declarations.Class.Name.Defined -> "${cls.module ?: "top"}.${cls.name}"
+        }
+    val headName =
+        when (head) {
+            is DesugaredRepresentation.Declarations.Data.Name.Core -> head.toString()
+            is DesugaredRepresentation.Declarations.Data.Name.Defined -> "${head.module ?: "top"}.${head.name}"
+        }
+    return DesugaredRepresentation.Declarations.Function.Name
+        .User(null, "inst.$clsName.$headName")
 }

@@ -92,15 +92,35 @@ class RenamerFirstPass(
             }
 
             "function_declaration" -> {
+                parseFunctionDeclaration(node, parserState, parserState.typeVars)
+            }
+
+            "class_declaration" -> {
                 val name = node.getChildOrThrow(0u).text
-                val typeNode = parseType(node.getChildOrThrow(1u), parserState.typeVars)
-                parserState.declarations.add(name)
-                FirstPassNode.Statement.FunctionDeclaration(
-                    node,
-                    name,
-                    getBoundVars(typeNode).toList(),
-                    typeNode,
-                )
+                val typeVar = node.getChildOrThrow(1u).text
+                val typeVars = (parserState.typeVars + typeVar).toMutableSet()
+                val methods =
+                    parseMultiple(node, { parseFunctionDeclaration(it, parserState, typeVars) }, 2u)
+                methods.forEach { method ->
+                    if (method.boundVars != listOf(typeVar) || method.context.isNotEmpty()) {
+                        throw RenamerException(
+                            "Method '${method.name}' of class '$name' must use only the class type variable '$typeVar'",
+                            method.node.range(),
+                        )
+                    }
+                }
+                FirstPassNode.Statement.ClassDeclaration(node, name, typeVar, methods)
+            }
+
+            "instance_declaration" -> {
+                val cls = node.getChildOrThrow(0u).text
+                val head = parseType(node.getChildOrThrow(1u), parserState.typeVars)
+                val boundVars = getBoundVars(head).toList()
+                val children = node.namedChildren.drop(2)
+                val contextNode = children.firstOrNull { it.type == "type_context" }
+                val context = contextNode?.let { parseContext(it, boundVars) } ?: emptyList()
+                val equations = children.filter { it.type == "function_equation" }
+                FirstPassNode.Statement.InstanceDeclaration(node, cls, head, context, equations)
             }
 
             "infix_declaration" -> {
@@ -130,6 +150,41 @@ class RenamerFirstPass(
                 FirstPassNode.Statement.NotParsed(node)
             }
         }
+
+    private fun parseFunctionDeclaration(
+        node: TsSyntaxNode,
+        parserState: ParserState,
+        typeVars: MutableSet<String>,
+    ): FirstPassNode.Statement.FunctionDeclaration {
+        if (node.type != "function_declaration") {
+            throw RenamerException("Expected function declaration", node.range())
+        }
+        val name = node.getChildOrThrow(0u).text
+        val typeNode = parseType(node.getChildOrThrow(1u), typeVars)
+        val boundVars = getBoundVars(typeNode).toList()
+        val context =
+            node.namedChildren
+                .firstOrNull { it.type == "type_context" }
+                ?.let { parseContext(it, boundVars) } ?: emptyList()
+        parserState.declarations.add(name)
+        return FirstPassNode.Statement.FunctionDeclaration(node, name, boundVars, typeNode, context)
+    }
+
+    private fun parseContext(
+        node: TsSyntaxNode,
+        boundVars: List<String>,
+    ): List<AstNode.Constraint> =
+        parseMultiple(node, { constraint ->
+            val cls = constraint.getChildOrThrow(0u).text
+            val typeVar = constraint.getChildOrThrow(1u).text
+            if (typeVar !in boundVars) {
+                throw RenamerException(
+                    "Type variable '$typeVar' in constraint '$cls $typeVar' does not occur in the type",
+                    constraint.range(),
+                )
+            }
+            AstNode.Constraint(cls, typeVar)
+        })
 
     private fun parseTypeDeclaration(
         node: TsSyntaxNode,

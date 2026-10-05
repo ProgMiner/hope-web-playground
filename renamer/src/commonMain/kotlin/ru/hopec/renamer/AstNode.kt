@@ -23,6 +23,26 @@ sealed interface AstNode {
         val equations: List<FunctionEquation>,
         val boundVars: List<String>,
         val typeExpr: TypeExpr,
+        val context: List<Constraint> = emptyList(),
+    ) : Statement
+
+    data class Constraint(
+        val cls: String,
+        val typeVar: String,
+    )
+
+    data class ClassDeclaration(
+        val name: String,
+        val typeVar: String,
+        val methods: List<FunctionDeclaration>,
+    ) : Statement
+
+    data class InstanceDeclaration(
+        val cls: String,
+        val head: String,
+        val boundVars: List<String>,
+        val context: List<Constraint>,
+        val methods: Map<String, List<FunctionEquation>>,
     ) : Statement
 
     data class FunctionEquation(

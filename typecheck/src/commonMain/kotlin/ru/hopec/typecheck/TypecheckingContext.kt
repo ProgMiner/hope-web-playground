@@ -4,6 +4,7 @@ import ru.hopec.desugarer.DesugaredRepresentation
 import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Data.Name.Core
 import ru.hopec.desugarer.DesugaredRepresentation.Type
 import ru.hopec.desugarer.IoBuiltins
+import ru.hopec.desugarer.tupleConstr
 import kotlin.math.max
 import kotlin.math.min
 
@@ -12,10 +13,18 @@ private typealias LetRange = Pair<Int, Int>
 private val nullRage = 0 to 0
 
 internal fun annotate(
-    repr: DesugaredRepresentation,
+    program: DesugaredRepresentation,
     onError: (String) -> Unit = {},
 ): TypedRepresentation? {
-    val signature = Signature.core.extendAll(repr.modules.map { it.value })
+    val repr = program.withPrelude()
+    val declarations = repr.allDeclarations()
+    val signature =
+        Signature.core
+            .extendAll(repr.modules.map { it.value })
+            .withInstances(declarations)
+    if (!checkClassDeclarations(declarations, signature.extend(repr.topLevel), onError)) {
+        return null
+    }
     val modules =
         repr.modules
             .map { (name, module) ->
@@ -66,8 +75,16 @@ internal class TypecheckingContext private constructor(
         ): TypedRepresentation.Declarations.Function? = TypecheckingContext(signature, onError).runFunction(name, function)
     }
 
+    private data class DictionaryHole(
+        val cls: DesugaredRepresentation.Declarations.Class.Name,
+        val type: Type,
+    )
+
     private var substitution: ArrayList<Type> = arrayListOf()
     private var boundVariables: ArrayList<BoundVariable> = arrayListOf()
+    private val holes: LinkedHashMap<String, DictionaryHole> = linkedMapOf()
+    private var holeCounter = 0
+    private var selectionCounter = 0
 
     private fun displayType(type: Type): String =
         when (val walked = walk(type)) {
@@ -97,6 +114,30 @@ internal class TypecheckingContext private constructor(
             }
         }
 
+    private fun displayDeclaredType(type: Type): String =
+        when (type) {
+            is Type.Variable -> {
+                "'t${type.index}"
+            }
+            is Type.Arrow -> {
+                val arg = displayDeclaredType(type.argument)
+                val res = displayDeclaredType(type.result)
+                val argStr =
+                    if (type.argument is Type.Arrow) "($arg)" else arg
+                "$argStr -> $res"
+            }
+            is Type.Data -> {
+                val name = displayDataName(type.constructor)
+                if (type.args.isEmpty()) {
+                    name
+                } else if (type.constructor == Core.Tuple && type.args.size == 2) {
+                    "(${displayDeclaredType(type.args[0])} # ${displayDeclaredType(type.args[1])})"
+                } else {
+                    "$name(${type.args.joinToString(", ") { displayDeclaredType(it) }})"
+                }
+            }
+        }
+
     private fun displayDataName(name: DesugaredRepresentation.Declarations.Data.Name): String =
         when (name) {
             is Core.Num -> "num"
@@ -107,6 +148,14 @@ internal class TypecheckingContext private constructor(
             is Core.Tuple -> "tuple"
             is Core.Unit -> "unit"
             is DesugaredRepresentation.Declarations.Data.Name.Defined -> {
+                if (name.module != null) "${name.module}.${name.name}" else name.name
+            }
+        }
+
+    private fun displayClassName(name: DesugaredRepresentation.Declarations.Class.Name): String =
+        when (name) {
+            is DesugaredRepresentation.Declarations.Class.Name.Core -> name.name
+            is DesugaredRepresentation.Declarations.Class.Name.Defined -> {
                 if (name.module != null) "${name.module}.${name.name}" else name.name
             }
         }
@@ -132,7 +181,88 @@ internal class TypecheckingContext private constructor(
                 .toList()
                 .map { (k, v) -> k to (runFunction(k, v) ?: return null) }
                 .toMap()
-        return TypedRepresentation.Declarations(declarations.data, functions)
+        val dictionaries =
+            declarations.instances
+                .flatMap { instance -> (runInstance(instance) ?: return null).toList() }
+                .toMap()
+        return TypedRepresentation.Declarations(declarations.data, functions + dictionaries)
+    }
+
+    private fun runInstance(
+        instance: DesugaredRepresentation.Declarations.Instance,
+    ): Map<DesugaredRepresentation.Declarations.Function.Name, TypedRepresentation.Declarations.Function>? {
+        val methods =
+            signature.classes
+                .getValue(instance.cls)
+                .methods.keys
+        val single = methods.size == 1
+        val functions =
+            methods.associate { method ->
+                val name: DesugaredRepresentation.Declarations.Function.Name =
+                    if (single) instance.dictionary else instance.method(method)
+                val function =
+                    DesugaredRepresentation.Declarations.Function(
+                        instance.methods.getValue(method),
+                        signature.instanceMethodType(instance, method),
+                    )
+                val result = runFunction(name, function)
+                if (result == null) {
+                    onError(
+                        "Type error in instance '${displayClassName(instance.cls)} ${displayDataName(instance.head.constructor)}': " +
+                            "could not check method '${displayFunctionName(method)}'",
+                    )
+                    return null
+                }
+                name to result
+            }
+        if (single) {
+            return functions
+        }
+        return functions + (instance.dictionary to instanceDictionary(instance, functions))
+    }
+
+    private fun instanceDictionary(
+        instance: DesugaredRepresentation.Declarations.Instance,
+        methods: Map<DesugaredRepresentation.Declarations.Function.Name, TypedRepresentation.Declarations.Function>,
+    ): TypedRepresentation.Declarations.Function {
+        val parameters =
+            instance.context.map { predicate ->
+                TypedRepresentation.Expr.Variable(
+                    signature.dictionaryType(predicate.cls, Type.Variable(predicate.variable)),
+                    dictionaryParameter(predicate),
+                )
+            }
+        val implementations =
+            methods.map { (name, function) ->
+                parameters.fold(
+                    TypedRepresentation.Expr.Identifier(function.lambda.type, name) as TypedRepresentation.Expr,
+                ) { implementation, parameter ->
+                    TypedRepresentation.Expr.Application((implementation.type as Type.Arrow).result, implementation, parameter)
+                }
+            }
+        val dictionary =
+            implementations.reduceRight { method, rest ->
+                val type = Type.Data.tuple(method.type, rest.type)
+                TypedRepresentation.Expr.Application(
+                    type,
+                    TypedRepresentation.Expr.Application(
+                        Type.Arrow(rest.type, type),
+                        TypedRepresentation.Expr.Identifier(Type.Arrow(method.type, Type.Arrow(rest.type, type)), tupleConstr),
+                        method,
+                    ),
+                    rest,
+                )
+            }
+        val lambda =
+            if (instance.context.isEmpty()) {
+                TypedRepresentation.Expr.Lambda(
+                    Type.Arrow(Type.Data.num, dictionary.type),
+                    listOf(TypedRepresentation.Expr.Lambda.Branch(TypedRepresentation.Pattern.Wildcard(Type.Data.num), dictionary)),
+                )
+            } else {
+                abstractDictionaries(instance.context, dictionary) as TypedRepresentation.Expr.Lambda
+            }
+        return TypedRepresentation.Declarations.Function(lambda, instance.boundTypeVariables)
     }
 
     private fun runFunction(
@@ -145,6 +275,16 @@ internal class TypecheckingContext private constructor(
             return trustedIoBuiltin(function)
         }
 
+        val context = function.type.context
+        if (context.isNotEmpty() && function.type.type !is Type.Arrow) {
+            onError(
+                "Type error in function '${displayFunctionName(name)}': " +
+                    "class constraints are supported only for functions with arguments",
+            )
+            return null
+        }
+
+        holes.clear()
         val lambda = infer(function.lambda)
         if (lambda == null) {
             onError(
@@ -343,10 +483,219 @@ internal class TypecheckingContext private constructor(
             return null
         }
 
+        val renamedLambda = rename(lambda) as TypedRepresentation.Expr.Lambda
+        val holeTypes = holes.mapValues { (_, hole) -> hole.cls to rename(hole.type) }
+        val resolved =
+            resolveDictionaries(name, renamedLambda, holeTypes, function.type.boundTypeVariables, context)
+                ?: return null
+
         return TypedRepresentation.Declarations.Function(
-            rename(lambda) as TypedRepresentation.Expr.Lambda,
+            resolved,
             function.type.boundTypeVariables,
         )
+    }
+
+    private fun dictionaryParameter(predicate: DesugaredRepresentation.Predicate) = "dict.${predicate.cls.name}.${predicate.variable}"
+
+    private fun resolveDictionaries(
+        name: DesugaredRepresentation.Declarations.Function.Name,
+        lambda: TypedRepresentation.Expr.Lambda,
+        holeTypes: Map<String, Pair<DesugaredRepresentation.Declarations.Class.Name, Type>>,
+        boundTypeVariables: Int,
+        context: List<DesugaredRepresentation.Predicate>,
+    ): TypedRepresentation.Expr.Lambda? {
+        fun entail(
+            cls: DesugaredRepresentation.Declarations.Class.Name,
+            type: Type,
+        ): TypedRepresentation.Expr? {
+            val clsName = displayClassName(cls)
+            return when (type) {
+                is Type.Variable -> {
+                    val predicate = DesugaredRepresentation.Predicate(cls, type.index)
+                    if (type.index >= boundTypeVariables) {
+                        onError(
+                            "Type error in function '${displayFunctionName(name)}': " +
+                                "ambiguous type variable in constraint '$clsName ${displayDeclaredType(type)}'",
+                        )
+                        null
+                    } else if (predicate !in context) {
+                        onError(
+                            "Type error in function '${displayFunctionName(name)}': " +
+                                "no instance for '$clsName ${displayDeclaredType(type)}', " +
+                                "add 'given $clsName ${displayDeclaredType(type)}' to its declaration",
+                        )
+                        null
+                    } else {
+                        TypedRepresentation.Expr.Variable(signature.dictionaryType(cls, type), dictionaryParameter(predicate))
+                    }
+                }
+
+                is Type.Data -> {
+                    val primitive = signature.primitiveInstances[cls to type.constructor]
+                    if (primitive != null) {
+                        return TypedRepresentation.Expr.Identifier(signature.dictionaryType(cls, type), primitive)
+                    }
+                    val instance = signature.instances[cls to type.constructor]
+                    if (instance == null) {
+                        onError(
+                            "Type error in function '${displayFunctionName(name)}': " +
+                                "no instance for '$clsName ${displayDataName(type.constructor)}'",
+                        )
+                        return null
+                    }
+                    val headArgs = MutableList<Type>(instance.boundTypeVariables) { Type.Data.unit }
+                    instance.head.args.zip(type.args).forEach { (variable, arg) ->
+                        headArgs[(variable as Type.Variable).index] = arg
+                    }
+                    val dictionaryType = signature.instanceDictionaryType(instance).type.substitute(headArgs)
+                    instance.context.fold(
+                        TypedRepresentation.Expr.Identifier(dictionaryType, instance.dictionary) as TypedRepresentation.Expr,
+                    ) { dictionary, predicate ->
+                        val argument = entail(predicate.cls, headArgs[predicate.variable]) ?: return null
+                        TypedRepresentation.Expr.Application((dictionary.type as Type.Arrow).result, dictionary, argument)
+                    }
+                }
+
+                is Type.Arrow -> {
+                    onError(
+                        "Type error in function '${displayFunctionName(name)}': " +
+                            "no instance for '$clsName' at function type '${displayDeclaredType(type)}'",
+                    )
+                    null
+                }
+            }
+        }
+
+        val dictionaries =
+            holeTypes.mapValues { (_, hole) -> entail(hole.first, hole.second) ?: return null }
+        val body = substituteHoles(lambda, dictionaries)
+
+        return abstractDictionaries(context, body) as TypedRepresentation.Expr.Lambda
+    }
+
+    private fun abstractDictionaries(
+        context: List<DesugaredRepresentation.Predicate>,
+        body: TypedRepresentation.Expr,
+    ): TypedRepresentation.Expr =
+        context.foldRight(body) { predicate, acc ->
+            val dictionaryType = signature.dictionaryType(predicate.cls, Type.Variable(predicate.variable))
+            TypedRepresentation.Expr.Lambda(
+                Type.Arrow(dictionaryType, acc.type),
+                listOf(
+                    TypedRepresentation.Expr.Lambda.Branch(
+                        TypedRepresentation.Pattern.Variable(dictionaryType, dictionaryParameter(predicate)),
+                        acc,
+                    ),
+                ),
+            )
+        }
+
+    private fun selectMethod(
+        method: DesugaredRepresentation.Declarations.Function.Name,
+        cls: DesugaredRepresentation.Declarations.Class.Name,
+        type: Type,
+        dictionary: TypedRepresentation.Expr,
+    ): TypedRepresentation.Expr {
+        val methods =
+            signature.classes
+                .getValue(cls)
+                .methods.keys
+                .toList()
+        if (methods.size == 1) {
+            return dictionary
+        }
+        val types = signature.methodTypes(cls, type)
+        val index = methods.indexOf(method)
+        val name = "method.${selectionCounter++}"
+
+        fun pattern(i: Int): TypedRepresentation.Pattern {
+            val component =
+                if (i == index) {
+                    TypedRepresentation.Pattern.Variable(types[i], name)
+                } else {
+                    TypedRepresentation.Pattern.Wildcard(types[i])
+                }
+            if (i == methods.size - 1) {
+                return component
+            }
+            val rest = pattern(i + 1)
+            return TypedRepresentation.Pattern.Data(Type.Data.tuple(component.type, rest.type), tupleConstr, listOf(component, rest))
+        }
+
+        return TypedRepresentation.Expr.Let(pattern(0), dictionary, TypedRepresentation.Expr.Variable(types[index], name))
+    }
+
+    private fun substituteHoles(
+        term: TypedRepresentation.Expr,
+        dictionaries: Map<String, TypedRepresentation.Expr>,
+    ): TypedRepresentation.Expr {
+        fun go(term: TypedRepresentation.Expr): TypedRepresentation.Expr =
+            when (term) {
+                is TypedRepresentation.Expr.Literal -> {
+                    term
+                }
+
+                is TypedRepresentation.Expr.Identifier -> {
+                    term
+                }
+
+                is TypedRepresentation.Expr.Variable -> {
+                    dictionaries[term.name] ?: term
+                }
+
+                is TypedRepresentation.Expr.Application -> {
+                    TypedRepresentation.Expr.Application(
+                        term.type,
+                        go(term.left),
+                        go(term.right),
+                    )
+                }
+
+                is TypedRepresentation.Expr.Lambda -> {
+                    TypedRepresentation.Expr.Lambda(
+                        term.type,
+                        term.branches.map {
+                            TypedRepresentation.Expr.Lambda.Branch(it.pattern, go(it.body))
+                        },
+                    )
+                }
+
+                is TypedRepresentation.Expr.If -> {
+                    TypedRepresentation.Expr.If(
+                        go(term.condition),
+                        go(term.positive),
+                        go(term.negative),
+                    )
+                }
+
+                is TypedRepresentation.Expr.Let -> {
+                    TypedRepresentation.Expr.Let(
+                        term.pattern,
+                        go(term.matcher),
+                        go(term.body),
+                    )
+                }
+            }
+        return go(term)
+    }
+
+    private fun newHole(
+        cls: DesugaredRepresentation.Declarations.Class.Name,
+        type: Type,
+    ): TypedRepresentation.Expr.Variable {
+        val name = "?dict${holeCounter++}"
+        holes[name] = DictionaryHole(cls, type)
+        return TypedRepresentation.Expr.Variable(signature.dictionaryType(cls, type), name)
+    }
+
+    private fun constrainedVariables(): Set<Int> {
+        fun go(type: Type): Set<Int> =
+            when (val walked = walk(type)) {
+                is Type.Variable -> setOf(walked.index)
+                is Type.Arrow -> go(walked.argument) + go(walked.result)
+                is Type.Data -> walked.args.flatMap { go(it) }.toSet()
+            }
+        return holes.values.flatMap { go(it.type) }.toSet()
     }
 
     private fun trustedIoBuiltin(function: DesugaredRepresentation.Declarations.Function): TypedRepresentation.Declarations.Function {
@@ -406,7 +755,20 @@ internal class TypecheckingContext private constructor(
                 val type = signature.functions[name] ?: return null
                 val shift = shiftValue()
                 bindTypes(type.boundTypeVariables)
-                TypedRepresentation.Expr.Identifier(type.type.shift(shift), name)
+                val instantiated = type.type.shift(shift)
+                if (type.context.isEmpty()) {
+                    return TypedRepresentation.Expr.Identifier(instantiated, name)
+                }
+                val dictionaries =
+                    type.context.map { predicate -> newHole(predicate.cls, Type.Variable(shift + predicate.variable)) }
+                val cls = signature.methods[name]
+                if (cls != null) {
+                    return selectMethod(name, cls, Type.Variable(shift), dictionaries.single())
+                }
+                val functionType = dictionaries.foldRight(instantiated) { dictionary, acc -> Type.Arrow(dictionary.type, acc) }
+                dictionaries.fold(TypedRepresentation.Expr.Identifier(functionType, name) as TypedRepresentation.Expr) { fn, dictionary ->
+                    TypedRepresentation.Expr.Application((fn.type as Type.Arrow).result, fn, dictionary)
+                }
             }
 
             is DesugaredRepresentation.Expr.Variable -> {
@@ -767,6 +1129,7 @@ internal class TypecheckingContext private constructor(
     private fun refresh(binder: Int): Type {
         val range = boundVariables[binder].letRange
         val varMapping = hashMapOf<Int, Int>()
+        val constrained = constrainedVariables()
 
         fun go(type: Type): Type =
             when (val wtype = walk(type)) {
@@ -779,7 +1142,7 @@ internal class TypecheckingContext private constructor(
                 }
 
                 is Type.Variable -> {
-                    if (!rangeContains(range, wtype.index)) {
+                    if (!rangeContains(range, wtype.index) || wtype.index in constrained) {
                         wtype
                     } else {
                         Type.Variable(varMapping.getOrPut(wtype.index) { bindType().index })
