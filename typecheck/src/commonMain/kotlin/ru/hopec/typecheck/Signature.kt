@@ -5,14 +5,65 @@ import ru.hopec.desugarer.DesugaredRepresentation.Declarations
 import ru.hopec.desugarer.DesugaredRepresentation.Declarations.Data.Name.Core
 import ru.hopec.desugarer.DesugaredRepresentation.PolymorphicType
 import ru.hopec.desugarer.DesugaredRepresentation.Type
+import ru.hopec.desugarer.eqClass
 
 internal data class Signature(
     val functions: Map<Declarations.Function.Name, PolymorphicType>,
     val data: Map<Declarations.Data.Name, Declarations.Data>,
+    val classes: Map<Declarations.Class.Name, Declarations.Class> = emptyMap(),
+    val methods: Map<Declarations.Function.Name, Declarations.Class.Name> = emptyMap(),
+    val instances: Map<Pair<Declarations.Class.Name, Declarations.Data.Name>, Declarations.Instance> = emptyMap(),
+    val primitiveInstances: Map<Pair<Declarations.Class.Name, Declarations.Data.Name>, Declarations.Function.Name> = emptyMap(),
 ) {
+    fun methodTypes(
+        cls: Declarations.Class.Name,
+        type: Type,
+    ): List<Type> =
+        classes
+            .getValue(cls)
+            .methods.values
+            .map { it.substitute(listOf(type)) }
+
+    fun dictionaryType(
+        cls: Declarations.Class.Name,
+        type: Type,
+    ): Type = methodTypes(cls, type).reduceRight { method, rest -> Type.Data.tuple(method, rest) }
+
+    fun instanceDictionaryType(instance: Declarations.Instance): PolymorphicType {
+        val result = dictionaryType(instance.cls, instance.head)
+        val type =
+            instance.context.foldRight(result) { predicate, acc ->
+                Type.Arrow(dictionaryType(predicate.cls, Type.Variable(predicate.variable)), acc)
+            }
+        return PolymorphicType(type, instance.boundTypeVariables)
+    }
+
+    fun instanceMethodType(
+        instance: Declarations.Instance,
+        method: Declarations.Function.Name,
+    ): PolymorphicType =
+        PolymorphicType(
+            classes
+                .getValue(instance.cls)
+                .methods
+                .getValue(method)
+                .substitute(listOf(instance.head)),
+            instance.boundTypeVariables,
+            instance.context,
+        )
+
     fun extend(other: Declarations): Signature {
         val extendedFunctions = functions.toMutableMap()
         other.functions.forEach { entry -> extendedFunctions[entry.key] = entry.value.type }
+        val extendedClasses = classes + other.classes
+        val extendedMethods = methods.toMutableMap()
+        other.classes.forEach { (clsName, cls) ->
+            cls.methods.forEach { (method, type) ->
+                extendedMethods[method] = clsName
+                extendedFunctions[method] = PolymorphicType(type, 1, listOf(DesugaredRepresentation.Predicate(clsName, 0)))
+            }
+        }
+        val extendedInstances = instances + other.instances.associateBy { it.cls to it.head.constructor }
         val extendedData = data.toMutableMap()
         extendedData.putAll(other.data.toMap())
         other.data.forEach { (dataName, dataDecl) ->
@@ -30,7 +81,7 @@ internal data class Signature(
                 extendedFunctions[ctorKey] = PolymorphicType(type, dataDecl.boundTypeVariables)
             }
         }
-        return Signature(extendedFunctions, extendedData)
+        return Signature(extendedFunctions, extendedData, extendedClasses, extendedMethods, extendedInstances, primitiveInstances)
     }
 
     fun extendLocal(other: DesugaredRepresentation.Module): Signature = extend(other.public).extend(other.private)
@@ -105,13 +156,7 @@ internal data class Signature(
                     Declarations.Function.Name.Core(">") to numComparison,
                     Declarations.Function.Name.Core(">=") to numComparison,
                     Declarations.Function.Name.Core("=") to
-                        PolymorphicType(
-                            Type.Arrow(
-                                Type.Data.tuple(Type.Variable(0), Type.Variable(0)),
-                                Type.Data.truval,
-                            ),
-                            1,
-                        ),
+                        PolymorphicType(Prelude.eqType, 1, listOf(DesugaredRepresentation.Predicate(eqClass, 0))),
                     Declarations.Function.Name.Core("io.print") to
                         PolymorphicType(
                             Type.Arrow(Type.Data.string, Type.Data.unit),
@@ -157,6 +202,10 @@ internal data class Signature(
                             2,
                         ),
                 ),
+                Prelude.classes,
+                Prelude.classes.flatMap { (cls, decl) -> decl.methods.keys.map { it to cls } }.toMap(),
+                emptyMap(),
+                Prelude.primitiveInstances,
             )
     }
 }

@@ -52,6 +52,8 @@ export default grammar({
     _statement: ($) =>
       choice(
         $.data_declaration,
+        $.class_declaration,
+        $.instance_declaration,
         $.function_declaration,
         $.function_equation,
         $.infix_declaration,
@@ -150,7 +152,38 @@ export default grammar({
       prec.left(PREC.CASES, seq($.pattern, "=>", $.expression)),
 
     function_declaration: ($) =>
-      seq("dec", enumeration($.binding), ":", $.type_expression),
+      seq(
+        "dec",
+        enumeration($.binding),
+        ":",
+        $.type_expression,
+        optional($.type_context),
+      ),
+
+    type_context: ($) => seq("given", enumeration($.type_constraint)),
+
+    type_constraint: ($) => seq($.ident, $.ident),
+
+    class_declaration: ($) =>
+      seq(
+        "class",
+        $.binding,
+        $.binding,
+        "with",
+        repeat($.function_declaration),
+        "end",
+      ),
+
+    instance_declaration: ($) =>
+      seq(
+        "instance",
+        $.ident,
+        $.type_expression,
+        optional($.type_context),
+        "with",
+        repeat($.function_equation),
+        "end",
+      ),
 
     function_equation: ($) => seq("---", $.pattern, "<=", $.expression),
 

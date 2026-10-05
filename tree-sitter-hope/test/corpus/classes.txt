@@ -1,0 +1,112 @@
+==================
+Class declaration
+==================
+
+class Eq alpha with
+  dec = : alpha # alpha -> truval
+end
+
+----
+
+(compilation_unit
+  (class_declaration
+    (binding
+      (ident))
+    (binding
+      (ident))
+    (function_declaration
+      (binding
+        (ident))
+      (type_expression
+        (binary_type_expression
+          (type_expression
+            (binary_type_expression
+              (type_expression
+                (ident))
+              (type_expression
+                (ident))))
+          (type_expression
+            (ident)))))))
+
+==================
+Instance declaration
+==================
+
+instance Eq num with
+  --- x = y <= x
+end
+
+----
+
+(compilation_unit
+  (instance_declaration
+    (ident)
+    (type_expression
+      (ident))
+    (function_equation
+      (pattern
+        (ident)
+        (ident)
+        (ident))
+      (expression
+        (ident)))))
+
+==================
+Instance declaration with context
+==================
+
+instance Eq (list alpha) given Eq alpha with
+  --- nil = nil <= true
+end
+
+----
+
+(compilation_unit
+  (instance_declaration
+    (ident)
+    (type_expression
+      (type_expression
+        (ident)
+        (ident)))
+    (type_context
+      (type_constraint
+        (ident)
+        (ident)))
+    (function_equation
+      (pattern
+        (ident)
+        (ident)
+        (ident))
+      (expression
+        (ident)))))
+
+==================
+Function declaration with context
+==================
+
+dec member : alpha # list alpha -> truval given Eq alpha, Eq beta
+
+----
+
+(compilation_unit
+  (function_declaration
+    (binding
+      (ident))
+    (type_expression
+      (binary_type_expression
+        (type_expression
+          (binary_type_expression
+            (type_expression
+              (ident))
+            (type_expression
+              (ident)
+              (ident))))
+        (type_expression
+          (ident))))
+    (type_context
+      (type_constraint
+        (ident)
+        (ident))
+      (type_constraint
+        (ident)
+        (ident)))))

@@ -3,6 +3,7 @@ package ru.hopec.desugarer.context
 import ru.hopec.desugarer.DesugaredRepresentation
 import ru.hopec.desugarer.ResolvedExpr
 import ru.hopec.desugarer.ResolvedPattern
+import ru.hopec.desugarer.getInternalClasses
 import ru.hopec.desugarer.getInternalConstructors
 import ru.hopec.desugarer.getInternalFunctions
 import ru.hopec.desugarer.internalData
@@ -16,7 +17,25 @@ data class DesugarerModuleContext(
     val moduleConstructors: MutableMap<String, MutableSet<DesugaredRepresentation.Declarations.Function.Name.Constructor>> = mutableMapOf(),
     val globalDataTypes: MutableMap<String, DesugaredRepresentation.Declarations.Data.Name> = internalData,
     val moduleDataTypes: MutableMap<String, DesugaredRepresentation.Declarations.Data.Name.Defined> = mutableMapOf(),
+    val globalClasses: MutableMap<String, ClassInfo> = getInternalClasses(),
+    val moduleClasses: MutableMap<String, ClassInfo> = mutableMapOf(),
 ) {
+    fun extendGlobalClasses(classes: Map<String, ClassInfo>) {
+        globalClasses.putAll(classes)
+    }
+
+    fun extendModuleClass(
+        name: String,
+        cls: ClassInfo,
+    ) {
+        if (moduleClasses.containsKey(name)) {
+            throw IllegalStateException("Class '$name' already defined")
+        }
+        moduleClasses[name] = cls
+    }
+
+    fun resolveClass(name: String) = moduleClasses[name] ?: globalClasses[name]
+
     fun extendGlobalFunctions(functions: Map<String, Set<DesugaredRepresentation.Declarations.Function.Name>>) {
         functions.forEach { (name, set) ->
             set.forEach { function ->
@@ -108,10 +127,12 @@ data class DesugarerModuleContext(
         val constructors = getInternalConstructors()
         constructors.uniteSet(moduleConstructors)
         val dataTypes = (internalData + moduleDataTypes).toMutableMap()
+        val classes = (getInternalClasses() + moduleClasses).toMutableMap()
         return DesugarerModuleContext(
             globalFunctions = functions,
             globalConstructors = constructors,
             globalDataTypes = dataTypes,
+            globalClasses = classes,
         )
     }
 }

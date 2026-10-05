@@ -40,6 +40,45 @@ If you're encountering errors with `node-gyp`, try this before `npm install`:
 export CXXFLAGS="-std=c++20"
 ```
 
+## Overloading
+
+HOPE is extended with type classes, implemented by dictionary
+passing (Wadler & Blott, "How to make ad-hoc polymorphism less ad hoc";
+Hall et al., "Type classes in Haskell").
+
+```hope
+typevar alpha
+
+class Size alpha with
+  dec size : alpha -> num
+end
+
+instance Size truval with
+  --- size(_) <= 1
+end
+
+instance Size (list alpha) given Size alpha with
+  --- size(nil) <= 0
+  --- size(x :: xs) <= size(x) + size(xs)
+end
+
+dec member : alpha # list alpha -> truval given Eq alpha
+--- member(_, nil) <= false
+--- member(x, y :: ys) <= (x = y) then true else member(x, ys)
+```
+
+- `=` is the method of the built-in class `Eq`. There are instances for `num`,
+  `char`, `truval` (primitive comparison), lists and pairs (structural), and no
+  instance for functions or sets. Write `instance Eq t` for your own data types.
+- Constraints used by a function on its type variables must be listed after
+  `given` in its `dec`; they are checked, not inferred.
+- Instance heads are a type constructor (or `alpha # beta`) applied to distinct
+  type variables; instances must not overlap. Classes and instances are global.
+- Restrictions of the current version: method types mention only the class
+  variable, constrained declarations must be functions,
+  no superclasses or default methods, no defaulting of ambiguous types, and
+  `let` does not generalize constrained type variables.
+
 ## Usage
 
 ### Web interface

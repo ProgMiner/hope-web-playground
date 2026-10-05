@@ -8,6 +8,7 @@ import ru.hopec.desugarer.DesugaredRepresentation.Expr
 import ru.hopec.desugarer.DesugaredRepresentation.Pattern
 import ru.hopec.desugarer.DesugaredRepresentation.PolymorphicType
 import ru.hopec.desugarer.DesugaredRepresentation.Type
+import ru.hopec.desugarer.context.ClassInfo
 import ru.hopec.desugarer.context.DesugarerGlobalContext
 import ru.hopec.desugarer.context.DesugarerLocalContext
 import ru.hopec.desugarer.context.DesugarerModuleContext
@@ -33,6 +34,8 @@ open class ModuleDesugarer(
         val statements = module.statements
         val dataTypes: MutableMap<Data.Name.Defined, Data> = mutableMapOf()
         val functions: MutableMap<Function.Name, Function> = mutableMapOf()
+        val instances: MutableList<Declarations.Instance> = mutableListOf()
+        val classDecls = declareClasses(statements, name)
         statements.forEach { statement ->
             when (statement) {
                 is AstNode.Error -> {}
@@ -49,6 +52,12 @@ open class ModuleDesugarer(
 
                 is AstNode.ModuleUseDeclaration -> {
                     statement.modules.forEach { importModule(it) }
+                }
+
+                is AstNode.ClassDeclaration -> {}
+
+                is AstNode.InstanceDeclaration -> {
+                    instances.add(resolveInstance(statement))
                 }
 
                 is AstNode.ConstantExportDeclaration -> {}
@@ -76,6 +85,7 @@ open class ModuleDesugarer(
                 publicFunctionsMap,
                 publicConstructorsMap,
                 publicDataTypesMap,
+                moduleContext.moduleClasses.toMap(),
             )
 
         val publicConstants = uniteSet(publicFunctionsMap, publicConstructorsMap).values.flatten()
@@ -99,6 +109,8 @@ open class ModuleDesugarer(
             Declarations(
                 dataTypes.filter { publicDataTypes.contains(it.key) },
                 functions.filter { publicConstants.contains(it.key) },
+                resolveClasses(classDecls),
+                instances,
             ),
             Declarations(
                 dataTypes.filter { privateData.contains(it.key) },
@@ -115,6 +127,8 @@ open class ModuleDesugarer(
         val statements = module.statements
         val dataTypes: MutableMap<Data.Name.Defined, Data> = mutableMapOf()
         val functions: MutableMap<Function.Name, Function> = mutableMapOf()
+        val instances: MutableList<Declarations.Instance> = mutableListOf()
+        val classDecls = declareClasses(statements, name)
         statements.forEach { statement ->
             when (statement) {
                 is AstNode.Error -> {}
@@ -131,6 +145,12 @@ open class ModuleDesugarer(
 
                 is AstNode.ModuleUseDeclaration -> {
                     statement.modules.forEach { importModule(it) }
+                }
+
+                is AstNode.ClassDeclaration -> {}
+
+                is AstNode.InstanceDeclaration -> {
+                    instances.add(resolveInstance(statement))
                 }
 
                 is AstNode.ConstantExportDeclaration -> {}
@@ -158,6 +178,7 @@ open class ModuleDesugarer(
                 publicFunctionsMap,
                 publicConstructorsMap,
                 publicDataTypesMap,
+                moduleContext.moduleClasses.toMap(),
             )
 
         val publicConstants = uniteSet(publicFunctionsMap, publicConstructorsMap).values.flatten()
@@ -181,6 +202,8 @@ open class ModuleDesugarer(
             Declarations(
                 dataTypes.filter { publicDataTypes.contains(it.key) },
                 functions.filter { publicConstants.contains(it.key) },
+                resolveClasses(classDecls),
+                instances,
             ),
             Declarations(
                 dataTypes.filter { privateData.contains(it.key) },
@@ -262,17 +285,99 @@ open class ModuleDesugarer(
     }
 
     private fun resolveFunction(data: AstNode.FunctionDeclaration): Function {
-        val type = PolymorphicType(resolveType(data.typeExpr, data.boundVars), data.boundVars.size)
-        val lambda =
-            Expr.Lambda(
-                data.equations.map { equation ->
-                    newScope().let {
-                        val pattern = equation.pattern?.let { resolvePattern(it) }
-                        Expr.Lambda.Branch(pattern, resolveExpression(equation.body))
-                    }
-                },
+        val type =
+            PolymorphicType(
+                resolveType(data.typeExpr, data.boundVars),
+                data.boundVars.size,
+                data.context.map { resolvePredicate(it, data.boundVars) },
             )
-        return Function(lambda, type)
+        return Function(resolveEquations(data.equations), type)
+    }
+
+    private fun resolveEquations(equations: List<AstNode.FunctionEquation>): Expr.Lambda =
+        Expr.Lambda(
+            equations.map { equation ->
+                newScope().let {
+                    val pattern = equation.pattern?.let { resolvePattern(it) }
+                    Expr.Lambda.Branch(pattern, resolveExpression(equation.body))
+                }
+            },
+        )
+
+    private fun resolvePredicate(
+        constraint: AstNode.Constraint,
+        boundVars: List<String>,
+    ): DesugaredRepresentation.Predicate =
+        DesugaredRepresentation.Predicate(
+            resolveClass(constraint.cls).name,
+            boundVars.size - boundVars.indexOf(constraint.typeVar) - 1,
+        )
+
+    fun resolveClass(name: String) = moduleContext.resolveClass(name) ?: throw IllegalArgumentException("Class '$name' not found")
+
+    protected fun declareClasses(
+        statements: List<AstNode.Statement>,
+        module: String?,
+    ): List<Pair<AstNode.ClassDeclaration, ClassInfo>> =
+        statements.mapNotNull { statement ->
+            when (statement) {
+                is AstNode.ClassDeclaration -> {
+                    val methods =
+                        statement.methods.associate { method ->
+                            val methodName = Function.Name.User(module, method.name.generateNewName())
+                            extendModuleFunction(method.name, methodName)
+                            publicFunctionsMap.getOrPut(method.name) { mutableSetOf() }.add(methodName)
+                            method.name to methodName
+                        }
+                    val info = ClassInfo(Declarations.Class.Name.Defined(module, statement.name), methods)
+                    moduleContext.extendModuleClass(statement.name, info)
+                    statement to info
+                }
+
+                else -> {
+                    null
+                }
+            }
+        }
+
+    protected fun resolveClasses(
+        classes: List<Pair<AstNode.ClassDeclaration, ClassInfo>>,
+    ): Map<Declarations.Class.Name, Declarations.Class> =
+        classes.associate { (declaration, info) ->
+            info.name to
+                Declarations.Class(
+                    declaration.methods.associate { method ->
+                        info.methods.getValue(method.name) to resolveType(method.typeExpr, listOf(declaration.typeVar))
+                    },
+                )
+        }
+
+    protected fun resolveInstance(instance: AstNode.InstanceDeclaration): Declarations.Instance {
+        val cls = resolveClass(instance.cls)
+        val arguments = instance.boundVars.map { AstNode.VarType(it) }
+        val headExpr =
+            if (instance.head == "#" && arguments.size == 2) {
+                AstNode.ProductType(arguments[0], arguments[1])
+            } else {
+                AstNode.NamedType(instance.head, arguments)
+            }
+        val head =
+            resolveType(headExpr, instance.boundVars) as? Type.Data
+                ?: throw IllegalArgumentException("Instance head '${instance.head}' is not a data type")
+        val methods =
+            instance.methods.entries.associate { (name, equations) ->
+                val method =
+                    cls.methods[name]
+                        ?: throw IllegalArgumentException("'$name' is not a method of class '${instance.cls}'")
+                method to resolveEquations(equations)
+            }
+        return Declarations.Instance(
+            cls.name,
+            head,
+            instance.boundVars.size,
+            instance.context.map { resolvePredicate(it, instance.boundVars) },
+            methods,
+        )
     }
 
     private fun resolveExpression(expr: AstNode.Expr): Expr {
@@ -518,6 +623,7 @@ open class ModuleDesugarer(
             moduleContext.extendGlobalFunctions(localDecl.functions)
             moduleContext.extendGlobalConstructors(localDecl.constructors)
             moduleContext.extendGlobalData(localDecl.dataTypes)
+            moduleContext.extendGlobalClasses(localDecl.classes)
             return
         }
 
@@ -526,6 +632,7 @@ open class ModuleDesugarer(
             moduleContext.extendGlobalFunctions(fileDecl.functions)
             moduleContext.extendGlobalConstructors(fileDecl.constructors)
             moduleContext.extendGlobalData(fileDecl.dataTypes)
+            moduleContext.extendGlobalClasses(fileDecl.classes)
             return
         }
 
@@ -537,6 +644,7 @@ open class ModuleDesugarer(
         moduleContext.extendGlobalFunctions(functions)
         moduleContext.extendGlobalConstructors(declarations.constructors)
         moduleContext.extendGlobalData(dataTypes)
+        moduleContext.extendGlobalClasses(declarations.classes)
     }
 
     fun exportConstant(name: String) {

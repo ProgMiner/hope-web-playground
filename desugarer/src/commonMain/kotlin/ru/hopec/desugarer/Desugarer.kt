@@ -24,6 +24,8 @@ class Desugarer(
         val modules: MutableMap<String, DesugaredRepresentation.Module> = mutableMapOf()
 
         val hasExplicitModules = statements.any { it is AstNode.Module }
+        val instances: MutableList<Declarations.Instance> = mutableListOf()
+        val classDecls = declareClasses(statements.filterIsInstance<AstNode.Statement>(), fileScopeName)
 
         statements.forEach { statement ->
             when (statement) {
@@ -56,6 +58,12 @@ class Desugarer(
 
                 is AstNode.ModuleUseDeclaration -> {
                     statement.modules.forEach { importModule(it) }
+                }
+
+                is AstNode.ClassDeclaration -> {}
+
+                is AstNode.InstanceDeclaration -> {
+                    instances.add(resolveInstance(statement))
                 }
 
                 is AstNode.ConstantExportDeclaration -> {
@@ -126,6 +134,7 @@ class Desugarer(
                         fileFunctionsMap,
                         fileConstructorsMap,
                         fileDataTypesMap,
+                        moduleContext.moduleClasses.toMap(),
                     )
             }
         }
@@ -134,6 +143,8 @@ class Desugarer(
             Declarations(
                 data = dataTypes,
                 functions = functions,
+                classes = resolveClasses(classDecls),
+                instances = instances,
             )
 
         return DesugaredRepresentation(

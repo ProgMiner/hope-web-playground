@@ -130,6 +130,14 @@ class RenamerSecondPass(
                 castFuncDecl(node)
             }
 
+            is FirstPassNode.Statement.ClassDeclaration -> {
+                AstNode.ClassDeclaration(node.name, node.typeVar, node.methods.map { castFuncDecl(it) })
+            }
+
+            is FirstPassNode.Statement.InstanceDeclaration -> {
+                parseInstance(node, parserState)
+            }
+
             is FirstPassNode.Statement.ConstantExportDeclaration -> {
                 AstNode.ConstantExportDeclaration(node.constants)
             }
@@ -177,6 +185,34 @@ class RenamerSecondPass(
                 null
             }
         }
+
+    private fun parseInstance(
+        node: FirstPassNode.Statement.InstanceDeclaration,
+        parserState: ParserState,
+    ): AstNode.InstanceDeclaration {
+        val head = node.head
+        val (headName, arguments) =
+            when (head) {
+                is FirstPassNode.TypeExpr.NamedType -> head.type to head.arguments
+                is FirstPassNode.TypeExpr.ProductType -> "#" to listOf(head.left, head.right)
+                else -> null to null
+            }
+        val boundVars = arguments?.map { (it as? FirstPassNode.TypeExpr.VarType)?.name }
+        if (headName == null || boundVars == null || boundVars.any { it == null } || boundVars.toSet().size != boundVars.size) {
+            throw RenamerException(
+                "Instance head must be a type constructor applied to distinct type variables",
+                node.node.range(),
+            )
+        }
+
+        val methods = linkedMapOf<String, MutableList<AstNode.FunctionEquation>>()
+        node.equations.forEach { equation ->
+            val (method, pattern) = parseFunctionPattern(equation.getChildOrThrow(0u), parserState.operators)
+            val body = parseExpression(equation.getChildOrThrow(1u), parserState.operators)
+            methods.getOrPut(method) { mutableListOf() }.add(AstNode.FunctionEquation(pattern, body))
+        }
+        return AstNode.InstanceDeclaration(node.cls, headName, boundVars.filterNotNull(), node.context, methods)
+    }
 
     private fun parseInternal(
         node: FirstPassNode.Statement,

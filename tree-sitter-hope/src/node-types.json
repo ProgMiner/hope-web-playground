@@ -50,6 +50,25 @@
     }
   },
   {
+    "type": "class_declaration",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "binding",
+          "named": true
+        },
+        {
+          "type": "function_declaration",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "compilation_unit",
     "named": true,
     "root": true,
@@ -58,6 +77,10 @@
       "multiple": true,
       "required": false,
       "types": [
+        {
+          "type": "class_declaration",
+          "named": true
+        },
         {
           "type": "constant_export_declaration",
           "named": true
@@ -76,6 +99,10 @@
         },
         {
           "type": "infix_declaration",
+          "named": true
+        },
+        {
+          "type": "instance_declaration",
           "named": true
         },
         {
@@ -218,6 +245,10 @@
           "named": true
         },
         {
+          "type": "type_context",
+          "named": true
+        },
+        {
           "type": "type_expression",
           "named": true
         }
@@ -257,6 +288,33 @@
         },
         {
           "type": "decimal",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "instance_declaration",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "function_equation",
+          "named": true
+        },
+        {
+          "type": "ident",
+          "named": true
+        },
+        {
+          "type": "type_context",
+          "named": true
+        },
+        {
+          "type": "type_expression",
           "named": true
         }
       ]
@@ -358,6 +416,10 @@
           "named": true
         },
         {
+          "type": "class_declaration",
+          "named": true
+        },
+        {
           "type": "constant_export_declaration",
           "named": true
         },
@@ -375,6 +437,10 @@
         },
         {
           "type": "infix_declaration",
+          "named": true
+        },
+        {
+          "type": "instance_declaration",
           "named": true
         },
         {
@@ -515,6 +581,36 @@
     }
   },
   {
+    "type": "type_constraint",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "ident",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "type_context",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "type_constraint",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "type_export_declaration",
     "named": true,
     "fields": {},
@@ -647,6 +743,10 @@
     "named": true
   },
   {
+    "type": "class",
+    "named": false
+  },
+  {
     "type": "data",
     "named": false
   },
@@ -667,6 +767,10 @@
     "named": false
   },
   {
+    "type": "given",
+    "named": false
+  },
+  {
     "type": "ident",
     "named": true
   },
@@ -684,6 +788,10 @@
   },
   {
     "type": "infixr",
+    "named": false
+  },
+  {
+    "type": "instance",
     "named": false
   },
   {
@@ -734,6 +842,10 @@
   {
     "type": "wildcard_pattern",
     "named": true
+  },
+  {
+    "type": "with",
+    "named": false
   },
   {
     "type": "{",

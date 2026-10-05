@@ -72,6 +72,7 @@ fun castFuncDecl(node: FirstPassNode.Statement.FunctionDeclaration) =
         mutableListOf(),
         node.boundVars,
         castTypeExpr(node.typeExpr),
+        node.context,
     )
 
 fun castDataDecl(node: FirstPassNode.Statement.DataDeclaration) =
